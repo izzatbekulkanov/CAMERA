@@ -1,0 +1,636 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}
+Yuz ma’lumotlari – Boshqaruv paneli
+{% endblock title %}
+
+{% block styles %}
+<link href="{% static 'assets/libs/sweetalert2/sweetalert2.min.css' %}" rel="stylesheet" type="text/css" />
+<link href="{% static 'assets/libs/toastr/toastr.min.css' %}" rel="stylesheet" type="text/css" />
+<link href="{% static 'assets/libs/datatables/datatables.min.css' %}" rel="stylesheet" type="text/css" />
+
+<style>
+    :root {
+        --primary: #4361ee;
+        --success: #10b981;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+        --dark: #1e293b;
+        --light: #f8fafc;
+    }
+
+    .card {
+        border: none;
+        border-radius: 1rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, var(--primary), #5c7cfa);
+        color: white;
+        border: none;
+        padding: 1.5rem;
+    }
+
+    .card-header h5 {
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        text-align: center;
+        transition: transform 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+    }
+
+    .stat-card .icon {
+        width: 48px; height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.75rem;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .stat-card.total .icon { background: var(--primary); }
+    .stat-card.students .icon { background: var(--success); }
+    .stat-card.employees .icon { background: #8b5cf6; }
+
+    .stat-card h3 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--dark);
+    }
+
+    .stat-card p {
+        margin: 0.25rem 0 0;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-action {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .btn-action i {
+        font-size: 1.125rem;
+    }
+
+    .search-filter-bar {
+        background: #f1f5f9;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .search-input-group {
+        position: relative;
+    }
+
+    .search-input-group input {
+        padding-left: 2.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid #cbd5e1;
+    }
+
+    .search-input-group i {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #64748b;
+    }
+
+    .table-container {
+        background: white;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    #encodings-table {
+        margin: 0;
+    }
+
+    #encodings-table thead {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+    }
+
+    #encodings-table tbody tr {
+        transition: background 0.2s;
+    }
+
+    #encodings-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #e2e8f0;
+    }
+
+    .badge-status {
+        padding: 0.35em 0.75em;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-success { background: #d1fae5; color: #065f46; }
+    .badge-primary { background: #dbeafe; color: #1e40af; }
+    .badge-danger { background: #fee2e2; color: #991b1b; }
+    .badge-dark { background: #e2e8f0; color: #1e293b; }
+
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        border: none;
+    }
+
+    .action-btn.generate {
+        background: #ecfdf5;
+        color: #065f46;
+    }
+
+    .action-btn.delete {
+        background: #fef2f2;
+        color: #991b1b;
+    }
+
+    .action-btn:hover {
+        transform: scale(1.1);
+    }
+
+    .progress-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(255,255,255,0.95);
+        backdrop-filter: blur(8px);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+    }
+
+    .progress-overlay.show {
+        display: flex;
+    }
+
+    .progress-circle {
+        width: 80px;
+        height: 80px;
+        border: 6px solid #f3f4f6;
+        border-top: 6px solid var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1.5rem;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .progress-text {
+        font-weight: 600;
+        color: var(--dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .progress-subtext {
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #94a3b8;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid { grid-template-columns: 1fr; }
+        .action-buttons { justify-content: center; }
+        .search-filter-bar .row > * { margin-bottom: 0.75rem; }
+    }
+</style>
+{% endblock styles %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Breadcrumbs -->
+    {% include 'includes/breadcrumbs.html' %}
+
+    <!-- Progress Overlay -->
+    <div id="progress-overlay" class="progress-overlay">
+        <div class="progress-circle"></div>
+        <div class="progress-text" id="progress-main-text">Jarayon boshlanmoqda...</div>
+        <div class="progress-subtext" id="progress-sub-text">Iltimos, kuting</div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+
+                </div>
+                <div class="card-body p-0">
+                    <!-- Action Buttons -->
+                    <div class="p-4 border-bottom bg-light">
+                        <div class="action-buttons">
+                            <button id="generate-students-btn" class="btn btn-success btn-action">
+                                <i class="mdi mdi-account-multiple-plus-outline"></i>
+                                Talabalar uchun yaratish
+                            </button>
+                            <button id="generate-employees-btn" class="btn btn-primary btn-action">
+                                <i class="mdi mdi-account-tie-outline"></i>
+                                Xodimlar uchun yaratish
+                            </button>
+                            <button id="clear-all-encodings" class="btn btn-outline-danger btn-action">
+                                <i class="mdi mdi-delete-sweep-outline"></i>
+                                Barchasini tozalash
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search & Filter -->
+                    <div class="search-filter-bar">
+                        <form method="get" class="row g-3 align-items-center">
+                            <div class="col-md-5">
+                                <div class="search-input-group">
+                                    <i class="mdi mdi-magnify"></i>
+                                    <input type="text" name="q" class="form-control" placeholder="Ism, ID, email bo‘yicha qidiring..." value="{{ search_query }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <select name="role" class="form-select" onchange="this.form.submit()">
+                                    <option value="">Barcha foydalanuvchilar</option>
+                                    <option value="student" {% if current_role == 'student' %}selected{% endif %}>Talabalar</option>
+                                    <option value="employee" {% if current_role == 'employee' %}selected{% endif %}>Xodimlar</option>
+                                    <option value="superadmin" {% if current_role == 'superadmin' %}selected{% endif %}>Superadminlar</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <button type="submit" class="btn btn-secondary me-2">
+                                    <i class="mdi mdi-filter"></i> Filtrlash
+                                </button>
+                                {% if search_query or current_role %}
+                                <a href="{% url 'face_encodings_list' %}" class="btn btn-outline-secondary">
+                                    <i class="mdi mdi-restore"></i> Tozalash
+                                </a>
+                                {% endif %}
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="table-container">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0" id="encodings-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center" style="width: 60px;">#</th>
+                                        <th style="width: 80px;">Rasm</th>
+                                        <th>Foydalanuvchi</th>
+                                        <th style="width: 110px;">Rol</th>
+                                        <th style="width: 140px;">ID raqami</th>
+                                        <th style="width: 100px;">Encoding</th>
+                                        <th style="width: 130px;">Yaratilgan</th>
+                                        <th style="width: 80px;" class="text-center">Amal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in page_obj %}
+                                    <tr>
+                                        <td class="text-center text-muted small">
+                                            {{ forloop.counter0|add:page_obj.start_index }}
+                                        </td>
+                                        <td>
+                                            {% if item.user.image %}
+                                                <img src="{{ item.user.image.url }}" alt="Avatar" class="avatar"
+                                                     onerror="this.src='{% static 'assets/images/users/default-avatar.png' %}'">
+                                            {% else %}
+                                                <div class="avatar bg-light d-flex align-items-center justify-content-center">
+                                                    <i class="mdi mdi-account text-muted"></i>
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold">{{ item.user.full_name|default:item.user.username }}</div>
+                                            <small class="text-muted">{{ item.user.email|default:"—" }}</small>
+                                        </td>
+                                        <td>
+                                            {% if item.user.role == 'student' %}
+                                                <span class="badge-status badge-success">Talaba</span>
+                                            {% elif item.user.role == 'employee' %}
+                                                <span class="badge-status badge-primary">Xodim</span>
+                                            {% elif item.user.is_superuser %}
+                                                <span class="badge-status badge-dark">Superadmin</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <code class="small text-muted">
+                                                {{ item.user.student_id_number|default:item.user.employee_id_number|default:"—" }}
+                                            </code>
+                                        </td>
+                                        <td>
+                                            {% if item.encoding_data %}
+                                                <span class="badge-status badge-success">Ha</span>
+                                            {% else %}
+                                                <span class="badge-status badge-danger">Yo‘q</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small class="text-muted d-block">
+                                                {{ item.created_at|date:"d.m.Y" }}
+                                            </small>
+                                            <small class="text-muted">
+                                                {{ item.created_at|time:"H:i" }}
+                                            </small>
+                                        </td>
+                                        <td class="text-center">
+                                            {% if item.encoding_data %}
+                                                <button type="button" class="action-btn delete delete-single"
+                                                        data-id="{{ item.id }}" title="O‘chirish">
+                                                    <i class="mdi mdi-delete"></i>
+                                                </button>
+                                            {% else %}
+                                                <button type="button" class="action-btn generate generate-single"
+                                                        data-id="{{ item.user.id }}" data-role="{{ item.user.role }}" title="Yaratish">
+                                                    <i class="mdi mdi-creation"></i>
+                                                </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="8" class="empty-state">
+                                            <i class="mdi mdi-emoticon-sad-outline"></i>
+                                            <h5>Hech qanday ma'lumot topilmadi</h5>
+                                            <p class="text-muted">Yangi foydalanuvchilar qo‘shing yoki encoding yarating</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                        <div class="card-footer bg-white py-3">
+                            <nav>
+                                <ul class="pagination justify-content-center mb-0">
+                                    {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_role %}&role={{ current_role }}{% endif %}">
+                                            Oldingi
+                                        </a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item disabled"><span class="page-link">Oldingi</span></li>
+                                    {% endif %}
+
+                                    {% for i in page_obj.paginator.page_range %}
+                                        {% if i == page_obj.number %}
+                                            <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                                        {% elif i > page_obj.number|add:'-2' and i < page_obj.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ i }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_role %}&role={{ current_role }}{% endif %}">{{ i }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_role %}&role={{ current_role }}{% endif %}">
+                                            Keyingi
+                                        </a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item disabled"><span class="page-link">Keyingi</span></li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block scripts %}
+<script src="{% static 'assets/libs/sweetalert2/sweetalert2.min.js' %}"></script>
+<script src="{% static 'assets/libs/toastr/toastr.min.js' %}"></script>
+<script src="{% static 'assets/libs/datatables/datatables.min.js' %}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // CSRF Token
+    const getCookie = (name) => {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    };
+    const csrftoken = getCookie('csrftoken');
+
+    // Elements
+    const overlay = document.getElementById('progress-overlay');
+    const mainText = document.getElementById('progress-main-text');
+    const subText = document.getElementById('progress-sub-text');
+
+    // Progress control
+    const showProgress = (show, title = '', subtitle = '') => {
+        overlay.classList.toggle('show', show);
+        if (title) mainText.textContent = title;
+        if (subtitle) subText.textContent = subtitle;
+    };
+
+    // Toast notification
+    const showToast = (type, title, message) => {
+        toastr.options = {
+            closeButton: true,
+            progressBar: true,
+            positionClass: 'toast-top-right',
+            showDuration: 300,
+            hideDuration: 1000,
+            timeOut: 5000,
+            extendedTimeOut: 1000,
+        };
+        toastr[type](message, title);
+    };
+
+    // Task execution
+    const runTask = async (url, confirmMsg, successTitle, successMsg) => {
+        const result = await Swal.fire({
+            title: 'Tasdiqlang',
+            text: confirmMsg,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ha, davom etish',
+            cancelButtonText: 'Bekor qilish',
+            reverseButtons: true,
+            customClass: {
+                confirmButton: 'btn btn-primary me-2',
+                cancelButton: 'btn btn-outline-secondary'
+            },
+            buttonsStyling: false
+        });
+
+        if (!result.isConfirmed) return;
+
+        showProgress(true, 'Jarayon boshlanmoqda...', 'Iltimos, kuting');
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showProgress(true, successTitle, successMsg);
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                throw new Error(data.error || 'Nomaʼlum xato');
+            }
+        } catch (error) {
+            showProgress(false);
+            showToast('error', 'Xato', error.message);
+        }
+    };
+
+    // Group actions
+    document.getElementById('generate-students-btn').onclick = () => {
+        runTask(
+            "{% url 'generate_students_face_encodings' %}",
+            "Barcha talabalar uchun yuz encoding yaratilsinmi?",
+            "Muvaffaqiyatli!",
+            "Talabalar uchun encoding yaratildi"
+        );
+    };
+
+    document.getElementById('generate-employees-btn').onclick = () => {
+        runTask(
+            "{% url 'generate_employees_face_encodings' %}",
+            "Barcha xodimlar uchun yuz encoding yaratilsinmi?",
+            "Muvaffaqiyatli!",
+            "Xodimlar uchun encoding yaratildi"
+        );
+    };
+
+    document.getElementById('clear-all-encodings').onclick = () => {
+        runTask(
+            "{% url 'clear_all_face_encodings' %}",
+            "Barcha yuz ma’lumotlari o‘chiriladi. Davom etasizmi?",
+            "Tozalandi!",
+            "Barcha encodinglar o‘chirildi"
+        );
+    };
+
+    // Single actions
+    document.querySelectorAll('.generate-single').forEach(btn => {
+        btn.onclick = function() {
+            const userId = this.dataset.id;
+            const role = this.dataset.role;
+            const roleName = role === 'student' ? 'talaba' : 'xodim';
+
+            runTask(
+                `/generate-single-encoding/${userId}/`,
+                `Bu ${roleName} uchun encoding yaratilsinmi?`,
+                "Yaratildi!",
+                `${roleName} uchun encoding muvaffaqiyatli yaratildi`
+            );
+        };
+    });
+
+    document.querySelectorAll('.delete-single').forEach(btn => {
+        btn.onclick = function() {
+            const encId = this.dataset.id;
+
+            runTask(
+                `/delete-encoding/${encId}/`,
+                "Bu encoding o‘chirilsinmi?",
+                "O‘chirildi!",
+                "Encoding muvaffaqiyatli o‘chirildi"
+            );
+        };
+    });
+
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock scripts %}

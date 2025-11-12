@@ -1,0 +1,21 @@
+{% load static %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box">
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    {% for crumb in breadcrumbs %}
+                        {% if crumb.url %}
+                            <li class="breadcrumb-item"><a href="{{ crumb.url }}">{{ crumb.name }}</a></li>
+                        {% else %}
+                            <li class="breadcrumb-item active">{{ crumb.name }}</li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </div>
+            {% with breadcrumbs|last as last_crumb %}
+                <h4 class="page-title">{{ last_crumb.name }}</h4>
+            {% endwith %}
+        </div>
+    </div>
+</div>

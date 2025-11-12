@@ -1,0 +1,239 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block styles %}
+{% endblock styles %}
+
+{% block title %}
+Foydalanuvchilar ro'yxati
+{% endblock title %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- start page title -->
+    {% include 'includes/breadcrumbs.html' %}
+    <!-- end page title -->
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+
+                    <!-- === Qidiruv + Filter + Tugmalar (to'liq bir qatorda, bo'shliqsiz) === -->
+                    <div class="row mb-3 g-2 align-items-center">
+                        <!-- 1. Qidiruv -->
+                        <div class="col-sm-3">
+                            <form method="get" class="d-flex">
+                                <input type="text" name="q" class="form-control form-control-sm me-1" placeholder="Qidirish..." value="{{ search_query }}">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="mdi mdi-magnify"></i>
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- 2. Rol filteri -->
+                        <div class="col-sm-2">
+                            <form method="get" class="d-flex">
+                                <select name="role" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="">Barchasi</option>
+                                    <option value="student" {% if current_role == 'student' %}selected{% endif %}>Talabalar</option>
+                                    <option value="employee" {% if current_role == 'employee' %}selected{% endif %}>Hodimlar</option>
+                                    <option value="superadmin" {% if current_role == 'superadmin' %}selected{% endif %}>Superadmin</option>
+                                </select>
+                                {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+                            </form>
+                        </div>
+
+                        <!-- 3. Tozalash (faqat kerak bo'lganda) -->
+                        <div class="col-sm-1 text-start">
+                            {% if search_query or current_role %}
+                            <a href="{% url 'users_list' %}" class="btn btn-outline-secondary btn-sm">
+                                <i class="mdi mdi-restore"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+
+                        <!-- 4. Asosiy tugmalar (chapda va o'ngda, bo'shliq yo'q) -->
+                        <div class="col-sm-6">
+                            <div class="d-flex justify-content-between align-items-center h-100">
+                                <!-- Chap: Yangi qo'shish -->
+                                <div>
+                                    <button type="button" class="btn btn-danger waves-effect waves-light btn-sm"
+                                            data-bs-toggle="modal" data-bs-target="#custom-modal">
+                                        <i class="mdi mdi-plus-circle me-1"></i> Yangi qo‘shish
+                                    </button>
+                                </div>
+
+                                <!-- O'ng: Sozlamalar + Yuklash -->
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-success btn-sm">
+                                        <i class="mdi mdi-cog"></i>
+                                    </button>
+                                    <a href="{% url 'import_users' %}" class="btn btn-light btn-sm">
+                                        Yuklash
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- end row -->
+
+                    <div class="table-responsive">
+                        <table class="table table-centered table-nowrap table-striped" id="users-datatable">
+                            <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Foydalanuvchi</th>
+                                <th>Telefon</th>
+                                <th>Email</th>
+                                <th>Bo‘lim / Mutaxassislik</th>
+                                <th>Yuz ma’lumoti</th>
+                                <th>Yaratilgan sana</th>
+                                <th>Holat</th>
+                                <th style="width: 85px;">Amallar</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <!-- Tartib raqami -->
+                                <td>
+                                    {% if page_obj %}
+                                        {{ forloop.counter0|add:page_obj.start_index }}
+                                    {% else %}
+                                        {{ forloop.counter }}
+                                    {% endif %}
+                                </td>
+
+                                <!-- Foydalanuvchi rasmi + ism -->
+                                <td class="table-user">
+                                    {% if user.image %}
+                                        <img src="{{ user.image.url }}" alt="user-image" class="me-2 rounded-circle"
+                                             width="40" height="40">
+                                    {% else %}
+                                        <img src="{% static 'assets/images/users/default-avatar.png' %}"
+                                             alt="user-image" class="me-2 rounded-circle" width="40" height="40">
+                                    {% endif %}
+                                    <a href="#" class="text-body fw-semibold">
+                                        {{ user.full_name|default:user.username }}
+                                    </a><br>
+                                    <small class="text-muted">{{ user.get_role_display }}</small>
+                                </td>
+
+                                <!-- Telefon -->
+                                <td>
+                                    {% if user.contact_phone %}
+                                        {{ user.contact_phone }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Email -->
+                                <td>{{ user.email|default:"—" }}</td>
+
+                                <!-- Bo‘lim yoki mutaxassislik -->
+                                <td>
+                                    {% if user.department_name %}
+                                        {{ user.department_name }}
+                                    {% elif user.specialty %}
+                                        {{ user.specialty }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Yuz ma’lumoti -->
+                                <td>
+                                    {% if user.has_face_encoding %}
+                                        <span class="badge bg-soft-success text-success">Bor</span>
+                                    {% else %}
+                                        <span class="badge bg-soft-danger text-danger">Yo‘q</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Yaratilgan sana -->
+                                <td>{{ user.created_at|date:"d.m.Y" }}</td>
+
+                                <!-- Holat -->
+                                <td>
+                                    {% if user.active %}
+                                        <span class="badge bg-soft-success text-success">Faol</span>
+                                    {% else %}
+                                        <span class="badge bg-soft-danger text-danger">Nofaol</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Amal tugmalari -->
+                                <td>
+                                    <a href="{% url 'my_profile' %}?id={{ user.id }}" class="action-icon text-primary" title="Tahrirlash">
+                                        <i class="mdi mdi-square-edit-outline"></i>
+                                    </a>
+                                    <a href="#" class="action-icon text-danger" title="O‘chirish">
+                                        <i class="mdi mdi-delete"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-3">
+                                    Foydalanuvchilar mavjud emas
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+
+                        <!-- Pagination -->
+                        {% if page_obj %}
+                        <ul class="pagination pagination-rounded justify-content-end mb-0">
+                            <!-- Oldingi tugma -->
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                        <span aria-hidden="true">«</span>
+                                        <span class="visually-hidden">Oldingi</span>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">«</span>
+                                </li>
+                            {% endif %}
+
+                            <!-- Sahifalar raqami -->
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if num == page_obj.number %}
+                                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            <!-- Keyingi tugma -->
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                        <span aria-hidden="true">»</span>
+                                        <span class="visually-hidden">Keyingi</span>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">»</span>
+                                </li>
+                            {% endif %}
+                        </ul>
+                        {% endif %}
+                    </div> <!-- end table-responsive -->
+
+                </div> <!-- end card-body -->
+            </div> <!-- end card -->
+        </div> <!-- end col -->
+    </div> <!-- end row -->
+</div> <!-- end container-fluid -->
+{% endblock content %}
+
+{% block scripts %}
+{% endblock scripts %}

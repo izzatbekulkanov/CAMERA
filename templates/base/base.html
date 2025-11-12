@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en" data-layout="horizontal" data-topbar-color="dark">
+{% load static %}
+<head>
+    {% include 'includes/head.html' %}
+<title>
+        {% block title %}
+
+
+    {% endblock title %}
+      </title>
+    {% block styles %}
+    {% endblock styles %}
+</head>
+<body>
+    <!-- Begin page -->
+    <div id="wrapper">
+        
+        <!-- ========== Left Sidebar Start ========== -->
+        {% include 'components/sidebar.html' %}
+        <!-- ========== Left Sidebar End ========== -->
+        
+        <!-- ============================================================== -->
+        <!-- Start Page Content here -->
+        <!-- ============================================================== -->
+        <div class="content-page">
+
+            <!-- ========== Topbar Start ========== -->
+            {% include 'components/navbar.html' %}
+            <!-- ========== Topbar End ========== -->
+
+            <div class="content">
+                <!-- Start Content-->
+                {% block content %}
+                {% endblock content %}
+                <!-- End Content -->
+            </div> <!-- content -->
+
+            <!-- ========== Footer Start ========== -->
+            {% include 'components/footer.html' %}
+            <!-- ========== Footer End ========== -->
+
+        </div>
+        <!-- ============================================================== -->
+        <!-- End Page content -->
+        <!-- ============================================================== -->
+    </div>
+    <!-- END wrapper -->
+
+    <!-- Theme Settings -->
+    {% include 'includes/site_settings.html' %}
+
+    <!-- Scripts -->
+    {% include 'includes/scripts.html' %}
+    {% block scripts %}
+    {% endblock scripts %}
+</body>
+</html>

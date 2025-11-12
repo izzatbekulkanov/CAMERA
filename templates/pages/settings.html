@@ -1,0 +1,136 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block styles %}
+    <link href="{% static 'assets/libs/select2/css/select2.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/dropzone/min/dropzone.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/quill/quill.core.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/quill/quill.snow.css' %}" rel="stylesheet" type="text/css" />
+    <!-- jQuery Toast css -->
+    <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css" />
+{% endblock styles %}
+
+
+{% block title %}
+Sayt sozlamalari
+
+{% endblock title %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- start page title -->
+    {% include 'includes/breadcrumbs.html' %}
+    <!-- end page title -->
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="text-uppercase bg-light p-2 mt-0 mb-3">Umumiy Sozlamalar</h5>
+
+                        <div class="mb-3">
+                            <label for="site-name" class="form-label">Sayt nomi</label>
+                            <input type="text" id="site-name" name="site_name" class="form-control"
+                                   value="{{ site_settings.site_name }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="site-status" class="form-label">Sayt holati</label>
+                            <select id="site-status" name="site_status" class="form-control select2">
+                                <option value="online" {% if site_settings.site_status == 'online' %}selected{% endif %}>Online</option>
+                                <option value="maintenance" {% if site_settings.site_status == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                                <option value="offline" {% if site_settings.site_status == 'offline' %}selected{% endif %}>Offline</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="contact-email" class="form-label">Kontakt email</label>
+                            <input type="email" id="contact-email" name="contact_email" class="form-control"
+                                   value="{{ site_settings.contact_email }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="contact-phone" class="form-label">Kontakt telefon</label>
+                            <input type="text" id="contact-phone" name="contact_phone" class="form-control"
+                                   value="{{ site_settings.contact_phone }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="hemis-url" class="form-label">HEMIS URL</label>
+                            <input type="url" id="hemis-url" name="hemis_url" class="form-control"
+                                   value="{{ site_settings.hemis_url }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="hemis-api" class="form-label">HEMIS API Token</label>
+                            <input type="text" id="hemis-api" name="hemis_api_token" class="form-control"
+                                   value="{{ site_settings.hemis_api_token }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="text-uppercase mt-0 mb-3 bg-light p-2">Sayt Logolari</h5>
+
+                        <div class="mb-3">
+                            <label for="logo-dark" class="form-label">Qora logotip</label>
+                            <input type="file" id="logo-dark" name="logo_dark" class="form-control">
+                            {% if site_settings.logo_dark %}
+                                <img src="{{ site_settings.logo_dark.url }}" class="mt-2" width="120" alt="Logo Dark">
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="logo-light" class="form-label">Oq logotip</label>
+                            <input type="file" id="logo-light" name="logo_light" class="form-control">
+                            {% if site_settings.logo_light %}
+                                <img src="{{ site_settings.logo_light.url }}" class="mt-2" width="120" alt="Logo Light">
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-12 text-center">
+                <button type="submit" class="btn btn-success waves-effect waves-light">Saqlash</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock content %}
+
+{% block scripts %}
+    <!-- Select2 js -->
+    <script src="{% static 'assets/libs/select2/js/select2.min.js' %}"></script>
+
+    <!-- jQuery Toast Plugin -->
+    <script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
+
+    <!-- Toastr init js -->
+    <script src="{% static 'assets/js/pages/toastr.init.js' %}"></script>
+
+    <!-- ✅ Django messages → Toastr -->
+    <script>
+        {% if messages %}
+            {% for message in messages %}
+                $.toast({
+                    heading: "{% if message.tags == 'success' %}Muvaffaqiyat{% elif message.tags == 'error' %}Xatolik{% else %}Xabar{% endif %}",
+                    text: "{{ message|escapejs }}",
+                    showHideTransition: 'slide',
+                    icon: "{{ message.tags }}", // success, error, info, warning
+                    position: 'top-right',
+                    hideAfter: 5000
+                });
+            {% endfor %}
+        {% endif %}
+    </script>
+{% endblock scripts %}
+
