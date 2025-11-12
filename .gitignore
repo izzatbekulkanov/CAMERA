@@ -78,7 +78,6 @@ celerybeat.pid
 # Media / Static
 media/
 staticfiles/
-static/
 
 # Misc
 .DS_Store
