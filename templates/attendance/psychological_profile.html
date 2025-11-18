@@ -1,0 +1,183 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Psixologik portretlar{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    {% include 'includes/breadcrumbs.html' with breadcrumbs=breadcrumbs %}
+
+    <!-- Loader -->
+    <div id="analyzeLoader" class="text-center mb-4 d-none">
+        <div class="progress" style="height: 32px;">
+            <div id="analyzeProgress" class="progress-bar progress-bar-striped progress-bar-animated bg-primary text-white fw-bold"
+                 style="width: 0%">0%</div>
+        </div>
+        <div id="loaderText" class="mt-2 fw-bold text-muted">AI tahlil qilmoqda...</div>
+    </div>
+
+    <!-- Filter + Stats -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+            <div class="row align-items-center g-3">
+                <div class="col-auto">
+                    <input type="date" id="analyzeDate" class="form-control form-control-sm"
+                           value="{{ today|date:'Y-m-d' }}">
+                </div>
+                <div class="col-auto">
+                    <button id="analyzeBtn" class="btn btn-primary btn-sm px-4">
+                        Tahlil yangilash
+                    </button>
+                </div>
+                <div class="col ms-auto text-end">
+                    <span class="text-muted me-3">Jami: <strong>{{ total_employees }}</strong></span>
+                    <span class="text-danger">Jiddiy: <strong>{{ critical_count }}</strong></span>
+                    <span class="text-warning ms-3">Ehtiyot: <strong>{{ warning_count }}</strong></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Jadval -->
+    <div class="card border-0 shadow">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width:40px;">#</th>
+                        <th style="width:60px;"></th>
+                        <th>F.I.O</th>
+                        <th class="text-center">Stress</th>
+                        <th class="text-center">Kayfiyat</th>
+                        <th class="text-center">Energiya</th>
+                        <th class="text-center">Holat</th>
+                        <th>Izoh</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in profiles %}
+                    <tr class="{% if p.state == 'critical' %}table-danger{% elif p.state == 'warning' %}table-warning{% elif p.state == 'excellent' %}table-success{% elif p.state == 'good' %}table-info{% endif %}">
+                        <td class="text-center small text-muted">{{ forloop.counter }}</td>
+                        <td>
+                            <img src="{{ p.user.image.url }}" class="rounded-circle" width="44" height="44" style="object-fit: cover;">
+                        </td>
+                        <td class="fw-semibold">{{ p.user.full_name }}</td>
+
+                        <td>
+                            <div class="progress" style="height:22px;">
+                                <div class="progress-bar bg-danger text-white" style="width:{{ p.stress }}%">{{ p.stress }}%</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="progress" style="height:22px;">
+                                <div class="progress-bar bg-primary text-white" style="width:{{ p.mood }}%">{{ p.mood }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="progress" style="height:22px;">
+                                <div class="progress-bar bg-success text-white" style="width:{{ p.energy }}%">{{ p.energy }}%</div>
+                            </div>
+                        </td>
+
+                        <td class="text-center">
+                            <span class="badge rounded-pill px-3
+                                {% if p.state == 'excellent' %}bg-success
+                                {% elif p.state == 'good' %}bg-primary
+                                {% elif p.state == 'normal' %}bg-secondary
+                                {% elif p.state == 'warning' %}bg-warning text-dark
+                                {% else %}bg-danger{% endif %}">
+                                {{ p.state_display }}
+                            </span>
+                        </td>
+
+                        <!-- Izoh: Unikal ID bilan -->
+                        <td>
+                            <a href="#" class="text-decoration-none text-primary"
+                               data-bs-toggle="modal" data-bs-target="#psychModal{{ forloop.counter }}">
+                                {{ p.psychology|truncatechars:20 }}
+                                {% if p.psychology|length > 20 %}... <u>batafsil</u>{% endif %}
+                            </a>
+                        </td>
+                    </tr>
+
+                    <!-- Unikal modal – forloop.counter orqali -->
+                    <div class="modal fade" id="psychModal{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header border-0 pb-2">
+                                    <h5 class="modal-title d-flex align-items-center">
+                                        <img src="{{ p.user.image.url }}" class="rounded-circle me-3" width="44" height="44">
+                                        <div>
+                                            <div class="fw-bold">{{ p.user.full_name }}</div>
+                                            <small class="text-muted">Oxirgi 30 kunlik tahlil</small>
+                                        </div>
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Yopish"></button>
+                                </div>
+                                <div class="modal-body pt-3">
+                                    <p class="lead lh-lg">{{ p.psychology|linebreaksbr }}</p>
+                                </div>
+                                <div class="modal-footer border-0">
+                                    <small class="text-muted me-auto">{{ today }}</small>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+                                        Yopish
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="fas fa-users-slash fa-2x mb-3 opacity-50"></i><br>
+                            Hozircha ma'lumot mavjud emas
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+$(function() {
+    const loader = $('#analyzeLoader');
+    const bar = $('#analyzeProgress');
+    const txt = $('#loaderText');
+    const btn = $('#analyzeBtn');
+
+    const ws = new WebSocket(
+        (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/psychology/'
+    );
+
+    ws.onmessage = function(e) {
+        const d = JSON.parse(e.data);
+        if (d.progress !== undefined) {
+            loader.removeClass('d-none');
+            bar.css('width', d.progress + '%').text(d.progress + '%');
+            txt.text(`AI tahlil qilmoqda: ${d.user_full_name || 'xodim'} (${d.progress}%)`);
+        }
+        if (d.completed) {
+            bar.css('width','100%').text('100%');
+            txt.text('Yakunlandi! Yangilanmoqda...');
+            setTimeout(() => location.reload(), 1200);
+        }
+    };
+
+    btn.on('click', function() {
+        loader.removeClass('d-none');
+        bar.css('width','0%').text('0%');
+        txt.text('Boshlanmoqda...');
+        ws.send(JSON.stringify({
+            action: "start_analysis",
+            date: $('#analyzeDate').val()
+        }));
+    });
+});
+</script>
+{% endblock %}

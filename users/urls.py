@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .view.face import generate_students_face_encodings, generate_employees_face_encodings, clear_all_face_encodings
+
 from .view.user import profile_view, users_list_view, import_users_view, get_groups, get_specialties, \
     sync_employees_from_hemis, get_sync_progress, clear_employees, sync_students_from_hemis, clear_students, \
     face_encoding_list_view
@@ -29,7 +29,4 @@ urlpatterns = [
     # 🧠 Face Encodings ro‘yxati
     path('face-encodings/', face_encoding_list_view, name='face_encodings_list'),
     path('users/face-encodings/', face_encoding_list_view, name='face_encodings_list'),
-    path('users/face-encodings/generate-students/', generate_students_face_encodings, name='generate_students_face_encodings'),
-    path('users/face-encodings/generate-employees/', generate_employees_face_encodings, name='generate_employees_face_encodings'),
-    path('users/face-encodings/clear-all/', clear_all_face_encodings, name='clear_all_face_encodings'),
 ]

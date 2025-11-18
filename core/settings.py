@@ -1,18 +1,25 @@
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from django.utils.translation import gettext_lazy as _
 
-# Load environment variables
+# ===============================
+# 🔹 .env faylini yuklash
+# ===============================
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY SETTINGS
+# ===============================
+# 🔹 Asosiy sozlamalar
+# ===============================
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-default-key")
 DEBUG = os.getenv("DEBUG", "True") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else ["*"]
 
-# APPLICATIONS
+# ===============================
+# 🔹 Ilovalar
+# ===============================
 INSTALLED_APPS = [
     # Default Django apps
     'django.contrib.admin',
@@ -23,15 +30,23 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Local apps
-    'users',  # foydalanuvchilar uchun app (keyingi qadamda yaratamiz)
-    'attendance',  # kirish/chiqish va kamera uchun app (keyingi qadamda)
+    'users',
+    'attendance',
+    'camera',
 
-    # 3rd-party apps (agar kerak bo‘lsa, keyinchalik qo‘shamiz)
+    # 3rd-party apps
+    'channels',
+    'rosetta',
 ]
 
+# ===============================
+# 🔹 Middleware
+# ===============================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',  # 🔥 Session / cookie asosida ishlaydi
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -39,17 +54,23 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# Agar siz productionda ham collectstatic qilmasdan ishlashni xohlaysiz:
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 ROOT_URLCONF = 'core.urls'
 
-# TEMPLATE SETTINGS
+# ===============================
+# 🔹 Templates
+# ===============================
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],  # ✅ templates papkani ishlatadi
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
+                'django.template.context_processors.i18n',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -59,16 +80,35 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
+ASGI_APPLICATION = 'core.asgi.application'
 
-# DATABASE SETTINGS (SQLite — boshlang‘ich uchun)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# ===============================
+# 🔹 Database (SQLite / PostgreSQL)
+# ===============================
+DBTYPE = os.getenv('DBTYPE', 'S').upper()
+
+if DBTYPE == 'P':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'cameradb'),
+            'USER': os.getenv('DB_USER', 'camerauser'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'admin1231'),
+            'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
-# PASSWORD VALIDATION
+# ===============================
+# 🔹 Password validators
+# ===============================
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -76,75 +116,76 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# LANGUAGE & TIME SETTINGS
+# ===============================
+# 🔹 Localization
+# ===============================
 LANGUAGE_CODE = 'uz'
-TIME_ZONE = 'Asia/Tashkent'  # ✅ O‘zbekiston vaqti
+TIME_ZONE = 'Asia/Tashkent'
 USE_I18N = True
+USE_L10N = True
 USE_TZ = True
-
-# STATIC & MEDIA SETTINGS
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',  # developmentda
+LANGUAGES = [
+    ('uz', _('Oʻzbekcha')),
+    ('ru', _('Ruscha')),
+    ('en', _('Inglizcha')),
 ]
-STATIC_ROOT = BASE_DIR / 'staticfiles'  # production uchun (collectstatic bilan)
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
 
+# ===============================
+# 🔹 Static va Media
+# ===============================
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'  # ✅ rasm/video saqlash joyi
+MEDIA_ROOT = BASE_DIR / 'media'
 
-# DEFAULTS
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# AUTH MODEL
+# ===============================
+# 🔹 Custom User
+# ===============================
 AUTH_USER_MODEL = 'users.CustomUser'
 
-# Login bo‘lgandan keyin yo‘naltiriladigan sahifa
 LOGIN_REDIRECT_URL = 'dashboard'
-
-# Logout bo‘lgandan keyin yo‘naltiriladigan sahifa
 LOGOUT_REDIRECT_URL = 'logout'
-
-# Agar login kerak bo‘lgan sahifaga (masalan, @login_required bilan himoyalangan)
-# login qilinmagan foydalanuvchi kirsa — shu sahifaga yo‘naltiriladi
 LOGIN_URL = 'login'
 
-
 # ===============================
-# 🔹 CELERY konfiguratsiyasi
+# 🔹 Celery / Redis
 # ===============================
-CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
-CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'  # <-- Backendni alohida DB qilib oling
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://127.0.0.1:6379/1')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'Asia/Tashkent'
+CELERY_TIMEZONE = os.getenv('CELERY_TIMEZONE', 'Asia/Tashkent')
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 daqiqa limit
 
 # ===============================
-# 🔹 CHANNELS (Daphne/WebSocket)
+# 🔹 Channels (WebSocket)
 # ===============================
-ASGI_APPLICATION = 'core.asgi.application'
-
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],  # Redis xost
+            'hosts': [(os.getenv('CHANNELS_REDIS_HOST', '127.0.0.1'),
+                       int(os.getenv('CHANNELS_REDIS_PORT', 6379)))],
         },
     },
 }
 
 # ===============================
-# 🔹 REDIS CACHE (ixtiyoriy, lekin tavsiya etiladi)
+# 🔹 Redis Cache (ixtiyoriy)
 # ===============================
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/2',  # yana bitta DB
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+        'LOCATION': 'redis://127.0.0.1:6379/2',
+        'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'}
     }
 }

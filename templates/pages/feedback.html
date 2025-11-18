@@ -1,0 +1,175 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Fikr va takliflar – NamDPI{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    {% include 'includes/breadcrumbs.html' with breadcrumbs=breadcrumbs %}
+
+    <!-- Header -->
+    <div class="text-center mb-5">
+        <h1 class="display-5 fw-bold text-primary">Fikr va takliflaringiz</h1>
+        <p class="lead text-muted">
+            Tizimni yanada yaxshilashda <strong>sizning fikringiz eng muhimi</strong>. Bir daqiqa vaqtingizni ayamasangiz, rahmat!
+        </p>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+
+            <!-- Muvaffaqiyat xabari (yuborilgandan keyin) -->
+            <div id="successMessage" class="alert alert-success d-none shadow-sm border-0">
+                <h4 class="alert-heading">
+                    <i class="fas fa-check-circle me-2"></i>Rahmat!
+                </h4>
+                <p class="mb-0">Fikringiz muvaffaqiyatli yuborildi. Tez orada javob beraman ❤️</p>
+            </div>
+
+            <!-- Feedback form -->
+            <div class="card border-0 shadow">
+                <div class="card-body p-5">
+                    <form id="feedbackForm" novalidate>
+                        {% csrf_token %}
+
+                        <!-- Ism (ixtiyoriy) -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Ismingiz <small class="text-muted">(ixtiyoriy)</small></label>
+                            <input type="text" name="full_name" class="form-control form-control-lg" placeholder="Masalan: Aliyeva Madina">
+                        </div>
+
+                        <!-- Lavozim yoki bo‘lim -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Lavozimingiz yoki bo‘limingiz</label>
+                            <input type="text" name="position" class="form-control" placeholder="Masalan: Ingliz tili o‘qituvchisi" required>
+                        </div>
+
+                        <!-- Fikr turi -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Fikr turi</label>
+                            <div class="row g-3">
+                                <div class="col-sm-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="type" value="taklif" id="type1" checked>
+                                        <label class="form-check-label fw-medium" for="type1">
+                                            Taklif
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="type" value="xato" id="type2">
+                                        <label class="form-check-label fw-medium" for="type2">
+                                            Xato topdim
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="type" value="rahmat" id="type3">
+                                        <label class="form-check-label fw-medium" for="type3">
+                                            Rahmat aytmoqchiman
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Baholash (1-5 yulduzcha) -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Tizimni qanchalik yoqtirdingiz?</label>
+                            <div class="star-rating">
+                                {% for i in "54321" %}
+                                <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}" required>
+                                <label for="star{{ i }}" title="{{ i }} yulduz"></label>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Asosiy fikr -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Fikr yoki taklifingiz</label>
+                            <textarea name="message" class="form-control form-control-lg" rows="6"
+                                      placeholder="Bu yerda hamma narsani yozishingiz mumkin – xato, taklif, rahmat..." required></textarea>
+                        </div>
+
+                        <!-- Yuborish tugmasi -->
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold">
+                                <i class="fas fa-paper-plane me-2"></i> Yuborish
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Qo‘shimcha motivatsiya -->
+            <div class="text-center mt-5">
+                <p class="text-muted">
+                    <em>Har bir fikringiz tizimni yanada yaxshilaydi.<br>
+                    Sizning ovozingiz – mening ilhom manbayim</em>
+                </p>
+                <img src="{% static 'assets/images/users/izzatbek.jpg' %}"
+                     class="rounded-circle shadow" width="80" height="80" alt="Izzatbek Ulkanov">
+                <p class="mt-3 fw-semibold">Izzatbek Ulkanov • NamDPI muallifi</p>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.star-rating {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.star-rating input {
+    display: none;
+}
+.star-rating label {
+    font-size: 2.2rem;
+    color: #ddd;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.star-rating input:checked ~ label,
+.star-rating label:hover,
+.star-rating label:hover ~ label {
+    color: #ffd700;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('feedbackForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // Formani yuborish (keyin backendga ulaysiz)
+    fetch("", {  // yoki to‘g‘ridan-to‘g‘ri URL
+        method: "POST",
+        body: new FormData(this),
+        headers: { "X-CSRFToken": "{{ csrf_token }}" }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('successMessage').classList.remove('d-none');
+            document.getElementById('feedbackForm').reset();
+            document.querySelectorAll('.star-rating input').forEach(r => r.checked = false);
+            setTimeout(() => {
+                document.getElementById('successMessage').scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+    })
+    .catch(() => {
+        alert('Xatolik yuz berdi. Iltimos, Telegram orqali yozing: @lzzatbekUlkanov');
+    });
+});
+</script>
+{% endblock %}

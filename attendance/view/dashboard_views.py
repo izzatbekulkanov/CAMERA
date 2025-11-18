@@ -1,3 +1,4 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -6,7 +7,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
-class DashboardView(TemplateView):
+class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "pages/home.html"
 
     def get_context_data(self, **kwargs):

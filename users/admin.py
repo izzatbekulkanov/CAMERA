@@ -68,27 +68,29 @@ class CustomUserAdmin(admin.ModelAdmin):
 
 @admin.register(FaceEncoding)
 class FaceEncodingAdmin(admin.ModelAdmin):
-    list_display = (
-        "id", "user", "face_image_preview", "created_at"
-    )
-    list_filter = ("created_at",)
-    search_fields = ("user__full_name", "user__username")
-    readonly_fields = ("created_at", "face_image_preview")
+    list_display = ("id", "user", "user_full_name", "face_image_preview", "created_at")
+    list_filter = ("created_at", "user__role")
+    search_fields = ("user__full_name", "user__username", "user__email")
+    readonly_fields = ("created_at", "face_image_preview", "encoding_data")
     list_per_page = 20
 
     fieldsets = (
         (_("Foydalanuvchi"), {"fields": ("user",)}),
         (_("Yuz ma’lumoti"), {
-            "fields": ("image", "face_image_preview", "encoding_data")
+            "fields": ("face_image_preview", "encoding_data")
         }),
         (_("Tizim"), {"fields": ("created_at",)}),
     )
 
+    def user_full_name(self, obj):
+        return obj.user.full_name or obj.user.username
+    user_full_name.short_description = _("Ism")
+
     def face_image_preview(self, obj):
-        if obj.image:
+        if obj.user.image:
             return format_html(
-                '<img src="{}" style="width:60px; height:60px; border-radius:8px; object-fit:cover;" />',
-                obj.image.url
+                '<img src="{}" style="width:60px; height:60px; border-radius:8px; object-fit:cover; border:2px solid #0ff;" />',
+                obj.user.image.url
             )
         return "–"
-    face_image_preview.short_description = _("Rasm ko‘rinishi")
+    face_image_preview.short_description = _("Rasm")

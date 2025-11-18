@@ -1,4 +1,4 @@
-{% load static %}
+{% load static i18n %}
 
 <footer class="footer">
     <div class="container-fluid">
@@ -6,13 +6,14 @@
             <div class="col-md-6">
                 <div>
                     <script>document.write(new Date().getFullYear())</script>
-                    © Ubold - <a href="https://coderthemes.com/" target="_blank">Coderthemes.com</a></div>
+                    © NamDPI - <a href="https://namspi.uz/" target="_blank">NamSPI.uz</a>
+                </div>
             </div>
             <div class="col-md-6">
-                <div class="d-none d-md-flex gap-4 align-item-center justify-content-md-end footer-links">
-                    <a href="javascript: void(0);">About</a>
-                    <a href="javascript: void(0);">Support</a>
-                    <a href="javascript: void(0);">Contact Us</a>
+                <div class="d-none d-md-flex gap-4 align-items-center justify-content-md-end footer-links">
+                    <a href="{% url 'about' %}">{% trans "Biz haqimizda" %}</a>
+                    <a href="{% url 'feedback' %}">{% trans "Qo‘llab-quvvatlash" %}</a>
+                    <a href="{% url 'contact' %}">{% trans "Bog‘lanish" %}</a>
                 </div>
             </div>
         </div>

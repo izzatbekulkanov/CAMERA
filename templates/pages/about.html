@@ -1,0 +1,143 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Biz haqimizda – NamDPI{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    {% include 'includes/breadcrumbs.html' with breadcrumbs=breadcrumbs %}
+
+    <!-- Header -->
+    <div class="text-center mb-5">
+        <h1 class="display-5 fw-bold text-primary">NamDPI • Davomat va Psixologik Monitoring</h1>
+        <p class="lead text-muted mt-3">
+            Namangan Davlat Pedagogika Instituti xodimlari uchun zamonaviy, aqlli va insonparvar monitoring tizimi
+        </p>
+    </div>
+
+    <div class="row g-5">
+
+        <!-- Missiya va maqsad -->
+        <div class="col-lg-8 mx-auto">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-5">
+                    <h3 class="fw-bold text-primary mb-4"><i class="fas fa-bullseye me-3"></i>Bizning maqsadimiz</h3>
+                    <p class="fs-5 text-muted lh-lg">
+                        NamDPI — bu oddiy davomat emas. Bu har bir xodimning ruhiy holatini, energiya darajasini va ishga munosabatini
+                        sun’iy intellekt yordamida real vaqt rejimida kuzatib boradigan <strong>birinchi o‘zbekona HR AI tizimi</strong>.
+                    </p>
+                    <p class="fs-5 text-muted lh-lg">
+                        Biz rahbarlarga “kim kech qoldi?” emas, balki <strong>“kim charchadi, kim yordamga muhtoj?”</strong> degan savolni
+                        berish imkonini beramiz. Chunki samarali jamoa — bu faqat ishlaydigan emas, balki o‘zini yaxshi his qiladigan xodimlardan iborat.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Asosiy xususiyatlar -->
+        <div class="col-lg-10 mx-auto">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width:80px;height:80px;">
+                            <i class="fas fa-camera fa-2x text-primary"></i>
+                        </div>
+                        <h5 class="fw-bold">Yuzni tanish</h5>
+                        <p class="text-muted small">Kirish-chiqishni avtomatik aniqlaydi</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width:80px;height:80px;">
+                            <i class="fas fa-brain fa-2x text-success"></i>
+                        </div>
+                        <h5 class="fw-bold">AI Psixolog</h5>
+                        <p class="text-muted small">Stress, kayfiyat va energiyani tahlil qiladi</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width:80px;height:80px;">
+                            <i class="fas fa-bell fa-2x text-warning"></i>
+                        </div>
+                        <h5 class="fw-bold">Aqlli ogohlantirish</h5>
+                        <p class="text-muted small">Burnout oldidan rahbarni ogohlantiradi</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Jamoa -->
+        <div class="col-12">
+            <h3 class="text-center fw-bold mb-5">Loyiha jamoasi</h3>
+            <div class="row justify-content-center g-4">
+                <div class="col-md-3 col-6">
+                    <div class="text-center">
+                        <img src="{% static 'assets/images/users/izzatbek.jpg' %}"
+                             alt="Izzatbek Ulkanov"
+                             class="rounded-circle shadow mb-3"
+                             width="140" height="140" style="object-fit: cover;">
+                        <h5 class="fw-bold">Izzatbek Ulkanov</h5>
+                        <p class="text-primary small mb-1">Asosiy ishlab chiqaruvchi</p>
+                        <p class="text-muted small">
+                            Full-Stack Developer • AI Enthusiast<br>
+                            <a href="https://t.me/lzzatbekUlkanov" target="_blank" class="text-decoration-none">@lzzatbekUlkanov</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-4">
+                <p class="text-muted">
+                    <em>Barcha ishlar bitta odam tomonidan mustaqil ravishda amalga oshirildi — sevgi va mas'uliyat bilan ❤️</em>
+                </p>
+            </div>
+        </div>
+
+        <!-- Kontakt -->
+        <div class="col-lg-8 mx-auto text-center">
+            <div class="card border-0 bg-primary text-white shadow">
+                <div class="card-body p-5">
+                    <h4 class="fw-bold mb-4">Bog‘lanish</h4>
+                    <p class="fs-5 mb-3">
+                        <i class="fas fa-envelope me-2"></i>
+                        <a href="mailto:izzatbek.ulkanov@gmail.com" class="text-white text-decoration-underline">
+                            izzatbek.ulkanov@gmail.com
+                        </a>
+                    </p>
+                    <p class="fs-5 mb-3">
+                        <i class="fab fa-telegram me-2"></i>
+                        <a href="https://t.me/lzzatbekUlkanov" target="_blank" class="text-white text-decoration-underline">
+                            @lzzatbekUlkanov
+                        </a>
+                    </p>
+                    <p class="mb-0 opacity-75">
+                        Namangan Davlat Pedagogika Instituti • 2025
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Sahifaga kirganda kichik xush kelibsiz effekt
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        const toast = document.createElement('div');
+        toast.className = 'position-fixed top-0 end-0 p-3';
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `
+            <div class="alert alert-success shadow-lg border-0">
+                <strong>Xush kelibsiz!</strong> NamDPI haqida sahifasiga
+            </div>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }, 500);
+});
+</script>
+{% endblock %}

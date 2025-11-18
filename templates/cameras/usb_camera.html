@@ -1,0 +1,291 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}AI Davomat • Jonli{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column min-vh-100">
+  <div class="container-fluid flex-grow-1 py-3">
+    <div class="row g-3 h-100">
+
+      <!-- KAMERA CARD -->
+      <div class="col-12 col-lg-8 h-100">
+        <div class="card-camera h-100 rounded-4 overflow-hidden position-relative shadow-lg">
+          <!-- Header -->
+          <div class="card-header-bar px-3 py-2 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-video text-primary"></i>
+              <span id="camName" class="fw-semibold">Kamera tanlang</span>
+              <span id="statusBadge" class="badge bg-success bg-opacity-90 text-white fs-7 d-none">
+                <i class="fas fa-circle fa-beat fa-2xs"></i> LIVE
+              </span>
+            </div>
+            <select id="camSelect" class="form-select form-select-sm bg-dark text-white border border-white border-opacity-30">
+              <option value="">-- Tanlang --</option>
+              {% for cam in cameras %}
+                <option value="{{ cam.id }}">{{ cam.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Video -->
+          <div class="position-relative w-100 h-100 bg-black">
+            <div id="loader" class="position-absolute top-50 start-50 translate-middle text-center z-3">
+              <div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem;"></div>
+            </div>
+            <img id="videoFeed" class="w-100 h-100" style="object-fit:contain;display:none;" alt="Live stream">
+            <canvas id="overlayCanvas" class="position-absolute top-0 start-0 w-100 h-100" style="pointer-events:none;"></canvas>
+          </div>
+
+          <!-- Footer -->
+          <div class="card-footer-bar px-3 py-2 d-flex justify-content-between text-white small fw-semibold">
+            <span><i class="fas fa-tachometer-alt text-info me-1"></i><span id="fps">0</span> FPS</span>
+            <span><i class="fas fa-user-check text-success me-1"></i><span id="faces">0</span> yuz</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BINODA BO'LGANLAR (To'g'ri va chiroyli chiqadi) -->
+        <div class="col-12 col-lg-4 h-100">
+          <div class="card-attendance h-100 rounded-4 shadow-lg d-flex flex-column overflow-hidden">
+            <div class="card-header-bar px-3 py-3 d-flex justify-content-between align-items-center text-white">
+              <h6 class="mb-0 fw-bold"><i class="fas fa-building me-2"></i>Binoda hozir</h6>
+              <span class="badge bg-success fs-6 px-3 fw-bold" id="count">0</span>
+            </div>
+            <div id="list" class="flex-grow-1 overflow-auto px-3 pb-3 pt-1" style="scrollbar-width: thin;">
+              <div class="text-center text-white-50 py-5">
+                <i class="fas fa-users-slash fa-4x mb-3 opacity-75"></i>
+                <p class="small">Hozir hech kim yo‘q</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.09);
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --glass-blur: blur(14px);
+    --primary-glow: 0 0 20px rgba(0, 255, 136, 0.3);
+  }
+
+  .card-camera,
+  .card-attendance {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    transition: all 0.3s ease;
+  }
+
+  .card-camera:hover,
+  .card-attendance:hover {
+    box-shadow: var(--primary-glow);
+    border-color: rgba(0, 255, 136, 0.3);
+  }
+
+  .card-header-bar,
+  .card-footer-bar {
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .card-footer-bar {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: none;
+  }
+
+  /* User card (ichidagi har biri) */
+  .user-item {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    transition: all 0.25s ease;
+  }
+  .user-item:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 768px) {
+    .container-fluid { padding: 0.5rem !important; }
+    .card-header-bar { padding: 0.75rem 1rem !important; }
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const COLORS = ["#667eea","#f093fb","#4facfe","#43e97b","#fa709a","#30cfd0","#a8edea","#ff9a9e"];
+let vws = null, aws = null;
+const video = document.getElementById("videoFeed");
+const canvas = document.getElementById("overlayCanvas");
+const ctx = canvas.getContext("2d");
+let fpsCount = 0, lastTime = performance.now();
+
+document.getElementById("camSelect").addEventListener("change", e => {
+  if (vws) vws.close();
+  const id = e.target.value;
+  if (!id) return location.reload();
+
+  document.getElementById("camName").textContent = e.target.selectedOptions[0].text;
+  document.getElementById("loader").classList.remove("d-none");
+  video.style.display = "none";
+
+  vws = new WebSocket(`ws://${location.host}/ws/camera/${id}/stream/`);
+  vws.onopen = () => document.getElementById("statusBadge").classList.remove("d-none");
+  vws.onmessage = msg => {
+    const data = JSON.parse(msg.data);
+    if (data.type !== "frame") return;
+    video.src = "data:image/jpeg;base64," + data.frame;
+    video.onload = () => {
+      document.getElementById("loader").classList.add("d-none");
+      video.style.display = "block";
+      drawFaces(data.detected_faces || []);
+      updateFPS();
+    };
+  };
+});
+
+// Davomat
+(function connectAttendance() {
+  const aws = new WebSocket(`ws://${location.host}/ws/attendance/live/`);
+
+  aws.onmessage = msg => {
+    // Parse qilingan ma'lumot
+    const d = JSON.parse(msg.data);
+
+    // Konsolga chiqaramiz
+    console.log("WebSocket xabar:", d);
+
+    if (d.type !== "grouped_attendance") return;
+
+    document.getElementById("count").textContent = d.count || 0;
+
+    // Agar render qiladigan funksiya bo'lsa
+    renderUsers(d.users || []);
+  };
+
+  aws.onclose = () => {
+    console.warn("Attendance WebSocket uzildi. 3s keyin qayta ulanish.");
+    setTimeout(connectAttendance, 3000);
+  };
+})();
+
+function drawFaces(faces) {
+  canvas.width = video.offsetWidth;
+  canvas.height = video.offsetHeight;
+  const sx = canvas.width / (video.naturalWidth || 640);
+  const sy = canvas.height / (video.naturalHeight || 480);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById("faces").textContent = faces.length;
+
+  faces.forEach(f => {
+    const [x1, y1, x2, y2] = f.bbox;
+    const x = x1 * sx, y = y1 * sy, w = (x2 - x1) * sx, h = (y2 - y1) * sy;
+
+    ctx.strokeStyle = "#00ff88";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(x, y, w, h);
+
+    const text = `${f.name} (${f.confidence || '?'}%)`;
+    const padding = 10;
+    const textWidth = ctx.measureText(text).width;
+
+    ctx.fillStyle = "rgba(0, 255, 136, 0.92)";
+    ctx.fillRect(x, y - 48, textWidth + padding * 2, 48);
+
+    ctx.fillStyle = "#000";
+    ctx.font = "bold 17px Inter, sans-serif";
+    ctx.fillText(text, x + padding, y - 14);
+  });
+}
+
+function updateFPS() {
+  fpsCount++;
+  const now = performance.now();
+  if (now - lastTime >= 1000) {
+    document.getElementById("fps").textContent = Math.round(fpsCount);
+    fpsCount = 0;
+    lastTime = now;
+  }
+}
+
+function renderUsers(users) {
+  const list = document.getElementById("list");
+
+  if (!users || users.length === 0) {
+    list.innerHTML = `
+      <div class="text-center text-white-50 py-5">
+        <i class="fas fa-users-slash fa-4x mb-3 opacity-75"></i>
+        <p class="small fw-medium">Hozir hech kim yo‘q</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = users.map((item, i) => {
+    const u = item.user;
+    const color = ["#667eea","#f093fb","#4facfe","#43e97b","#fa709a","#30cfd0","#a8edea","#ff9a9e"][i % 8];
+
+    return `
+      <div class="user-item mb-3 p-3 rounded-3 border border-white border-opacity-10"
+           style="background: ${color}18; border-left: 4px solid ${color}; transition: all 0.3s ease;">
+
+        <div class="d-flex align-items-center gap-3">
+          ${u.photo
+            ? `<img src="${u.photo}" class="rounded-circle shadow-sm" width="52" height="52" style="object-fit: cover; border: 3px solid white;">`
+            : `<div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow"
+                     style="width:52px;height:52px;background:${color};font-size:1.8rem;">
+                 ${u.full_name.charAt(0)}
+               </div>`
+          }
+
+          <div class="flex-grow-1">
+            <div class="fw-bold text-white" style="font-size: 0.95rem;">${u.full_name}</div>
+            <div class="small text-white-70">${u.role || 'Xodim'} • ${u.id}</div>
+          </div>
+
+          <div class="text-end text-white-50">
+            <small class="d-block">Kirish</small>
+            <div class="fw-bold text-success" style="font-size: 1rem;">${item.entry_time}</div>
+            ${item.last_seen ? `<small class="text-white-60">oxirgi: ${item.last_seen}</small>` : ''}
+          </div>
+        </div>
+
+        <!-- Rasmlar (agar bo‘lsa) -->
+        ${item.photos && item.photos.length > 0 ? `
+          <div class="mt-3 d-flex gap-2 flex-wrap">
+            ${item.photos.slice(0, 4).map(src => `
+              <img src="${src}" class="rounded-2 border border-white border-opacity-30 shadow-sm"
+                   width="70" height="70" style="object-fit: cover;">
+            `).join('')}
+            ${item.extra_count > 0 ? `
+              <div class="bg-black bg-opacity-50 rounded-2 d-flex align-items-center justify-content-center text-white fw-bold small"
+                   style="width:70px;height:70px;">
+                +${item.extra_count}
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// Auto select first camera
+document.addEventListener("DOMContentLoaded", () => {
+  const select = document.getElementById("camSelect");
+  if (select.options.length > 1) {
+    select.selectedIndex = 1;
+    select.dispatchEvent(new Event("change"));
+  }
+});
+</script>
+{% endblock %}
