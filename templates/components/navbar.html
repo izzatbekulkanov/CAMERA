@@ -15,8 +15,14 @@
                     <img src="{% static 'assets/images/logo-sm.png' %}" class="logo-sm" alt="logo">
                 </a>
             </div>
+              <!-- Sidebar Menu Toggle Button -->
+
+            <button class="button-toggle-menu">
+                <i class="mdi mdi-menu"></i>
+            </button>
 
         </div>
+
 
         <ul class="topbar-menu d-flex align-items-center">
 
@@ -43,11 +49,11 @@
                    data-bs-toggle="dropdown" href="#">
                     {% get_current_language as LANGUAGE_CODE %}
                     {% if LANGUAGE_CODE == 'uz' %}
-                        <img src="{% static 'assets/images/flags/uz.svg' %}" height="20">
+                    <img src="{% static 'assets/images/flags/uz.svg' %}" height="20">
                     {% elif LANGUAGE_CODE == 'ru' %}
-                        <img src="{% static 'assets/images/flags/ru.svg' %}" height="20">
+                    <img src="{% static 'assets/images/flags/ru.svg' %}" height="20">
                     {% else %}
-                        <img src="{% static 'assets/images/flags/us.svg' %}" height="20">
+                    <img src="{% static 'assets/images/flags/us.svg' %}" height="20">
                     {% endif %}
                 </a>
 

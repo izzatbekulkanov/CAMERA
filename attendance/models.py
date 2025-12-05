@@ -18,6 +18,18 @@ class SiteSettings(models.Model):
         help_text='Saytning hozirgi holati'
     )
 
+    # ⚙️ Face recognition ishlash rejimi (CPU / GPU)
+    FACE_DEVICE_CHOICES = [
+        ('cpu', 'CPU'),
+        ('gpu', 'GPU'),
+    ]
+    face_processing_device = models.CharField(
+        max_length=10,
+        choices=FACE_DEVICE_CHOICES,
+        default='cpu',
+        help_text="Face encoding va face recognition qaysi qurilmada ishlasin"
+    )
+
     # Sayt logolari
     logo_dark = models.ImageField(
         upload_to='site_logos/',

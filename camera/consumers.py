@@ -1,63 +1,67 @@
-# camera/consumers.py — TO‘LIQ YANGI VERSIYA (tasks.py bilan 100% mos!)
+# camera/consumers.py — TO‘LIQ TO‘G‘RILANGAN, XAVFSIZ, PROFESSIONAL VERSIYA
 
 import asyncio
 import json
 import base64
+import urllib.parse
 import cv2
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from camera.tasks import get_camera, release_camera_if_unused, detect_faces
-from attendance.models import Attendance, AttendancePhoto
+from camera.tasks import get_camera, detect_faces
+from attendance.models import Attendance
 from django.utils import timezone
-from collections import defaultdict
+from camera.models import Camera
 
 
 class CameraStreamConsumer(AsyncWebsocketConsumer):
-    """
-    Faqat video oqimi + real-time yuz ramkalari
-    Hech qanday davomat ma'lumoti yubormaydi → juda tez va silliq
-    """
     async def connect(self):
         try:
-            self.camera_id = int(self.scope["url_route"]["kwargs"]["camera_id"])
-        except (ValueError, KeyError):
-            print(f"[XATO] Noto‘g‘ri kamera ID")
+            self.camera_id = int(self.scope["url_route"]["kwargs"].get("camera_id", 0))
+        except (ValueError, TypeError):
             await self.close(code=4001)
             return
 
+        print(f"[VIDEO] Kamera {self.camera_id} ga ulanmoqda...")
+
         self.cam = await get_camera(self.camera_id)
         if not self.cam:
-            print(f"[XATO] Kamera {self.camera_id} ochilmadi")
+            print(f"[XATO] Kamera {self.camera_id} ochilmadi! Mavjud kameralar: 0, 1, 2... ni sinab ko‘ring.")
+            await self.send(text_data=json.dumps({
+                "type": "error",
+                "message": f"Kamera {self.camera_id} topilmadi yoki ishlamayapti!",
+                "available": "Sinab ko‘ring: 0, 1, 2, 3..."
+            }))
             await self.close(code=4002)
             return
 
-        # Video oqimi boshlanadi
-        self.stream_task = asyncio.create_task(self.stream_video())
+        # Muvaffaqiyatli ulandi
         await self.accept()
-        print(f"[VIDEO] Kamera {self.camera_id} ga muvaffaqiyatli ulandi")
+        self.stream_task = asyncio.create_task(self.stream_video())
+        print(f"[MUVOFFAQIYAT] Kamera {self.camera_id} muvaffaqiyatli ulandi!")
 
     async def disconnect(self, close_code):
-        print(f"[VIDEO] Kamera {self.camera_id} uzildi (code: {close_code})")
+        print(f"[VIDEO] Kamera {self.camera_id} uzildi → code: {close_code}")
+
         if hasattr(self, "stream_task") and self.stream_task:
             self.stream_task.cancel()
 
-        if self.cam:
+        if hasattr(self, "cam") and self.cam:
             self.cam["users"] -= 1
-            await release_camera_if_unused(self.camera_id)
+            # Kamera yopilishi avtomatik tasks.py da amalga oshiriladi
+            # release_camera_if_unused() endi async emas, oddiy funksiya bo‘lishi kerak
+            from camera.tasks import release_camera_if_unused
+            asyncio.create_task(asyncio.to_thread(release_camera_if_unused, self.camera_id))
 
     async def stream_video(self):
-        """
-        Har bir frame → frontendga yuboriladi
-        Yuz ramkalari doimiy → hech qachon yo‘qolmaydi!
-        """
         try:
             async for frame, faces in detect_faces(self.cam):
                 if frame is None:
                     await asyncio.sleep(0.1)
                     continue
 
-                # Optimal sifat va hajm
-                success, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 82])
+                # Sifat va tezlikni muvozanatlash
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+                success, buffer = cv2.imencode('.jpg', frame, encode_param)
                 if not success:
                     continue
 
@@ -66,103 +70,263 @@ class CameraStreamConsumer(AsyncWebsocketConsumer):
                 await self.send(text_data=json.dumps({
                     "type": "frame",
                     "frame": frame_b64,
-                    "detected_faces": faces or []  # Har doim list bo‘lsin
+                    "detected_faces": faces or []
                 }, ensure_ascii=False))
 
-                # ~25-30 FPS
-                await asyncio.sleep(0.035)
+                await asyncio.sleep(0.035)  # ~28-30 FPS
 
         except asyncio.CancelledError:
-            print(f"[VIDEO] Stream task bekor qilindi (kamera {self.camera_id})")
+            print(f"[VIDEO] Stream bekor qilindi (kamera {self.camera_id})")
         except Exception as e:
-            print(f"[XATO] Video streamda xato: {e}")
+            print(f"[XATO] Video oqimida xato: {e}")
+            await self.send(text_data=json.dumps({
+                "type": "error",
+                "message": "Video oqimi uzildi. Qayta ulaning."
+            }))
 
-
-# =============================================================================
-# JONLI DAVOMAT — ALOHIDA WEBSOCKET (ws/attendance/live/)
-# =============================================================================
 
 @database_sync_to_async
-def get_grouped_attendance():
-    """
-    Bugun binoda bo‘lganlar → guruhlangan + rasmlar
-    Har bir odam faqat 1 marta chiqadi
-    """
+def get_live_attendance_data():
     today = timezone.localdate()
     attendances = Attendance.objects.filter(
         date=today,
         is_present=True
-    ).select_related('user').prefetch_related('attendancephoto_set').order_by('-last_seen')
-
-    grouped = defaultdict(lambda: {
-        "user": None,
-        "entry_time": "-",
-        "last_seen": "-",
-        "photos": []
-    })
-
-    for att in attendances:
-        u = att.user
-        key = u.id
-
-        if not grouped[key]["user"]:
-            grouped[key]["user"] = {
-                "id": u.student_id_number or u.employee_id_number or str(u.id),
-                "full_name": u.full_name or u.username,
-                "role": getattr(u, 'get_role_display', lambda: u.role or "Noma'lum")(),
-                "photo": u.image.url if u.image and hasattr(u.image, 'url') else None,
-            }
-            grouped[key]["entry_time"] = att.entry_time.strftime("%H:%M") if att.entry_time else "-"
-            grouped[key]["last_seen"] = att.last_seen.strftime("%H:%M:%S")
-
-        # Eng yangi 5 ta rasm
-        for photo in att.attendancephoto_set.order_by('-captured_at')[:5]:
-            if photo.image and photo.image.url not in grouped[key]["photos"]:
-                grouped[key]["photos"].append(photo.image.url)
+    ).select_related('user').prefetch_related('attendancephoto_set__image').order_by('-last_seen')
 
     result = []
-    for data in grouped.values():
-        photos = data["photos"][:4]
+    seen_users = set()
+
+    for att in attendances:
+        user = att.user
+        if user.id in seen_users:
+            continue
+        seen_users.add(user.id)
+
+        photos = [p.image.url for p in att.attendancephoto_set.order_by('-captured_at')[:4] if p.image]
+        extra = att.attendancephoto_set.count() - 4 if att.attendancephoto_set.count() > 4 else 0
+
         result.append({
-            "user": data["user"],
-            "entry_time": data["entry_time"],
-            "last_seen": data["last_seen"],
+            "user": {
+                "id": user.student_id_number or user.employee_id_number or str(user.id),
+                "full_name": user.full_name or user.username,
+                "role": user.get_role_display() if hasattr(user, 'get_role_display') else "Xodim",
+                "photo": user.image.url if user.image else None,
+            },
+            "entry_time": att.entry_time.strftime("%H:%M") if att.entry_time else "-",
+            "last_seen": att.last_seen.strftime("%H:%M:%S"),
             "photos": photos,
-            "extra_count": len(data["photos"]) - 4 if len(data["photos"]) > 4 else 0
+            "extra_count": extra
         })
 
-    print(f"[ATTENDANCE] {len(result)} ta odam yuborildi (guruhlangan)")
     return result
 
 
 class LiveAttendanceConsumer(AsyncWebsocketConsumer):
-    """
-    Alohida WebSocket → faqat davomat ma'lumotlari
-    Video oqimiga hech qanday ta'sir qilmaydi
-    """
     async def connect(self):
         await self.accept()
-        self.send_task = asyncio.create_task(self.send_live_updates())
-        print("[ATTENDANCE] Yangi klient ulandi → ws/attendance/live/")
+        self.update_task = asyncio.create_task(self.send_updates())
+        print("[ATTENDANCE] Yangi jonli davomat ulandi")
 
     async def disconnect(self, close_code):
-        if hasattr(self, "send_task"):
-            self.send_task.cancel()
-        print(f"[ATTENDANCE] Klient uzildi (code: {close_code})")
+        if hasattr(self, "update_task"):
+            self.update_task.cancel()
+        print(f"[ATTENDANCE] Ulanish uzildi → {close_code}")
 
-    async def send_live_updates(self):
-        """
-        Har 4 sekundda yangi ma'lumot yuboradi
-        Frontendda ro‘yxat + rasmlar yangilanadi
-        """
+    async def send_updates(self):
         try:
             while True:
-                data = await get_grouped_attendance()
+                data = await get_live_attendance_data()
                 await self.send(text_data=json.dumps({
-                    "type": "grouped_attendance",
+                    "type": "live_attendance",
                     "count": len(data),
                     "users": data
                 }, ensure_ascii=False))
-                await asyncio.sleep(4)
+                await asyncio.sleep(4.5)  # 4-5 sekund optimal
         except asyncio.CancelledError:
-            print("[ATTENDANCE] Task bekor qilindi")
+            print("[ATTENDANCE] Yangilanish bekor qilindi")
+
+
+class IpCameraConsumer(AsyncWebsocketConsumer):
+    active_processes = {}
+
+    async def connect(self):
+        self.camera_id = self.scope["url_route"]["kwargs"]["camera_id"]
+        print(f"[WS] CONNECT → camera_id={self.camera_id}")
+
+        await self.accept()
+
+        try:
+            self.camera = await Camera.objects.aget(pk=self.camera_id, is_active=True)
+            print(f"[WS] OK → {self.camera.ip}:{self.camera.port} → {self.camera.name or 'Kamera'}")
+        except Camera.DoesNotExist:
+            print(f"[WS][ERROR] Kamera {self.camera_id} aktiv emas yoki topilmadi")
+            await self.send(text_data="Kamera aktiv emas yoki topilmadi")
+            await self.close()
+            return
+
+        self._running = True
+        self.stream_task = asyncio.create_task(self.start_stream())
+        print(f"[WS] STREAM TASK STARTED → camera_id={self.camera_id}")
+
+    async def disconnect(self, close_code):
+        print(f"[WS] DISCONNECT → camera_id={self.camera_id}, code={close_code}")
+        self._running = False
+
+        # Stop async stream task
+        if hasattr(self, "stream_task"):
+            self.stream_task.cancel()
+            try:
+                await self.stream_task
+            except asyncio.CancelledError:
+                pass
+            print(f"[WS] STREAM TASK CANCELLED → camera_id={self.camera_id}")
+
+        # Terminate ffmpeg process if exists
+        proc = self.active_processes.pop(self.camera_id, None)
+        if proc:
+            try:
+                proc.terminate()
+                print(f"[WS] FFMPEG TERMINATE → camera_id={self.camera_id}")
+            except Exception as e:
+                print(f"[WS][ERROR] FFMPEG terminate failed → camera_id={self.camera_id}, err={e}")
+
+    # -----------------------------
+    # Stream orchestration (async)
+    # -----------------------------
+    async def start_stream(self):
+        cam = self.camera
+        ip = cam.ip
+        user = cam.username or "admin"
+        pwd = cam.password or ""
+        enc_pwd = urllib.parse.quote(pwd, safe="")  # '@' va maxsus belgilardan qochish
+
+        # Common RTSP patterns (vendor variants + generic)
+        candidates = [
+            # Dahua
+            f"rtsp://{user}:{enc_pwd}@{ip}:554/cam/realmonitor?channel=1&subtype=0",
+            f"rtsp://{user}:{enc_pwd}@{ip}:554/cam/realmonitor?channel=1&subtype=1",
+            # Hikvision
+            f"rtsp://{user}:{enc_pwd}@{ip}:554/Streaming/Channels/101",
+            f"rtsp://{user}:{enc_pwd}@{ip}:554/Streaming/Channels/102",
+            # Uniview / Generic main/sub
+            f"rtsp://{user}:{enc_pwd}@{ip}:554/ucast/11",
+            f"rtsp://{user}:{enc_pwd}@{ip}:554/ucast/12",
+            # Generic ONVIF profile paths (may vary)
+            f"rtsp://{user}:{enc_pwd}@{ip}:554/live/ch00_0",
+            f"rtsp://{user}:{enc_pwd}@{ip}:554/live/ch00_1",
+            # Fallback ultra-generic
+            f"rtsp://{user}:{enc_pwd}@{ip}:554",
+        ]
+
+        print(f"[STREAM] DETECT → camera_id={self.camera_id}, candidates={len(candidates)}")
+
+        for idx, rtsp_url in enumerate(candidates, 1):
+            if not self._running:
+                print(f"[STREAM] STOP REQUESTED pre-start → camera_id={self.camera_id}")
+                return
+
+            print(f"[STREAM] TRY({idx}/{len(candidates)}) → {rtsp_url}")
+            ok = await self.stream_rtsp(rtsp_url)
+
+            if ok:
+                print(f"[STREAM] ACTIVE → camera_id={self.camera_id}, url={rtsp_url}")
+                return
+            else:
+                print(f"[STREAM] FAIL → camera_id={self.camera_id}, url={rtsp_url}")
+
+        print(f"[STREAM][ERROR] No RTSP candidate worked → camera_id={self.camera_id}")
+        await self.send(text_data="Kameraga ulanib bo‘lmadi")
+
+    # ---------------------------------------
+    # RTSP → ffmpeg image2pipe (async reader)
+    # ---------------------------------------
+    async def stream_rtsp(self, rtsp_url: str) -> bool:
+        if not self._running:
+            return False
+
+        cmd = [
+            "ffmpeg",
+            "-nostdin",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-rtsp_transport", "tcp",
+            "-i", rtsp_url,
+            "-vf", "scale=1280:720:flags=lanczos",
+            "-an",
+            "-sn",
+            "-vcodec", "mjpeg",
+            "-q:v", "5",
+            "-f", "image2pipe",
+            "pipe:1"
+        ]
+        print(f"[FFMPEG] START → camera_id={self.camera_id}, cmd={' '.join(cmd)}")
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+        except Exception as e:
+            print(f"[FFMPEG][ERROR] spawn failed → camera_id={self.camera_id}, err={e}")
+            return False
+
+        self.active_processes[self.camera_id] = proc
+
+        buffer = bytearray()
+        frames_sent = 0
+
+        try:
+            while self._running:
+                chunk = await proc.stdout.read(8192)
+                if not chunk:
+                    print(f"[FFMPEG] EOF/STALL → camera_id={self.camera_id}")
+                    # oqim o‘ldi deb hisoblaymiz
+                    break
+
+                buffer.extend(chunk)
+
+                while True:
+                    start = buffer.find(b"\xff\xd8")
+                    end = buffer.find(b"\xff\xd9")
+                    if start != -1 and end != -1 and end > start:
+                        frame = bytes(buffer[start:end + 2])
+                        del buffer[:end + 2]
+
+                        try:
+                            await self.send(bytes_data=frame)
+                            frames_sent += 1
+                            if frames_sent % 30 == 0:
+                                print(f"[WS] FRAMES SENT → camera_id={self.camera_id}, total={frames_sent}")
+                        except Exception as e:
+                            print(f"[WS][ERROR] send failed → camera_id={self.camera_id}, err={e}")
+                            self._running = False
+                            break
+                    else:
+                        break
+
+            try:
+                stderr_left = await proc.stderr.read()
+                if stderr_left:
+                    print(f"[FFMPEG] STDERR → camera_id={self.camera_id}, size={len(stderr_left)}")
+            except Exception:
+                pass
+
+        finally:
+            try:
+                if proc.returncode is None:
+                    proc.terminate()
+            except Exception:
+                pass
+            self.active_processes.pop(self.camera_id, None)
+
+        success = frames_sent > 0
+
+        # Agar oqim o‘lib qolgan bo‘lsa – WS ni ham yopamiz (front-end reconnect qiladi)
+        if not success and self._running:
+            try:
+                await self.close()
+            except Exception:
+                pass
+
+        return success

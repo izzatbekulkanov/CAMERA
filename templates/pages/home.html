@@ -1,10 +1,17 @@
-{% extends 'base/base.html' %}
+{% 3092011056	extends 'base/base.html' %}
 {% load static %}
-        {% block title %}
-Asosiy sahifa
 
-    {% endblock title %}
+{% block title %}
+Asosiy sahifa
+{% endblock title %}
+
 {% block styles %}
+    <link href="{% static 'assets/libs/select2/css/select2.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/dropzone/min/dropzone.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/quill/quill.core.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/quill/quill.snow.css' %}" rel="stylesheet" type="text/css" />
+    <!-- jQuery Toast css -->
+    <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css" />
 {% endblock styles %}
 
 {% block content %}
@@ -14,4 +21,30 @@ Asosiy sahifa
 {% endblock content %}
 
 {% block scripts %}
+    <!-- Select2 js -->
+    <script src="{% static 'assets/libs/select2/js/select2.min.js' %}"></script>
+
+    <!-- jQuery Toast Plugin -->
+    <script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
+
+    <!-- Toastr init js -->
+    <script src="{% static 'assets/js/pages/toastr.init.js' %}"></script>
+
+    <!-- ✅ Faqat login xabarini ko'rsatamiz -->
+    <script>
+        {% if messages %}
+            {% for message in messages %}
+                {% if 'login' in message.tags %}
+                    $.toast({
+                        heading: "Muvaffaqiyat",
+                        text: "{{ message|escapejs }}",
+                        showHideTransition: 'slide',
+                        icon: "success",
+                        position: 'top-right',
+                        hideAfter: 5000
+                    });
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </script>
 {% endblock scripts %}

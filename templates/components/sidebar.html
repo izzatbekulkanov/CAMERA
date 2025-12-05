@@ -62,19 +62,19 @@
                 <div class="collapse" id="menuCameras">
                     <ul class="sub-menu">
                         <li class="menu-item">
-                            <a href="ss" class="menu-link">
+                            <a href="{% url 'view_cameras' %}" class="menu-link">
                                 <span class="menu-icon"><i data-feather="eye"></i></span>
                                 <span class="menu-text">{% trans "Kameralarni ko‘rish" %}</span>
                             </a>
                         </li>
                         <li class="menu-item">
-                            <a href="ss" class="menu-link">
+                            <a href="{% url 'add_camera_view' %}" class="menu-link">
                                 <span class="menu-icon"><i data-feather="plus-circle"></i></span>
                                 <span class="menu-text">{% trans "Kamera qo‘shish" %}</span>
                             </a>
                         </li>
                         <li class="menu-item">
-                            <a href="ss" class="menu-link">
+                            <a href="{% url 'camera_list_view' %}" class="menu-link">
                                 <span class="menu-icon"><i data-feather="list"></i></span>
                                 <span class="menu-text">{% trans "Kameralar ro‘yxati" %}</span>
                             </a>

@@ -1,22 +1,128 @@
+import platform
+import shutil
+import subprocess
+
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-
+import os
 from attendance.models import SiteSettings
+
+
+def get_device_info():
+    """
+    Serverdagi CPU/GPU va umumiy tizim ma'lumotlari.
+    """
+    info = {
+        "os": platform.platform(),
+        "architecture": platform.machine(),
+        "cpu_model": None,
+        "cpu_cores": None,
+        "cpu_logical_cores": None,
+        "cpu_percent": None,
+        "memory_total_gb": None,
+        "memory_used_gb": None,
+        "memory_available_gb": None,
+        "memory_percent": None,
+        "gpus": [],
+        "gpu_backend": None,
+        "psutil_ok": False,
+        "torch_ok": False,
+        "nvidia_smi_ok": False,
+    }
+
+    # CPU modeli (/proc/cpuinfo orqali ham tekshiramiz)
+    cpu_model = platform.processor() or getattr(platform.uname(), "processor", "") or ""
+    if not cpu_model and os.path.exists("/proc/cpuinfo"):
+        try:
+            with open("/proc/cpuinfo", "r") as f:
+                for line in f:
+                    if "model name" in line:
+                        cpu_model = line.split(":", 1)[1].strip()
+                        break
+        except Exception:
+            pass
+    info["cpu_model"] = cpu_model or "Noma'lum"
+
+    # CPU yadrolar, load va RAM (psutil bo'lsa)
+    try:
+        import psutil
+
+        info["psutil_ok"] = True
+
+        info["cpu_cores"] = psutil.cpu_count(logical=False)
+        info["cpu_logical_cores"] = psutil.cpu_count(logical=True)
+        info["cpu_percent"] = psutil.cpu_percent(interval=0.3)
+
+        mem = psutil.virtual_memory()
+        info["memory_total_gb"] = round(mem.total / (1024**3), 2)
+        info["memory_used_gb"] = round(mem.used / (1024**3), 2)
+        info["memory_available_gb"] = round(mem.available / (1024**3), 2)
+        info["memory_percent"] = mem.percent
+    except Exception:
+        pass
+
+    # GPU: torch.cuda orqali
+    try:
+        import torch
+
+        info["torch_ok"] = True
+
+        if torch.cuda.is_available():
+            count = torch.cuda.device_count()
+            for i in range(count):
+                name = torch.cuda.get_device_name(i)
+                info["gpus"].append({
+                    "name": name,
+                    "memory_total_mb": None,
+                })
+            info["gpu_backend"] = "torch.cuda"
+    except Exception:
+        pass
+
+    # GPU: nvidia-smi orqali
+    try:
+        if shutil.which("nvidia-smi"):
+            info["nvidia_smi_ok"] = True
+            out = subprocess.check_output(
+                ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
+                stderr=subprocess.STDOUT,
+                encoding="utf-8"
+            )
+            lines = [line.strip() for line in out.splitlines() if line.strip()]
+            if lines:
+                info["gpus"] = []
+                for line in lines:
+                    parts = [p.strip() for p in line.split(",")]
+                    name = parts[0]
+                    mem_mb = None
+                    if len(parts) > 1:
+                        mem_str = parts[1].replace("MiB", "").strip()
+                        try:
+                            mem_mb = int(mem_str)
+                        except ValueError:
+                            mem_mb = None
+                    info["gpus"].append({
+                        "name": name,
+                        "memory_total_mb": mem_mb,
+                    })
+                info["gpu_backend"] = "nvidia-smi"
+    except Exception:
+        pass
+
+    return info
 
 
 @login_required(login_url='login')
 def site_settings_view(request):
     """
-    Site Settings sahifasi uchun view.
-    GET -> sahifani ko'rsatadi
-    POST -> form ma'lumotlarini saqlaydi va Swal bilan xabar beradi
+    Site Settings sahifasi.
+    - GET -> sozlamalar + avtomatik qurilma ma'lumoti
+    - POST -> sozlamalarni saqlaydi
     """
-    # Singleton bo'lgani uchun bitta obyekt oling yoki yaratib oling
     site_settings, created = SiteSettings.objects.get_or_create(id=1)
 
     if request.method == 'POST':
-        # Text va URL maydonlar
         site_settings.site_name = request.POST.get('site_name', site_settings.site_name)
         site_settings.site_status = request.POST.get('site_status', site_settings.site_status)
         site_settings.contact_email = request.POST.get('contact_email', site_settings.contact_email)
@@ -24,22 +130,44 @@ def site_settings_view(request):
         site_settings.hemis_url = request.POST.get('hemis_url', site_settings.hemis_url)
         site_settings.hemis_api_token = request.POST.get('hemis_api_token', site_settings.hemis_api_token)
 
-        # Fayl maydonlar (logo_dark, logo_light)
+        site_settings.face_processing_device = request.POST.get(
+            'face_processing_device',
+            site_settings.face_processing_device
+        )
+
         if 'logo_dark' in request.FILES and request.FILES['logo_dark']:
             site_settings.logo_dark = request.FILES['logo_dark']
         if 'logo_light' in request.FILES and request.FILES['logo_light']:
             site_settings.logo_light = request.FILES['logo_light']
 
-        # Saqlash
         site_settings.save()
 
-        # SweetAlert bilan xabar
-        messages.success(request, "Sayt sozlamalari muvaffaqiyatli saqlandi.")
-
-        # Redirect same page
+        messages.success(
+            request,
+            "Sayt sozlamalari muvaffaqiyatli saqlandi.",
+            extra_tags="settings"
+        )
         return redirect('site_settings')
 
-    # Breadcrumbs
+    # GET holatida — avtomatik qurilma ma'lumotlarini olib kelamiz
+    device_info = get_device_info()
+
+    # psutil yo'q bo'lsa — bir marta bo'lsa ham ogohlantirish foydali
+    if not device_info.get("psutil_ok"):
+        messages.warning(
+            request,
+            "RAM va CPU yuklanishi haqida batafsil ma’lumot uchun <code>psutil</code> paketini o‘rnatish tavsiya etiladi "
+            "(pip install psutil)."
+        )
+
+    # Agar GPU rejimi tanlangan, lekin GPU topilmagan bo‘lsa — ogohlantiramiz
+    if site_settings.face_processing_device == "gpu" and not device_info.get("gpus"):
+        messages.error(
+            request,
+            "GPU rejimi tanlangan, lekin serverda GPU topilmadi yoki drayverlar o‘rnatilmagan. Iltimos, tekshiring "
+            "yoki CPU rejimiga o‘ting."
+        )
+
     breadcrumbs = [
         {'name': 'Asosiy sahifa', 'url': '/'},
         {'name': 'Sayt sozlamalari', 'url': None},
@@ -47,7 +175,9 @@ def site_settings_view(request):
 
     context = {
         'breadcrumbs': breadcrumbs,
-        'site_settings': site_settings
+        'site_settings': site_settings,
+        'page_title': 'Sayt sozlamalari',
+        'device_info': device_info,
     }
 
     return render(request, 'pages/settings.html', context)

@@ -73,6 +73,13 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         ('Sayt holati', {
             'fields': ('site_status', 'site_name')
         }),
+
+        # 🔥 Yangi bo‘lim: Face Recognition qurilmasi (CPU/GPU)
+        ('Face Recognition Sozlamalari', {
+            'fields': ('face_processing_device',),
+            'description': 'Face encoding va face recognition qaysi qurilmada ishlashini tanlang'
+        }),
+
         ('Logolar', {
             'fields': ('logo_dark', 'logo_light')
         }),

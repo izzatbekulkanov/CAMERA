@@ -139,11 +139,18 @@ document.getElementById("camSelect").addEventListener("change", e => {
   document.getElementById("loader").classList.remove("d-none");
   video.style.display = "none";
 
-  vws = new WebSocket(`ws://${location.host}/ws/camera/${id}/stream/`);
+  // Protokolni sahifa protokoliga qarab tanlaymiz
+  const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+  const wsUrl = `${wsScheme}://${location.host}/ws/camera/${id}/stream/`;
+
+  vws = new WebSocket(wsUrl);
+
   vws.onopen = () => document.getElementById("statusBadge").classList.remove("d-none");
+
   vws.onmessage = msg => {
     const data = JSON.parse(msg.data);
     if (data.type !== "frame") return;
+
     video.src = "data:image/jpeg;base64," + data.frame;
     video.onload = () => {
       document.getElementById("loader").classList.add("d-none");
@@ -156,21 +163,20 @@ document.getElementById("camSelect").addEventListener("change", e => {
 
 // Davomat
 (function connectAttendance() {
-  const aws = new WebSocket(`ws://${location.host}/ws/attendance/live/`);
+  const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+  const aws = new WebSocket(`${wsScheme}://${location.host}/ws/attendance/live/`);
 
   aws.onmessage = msg => {
-    // Parse qilingan ma'lumot
     const d = JSON.parse(msg.data);
-
-    // Konsolga chiqaramiz
     console.log("WebSocket xabar:", d);
 
     if (d.type !== "grouped_attendance") return;
 
     document.getElementById("count").textContent = d.count || 0;
 
-    // Agar render qiladigan funksiya bo'lsa
-    renderUsers(d.users || []);
+    if (typeof renderUsers === "function") {
+      renderUsers(d.users || []);
+    }
   };
 
   aws.onclose = () => {

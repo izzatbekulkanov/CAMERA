@@ -6,30 +6,194 @@
     <link href="{% static 'assets/libs/dropzone/min/dropzone.min.css' %}" rel="stylesheet" type="text/css" />
     <link href="{% static 'assets/libs/quill/quill.core.css' %}" rel="stylesheet" type="text/css" />
     <link href="{% static 'assets/libs/quill/quill.snow.css' %}" rel="stylesheet" type="text/css" />
-    <!-- jQuery Toast css -->
     <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css" />
 {% endblock styles %}
 
-
 {% block title %}
 Sayt sozlamalari
-
 {% endblock title %}
 
 {% block content %}
 <div class="container-fluid">
 
-    <!-- start page title -->
     {% include 'includes/breadcrumbs.html' %}
-    <!-- end page title -->
 
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
+
+        {# =================== YUQORI: QURILMA INFO CARDSLARI =================== #}
+        {% if device_info %}
+        <div class="row mb-3">
+
+            <!-- CPU -->
+            <div class="col-md-3">
+                <div class="card mini-stats-wid h-100">
+                    <div class="card-body py-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 me-3">
+                                <div class="avatar-sm rounded-circle bg-soft-primary d-flex align-items-center justify-content-center">
+                                    <i class="mdi mdi-cpu-64-bit text-primary font-size-20"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <p class="text-muted mb-1 text-uppercase small">CPU</p>
+                                <h6 class="mb-0">
+                                    {{ device_info.cpu_model|truncatechars:24 }}
+                                </h6>
+                                <small class="text-muted">
+                                    {{ device_info.cpu_cores|default:"-" }} fizik ·
+                                    {{ device_info.cpu_logical_cores|default:"-" }} mantiqiy
+                                </small>
+                            </div>
+                        </div>
+                        {% if device_info.cpu_percent %}
+                            <div class="mt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted">Yuklanish</small>
+                                    <small class="fw-semibold">
+                                        {{ device_info.cpu_percent|floatformat:1 }} %
+                                    </small>
+                                </div>
+                                <div class="progress" style="height: 5px;">
+                                    <div class="progress-bar bg-info"
+                                         role="progressbar"
+                                         style="width: {{ device_info.cpu_percent|floatformat:0 }}%;"
+                                         aria-valuenow="{{ device_info.cpu_percent|floatformat:0 }}"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- RAM -->
+            <div class="col-md-3">
+                <div class="card mini-stats-wid h-100">
+                    <div class="card-body py-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 me-3">
+                                <div class="avatar-sm rounded-circle bg-soft-warning d-flex align-items-center justify-content-center">
+                                    <i class="mdi mdi-memory text-warning font-size-20"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <p class="text-muted mb-1 text-uppercase small">RAM</p>
+                                {% if device_info.memory_total_gb %}
+                                    <h6 class="mb-0">
+                                        {{ device_info.memory_used_gb }} / {{ device_info.memory_total_gb }} GB
+                                    </h6>
+                                    {% if device_info.memory_percent %}
+                                        <small class="text-muted">
+                                            {{ device_info.memory_percent|floatformat:1 }} % ishlatilgan
+                                        </small>
+                                    {% endif %}
+                                {% else %}
+                                    <h6 class="mb-0">Ma’lumot yo‘q</h6>
+                                    <small class="text-muted">
+                                        psutil o‘rnatilmagan
+                                    </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if device_info.memory_total_gb %}
+                            <div class="mt-3">
+                                <div class="progress" style="height: 5px;">
+                                    <div class="progress-bar bg-warning"
+                                         role="progressbar"
+                                         style="width: {{ device_info.memory_percent|default:0|floatformat:0 }}%;"
+                                         aria-valuenow="{{ device_info.memory_percent|default:0|floatformat:0 }}"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                                {% if device_info.memory_available_gb %}
+                                    <small class="text-muted d-block mt-1">
+                                        Bo‘sh: {{ device_info.memory_available_gb }} GB
+                                    </small>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tizim -->
+            <div class="col-md-3">
+                <div class="card mini-stats-wid h-100">
+                    <div class="card-body py-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 me-3">
+                                <div class="avatar-sm rounded-circle bg-soft-secondary d-flex align-items-center justify-content-center">
+                                    <i class="mdi mdi-monitor text-secondary font-size-20"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <p class="text-muted mb-1 text-uppercase small">Tizim</p>
+                                <h6 class="mb-0">
+                                    {{ device_info.os|truncatechars:26 }}
+                                </h6>
+                                <small class="text-muted">
+                                    Arxitektura: {{ device_info.architecture }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GPU -->
+            <div class="col-md-3">
+                <div class="card mini-stats-wid h-100">
+                    <div class="card-body py-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 me-3">
+                                <div class="avatar-sm rounded-circle bg-soft-success d-flex align-items-center justify-content-center">
+                                    <i class="mdi mdi-video-3d-variant text-success font-size-20"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <p class="text-muted mb-1 text-uppercase small">GPU</p>
+                                {% if device_info.gpus %}
+                                    <h6 class="mb-0">
+                                        {{ device_info.gpus.0.name|truncatechars:24 }}
+                                    </h6>
+                                    {% if device_info.gpus.0.memory_total_mb %}
+                                        <small class="text-muted">
+                                            {{ device_info.gpus.0.memory_total_mb }} MB
+                                        </small>
+                                    {% endif %}
+                                {% else %}
+                                    <h6 class="mb-0">Topilmadi</h6>
+                                    <small class="text-muted">
+                                        CPU rejimida ishlayapti
+                                    </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if device_info.gpu_backend %}
+                            <small class="text-muted d-block mt-2">
+                                Aniqlash: {{ device_info.gpu_backend }}
+                            </small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        {% endif %}
+
+        {# =================== ASOSIY USTUNLAR: SOZLAMALAR + LOGOLAR =================== #}
         <div class="row">
+            <!-- CHAP: Umumiy sozlamalar -->
             <div class="col-lg-6">
-                <div class="card">
+                <div class="card mb-3">
                     <div class="card-body">
-                        <h5 class="text-uppercase bg-light p-2 mt-0 mb-3">Umumiy Sozlamalar</h5>
+                        <h5 class="text-uppercase bg-light p-2 mt-0 mb-3">
+                            <i class="mdi mdi-cog-outline me-1"></i> Umumiy Sozlamalar
+                        </h5>
 
                         <div class="mb-3">
                             <label for="site-name" class="form-label">Sayt nomi</label>
@@ -47,6 +211,21 @@ Sayt sozlamalari
                         </div>
 
                         <div class="mb-3">
+                            <label for="face-device" class="form-label">Face Recognition rejimi</label>
+                            <select id="face-device" name="face_processing_device" class="form-control select2">
+                                <option value="cpu" {% if site_settings.face_processing_device == 'cpu' %}selected{% endif %}>CPU</option>
+                                <option value="gpu" {% if site_settings.face_processing_device == 'gpu' %}selected{% endif %}>GPU</option>
+                            </select>
+                            <small class="text-muted">
+                                GPU bo‘lmagan serverlarda <strong>CPU</strong>, aks holda <strong>GPU</strong> tavsiya etiladi.
+                            </small>
+                        </div>
+
+                        <hr>
+
+                        <h6 class="text-muted text-uppercase mb-3">Kontakt ma'lumotlar</h6>
+
+                        <div class="mb-3">
                             <label for="contact-email" class="form-label">Kontakt email</label>
                             <input type="email" id="contact-email" name="contact_email" class="form-control"
                                    value="{{ site_settings.contact_email }}">
@@ -57,6 +236,10 @@ Sayt sozlamalari
                             <input type="text" id="contact-phone" name="contact_phone" class="form-control"
                                    value="{{ site_settings.contact_phone }}">
                         </div>
+
+                        <hr>
+
+                        <h6 class="text-muted text-uppercase mb-3">HEMIS integratsiyasi</h6>
 
                         <div class="mb-3">
                             <label for="hemis-url" class="form-label">HEMIS URL</label>
@@ -73,59 +256,108 @@ Sayt sozlamalari
                 </div>
             </div>
 
+            <!-- O‘NG: Logolar + SAQLASH TUGMASI SHU CARD ICHIDA -->
             <div class="col-lg-6">
-                <div class="card">
+                <div class="card mb-0">
                     <div class="card-body">
-                        <h5 class="text-uppercase mt-0 mb-3 bg-light p-2">Sayt Logolari</h5>
+                        <h5 class="text-uppercase mt-0 mb-3 bg-light p-2">
+                            <i class="mdi mdi-image-outline me-1"></i> Sayt logotiplari
+                        </h5>
 
-                        <div class="mb-3">
-                            <label for="logo-dark" class="form-label">Qora logotip</label>
-                            <input type="file" id="logo-dark" name="logo_dark" class="form-control">
+                        <!-- Qora logo -->
+                        <div class="mb-4">
+                            <label class="form-label">Qora logotip</label>
+                            <div class="input-group">
+                                <label class="input-group-text" for="logo-dark">
+                                    <i class="mdi mdi-upload"></i>
+                                </label>
+                                <input type="file"
+                                       class="form-control"
+                                       id="logo-dark"
+                                       name="logo_dark"
+                                       onchange="updateFileName('logo-dark')">
+                            </div>
+                            <small id="logo-dark-filename" class="text-muted d-block mt-1">
+                                {% if site_settings.logo_dark %}
+                                    Mavjud: {{ site_settings.logo_dark.name|default:"logo_dark" }}
+                                {% else %}
+                                    Fayl tanlanmagan
+                                {% endif %}
+                            </small>
+
                             {% if site_settings.logo_dark %}
-                                <img src="{{ site_settings.logo_dark.url }}" class="mt-2" width="120" alt="Logo Dark">
+                                <div class="mt-2">
+                                    <img src="{{ site_settings.logo_dark.url }}" class="rounded border" width="160" alt="Logo Dark">
+                                </div>
                             {% endif %}
                         </div>
 
-                        <div class="mb-3">
-                            <label for="logo-light" class="form-label">Oq logotip</label>
-                            <input type="file" id="logo-light" name="logo_light" class="form-control">
+                        <!-- Oq logo -->
+                        <div class="mb-4">
+                            <label class="form-label">Oq logotip</label>
+                            <div class="input-group">
+                                <label class="input-group-text" for="logo-light">
+                                    <i class="mdi mdi-upload"></i>
+                                </label>
+                                <input type="file"
+                                       class="form-control"
+                                       id="logo-light"
+                                       name="logo_light"
+                                       onchange="updateFileName('logo-light')">
+                            </div>
+                            <small id="logo-light-filename" class="text-muted d-block mt-1">
+                                {% if site_settings.logo_light %}
+                                    Mavjud: {{ site_settings.logo_light.name|default:"logo_light" }}
+                                {% else %}
+                                    Fayl tanlanmagan
+                                {% endif %}
+                            </small>
+
                             {% if site_settings.logo_light %}
-                                <img src="{{ site_settings.logo_light.url }}" class="mt-2" width="120" alt="Logo Light">
+                                <div class="mt-2">
+                                    <img src="{{ site_settings.logo_light.url }}" class="rounded border" width="160" alt="Logo Light">
+                                </div>
                             {% endif %}
+                        </div>
+
+                        <div class="text-center pt-2 border-top">
+                            <button type="submit"
+                                    class="btn btn-success waves-effect waves-light px-4 mt-3">
+                                <i class="mdi mdi-content-save-outline me-1"></i> Saqlash
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="row mt-3">
-            <div class="col-12 text-center">
-                <button type="submit" class="btn btn-success waves-effect waves-light">Saqlash</button>
-            </div>
-        </div>
     </form>
 </div>
 {% endblock content %}
 
 {% block scripts %}
-    <!-- Select2 js -->
     <script src="{% static 'assets/libs/select2/js/select2.min.js' %}"></script>
-
-    <!-- jQuery Toast Plugin -->
     <script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
-
-    <!-- Toastr init js -->
     <script src="{% static 'assets/js/pages/toastr.init.js' %}"></script>
 
-    <!-- ✅ Django messages → Toastr -->
     <script>
+        function updateFileName(inputId) {
+            const input = document.getElementById(inputId);
+            const span = document.getElementById(inputId + '-filename');
+            if (input && input.files && input.files.length > 0) {
+                span.textContent = "Tanlangan: " + input.files[0].name;
+            } else {
+                span.textContent = "Fayl tanlanmagan";
+            }
+        }
+
         {% if messages %}
             {% for message in messages %}
                 $.toast({
-                    heading: "{% if message.tags == 'success' %}Muvaffaqiyat{% elif message.tags == 'error' %}Xatolik{% else %}Xabar{% endif %}",
+                    heading: "{% if 'success' in message.tags %}Muvaffaqiyat{% elif 'error' in message.tags %}Xatolik{% else %}Xabar{% endif %}",
                     text: "{{ message|escapejs }}",
                     showHideTransition: 'slide',
-                    icon: "{{ message.tags }}", // success, error, info, warning
+                    icon: "{% if 'success' in message.tags %}success{% elif 'error' in message.tags %}error{% elif 'warning' in message.tags %}warning{% else %}info{% endif %}",
                     position: 'top-right',
                     hideAfter: 5000
                 });
@@ -133,4 +365,3 @@ Sayt sozlamalari
         {% endif %}
     </script>
 {% endblock scripts %}
-

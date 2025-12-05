@@ -7,9 +7,14 @@ import face_recognition
 import base64
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+
+import requests
 from asgiref.sync import sync_to_async
+from celery import shared_task
 from django.utils import timezone
 from django.core.files.base import ContentFile
+
+from camera.models import Camera
 from users.models import FaceEncoding, CustomUser
 from attendance.models import Attendance, AttendancePhoto
 
@@ -248,3 +253,28 @@ def start_background_tasks():
     loop = asyncio.get_event_loop()
     loop.create_task(auto_exit_detector())
     print("[BACKGROUND] auto_exit_detector ishga tushdi!")
+
+
+@shared_task
+def check_camera_health():
+    """Har 30 sekundda kameralar ishlayotganini tekshiradi"""
+    cameras = Camera.objects.filter(is_active=True)
+    for cam in cameras:
+        url = f"http://{cam.ip}:{cam.port}/"
+        try:
+            r = requests.get(url, auth=(cam.username, cam.password), timeout=5)
+            if r.status_code in [200, 401, 302]:
+                if not cam.is_online:
+                    cam.is_online = True
+                    cam.save(update_fields=['is_online'])
+                    print(f"[HEALTH] {cam.ip} → ONLINE")
+            else:
+                if cam.is_online:
+                    cam.is_online = False
+                    cam.save(update_fields=['is_online'])
+                    print(f"[HEALTH] {cam.ip} → OFFLINE (status: {r.status_code})")
+        except:
+            if cam.is_online:
+                cam.is_online = False
+                cam.save(update_fields=['is_online'])
+                print(f"[HEALTH] {cam.ip} → ULANMADI")

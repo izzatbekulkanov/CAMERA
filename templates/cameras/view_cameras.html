@@ -1,0 +1,325 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Jonli Kameralar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include 'includes/breadcrumbs.html' %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h4 class="mb-0 fw-bold text-dark">
+                Jonli Kameralar
+                <span class="badge bg-success ms-2">{{ total_cameras }}</span>
+            </h4>
+            <small class="text-muted">Real-time monitoring</small>
+        </div>
+        <a href="{% url 'add_camera_view' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-2"></i>Yangi qo'shish
+        </a>
+    </div>
+
+    {% if not cameras %}
+    <div class="text-center py-5">
+        <i class="fas fa-video-slash fa-5x text-muted mb-4"></i>
+        <h5 class="text-muted">Hozircha faol kamera yo‘q</h5>
+        <p class="text-muted">Yuqoridagi tugma orqali yangi kamera qo‘shing</p>
+    </div>
+    {% else %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-4">
+                {% for camera in cameras %}
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="border rounded-3 overflow-hidden h-100 bg-white">
+                        <div class="position-relative bg-black">
+                            <div class="ratio ratio-16x9">
+                                {# LOADER – birinchi frame kelguncha ko‘rinadi #}
+                                <div id="loader-{{ camera.id }}" class="d-flex w-100 h-100 justify-content-center align-items-center bg-dark">
+                                    <div class="spinner-border text-light" role="status">
+                                        <span class="visually-hidden">Yuklanmoqda...</span>
+                                    </div>
+                                </div>
+                                {# IMG – dastlab d-none, keyin JS orqali ko‘rinadi #}
+                                <img id="cam-{{ camera.id }}" class="w-100 h-100 object-fit-cover d-none" alt="Stream">
+                            </div>
+                            <div id="status-{{ camera.id }}" class="position-absolute top-50 start-50 translate-middle text-white text-center bg-dark bg-opacity-75 px-3 py-2 rounded-3">
+                                <div class="spinner-border spinner-border-sm mb-2"></div>
+                                <div>Ulanmoqda...</div>
+                            </div>
+                        </div>
+
+                        <div class="px-3 py-2 border-top small d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="d-flex flex-column">
+                                <span class="fw-semibold text-truncate">{{ camera.name|default:camera.ip }}</span>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <span id="fps-{{ camera.id }}" class="badge bg-info text-dark">FPS: —</span>
+                                    <small class="text-muted">{{ camera.ip }}:{{ camera.port }}</small>
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-secondary js-fullscreen-cam"
+                                    data-id="{{ camera.id }}"
+                                    data-name="{{ camera.name|default:camera.ip }}"
+                                    title="To‘liq ekran">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{# Fullscreen / modalga o‘xshash oyna #}
+<div id="fullscreen-cam"
+     class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-75">
+    <div class="card bg-black text-white border-0 shadow-lg" style="max-width: 96vw; max-height: 96vh;">
+        <div class="card-header d-flex justify-content-between align-items-center border-0 pb-2">
+            <h5 id="fs-title" class="mb-0">Kamera</h5>
+            <button id="fs-close" class="btn btn-sm btn-outline-light rounded-circle">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="card-body d-flex flex-column align-items-center justify-content-center pt-0">
+            <img id="fs-img" src="" alt="To'liq ekran"
+                 class="img-fluid mb-3"
+                 style="max-height: 70vh; max-width: 100%; object-fit: contain;">
+            <div id="fs-loader" class="text-center">
+                <div class="spinner-border text-light" style="width: 2.5rem; height: 2.5rem;"></div>
+                <p class="mt-2 fs-6 mb-0">Yuklanmoqda...</p>
+            </div>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center border-0 pt-0 small">
+            <span id="fs-fps" class="badge bg-primary fs-6">FPS: —</span>
+            <small class="text-muted">ESC yoki yopish tugmasini bosing</small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .object-fit-cover { object-fit: cover; }
+    #fullscreen-cam { z-index: 1050; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+    const wsBase = `${location.protocol === 'https:' ? 'wss://' : 'ws://'}${location.host}/ws/ipcamera/`;
+    const fsOverlay = document.getElementById('fullscreen-cam');
+    const fsImg = document.getElementById('fs-img');
+    const fsLoader = document.getElementById('fs-loader');
+    const fsTitle = document.getElementById('fs-title');
+    const fsFps = document.getElementById('fs-fps');
+
+    let activeCamId = null;
+    const lastUrls = new Map();
+    const streams = new Map();
+
+    // FPS hisoblagich
+    class FpsMeter {
+        constructor(el) {
+            this.el = el;
+            this.count = 0;
+            this.last = performance.now();
+            this.destroyed = false;
+
+            this.timer = setInterval(() => {
+                if (this.destroyed) return;
+                const now = performance.now();
+                const diff = now - this.last || 1;
+                const fps = Math.round((this.count * 1000) / diff);
+                this.el.textContent = `FPS: ${fps || '—'}`;
+                this.count = 0;
+                this.last = now;
+            }, 1000);
+        }
+        tick() { this.count++; }
+        destroy() {
+            this.destroyed = true;
+            clearInterval(this.timer);
+            this.el.textContent = 'FPS: —';
+        }
+    }
+
+    const overlayFps = new FpsMeter(fsFps);
+
+    // Kamera oqimi klassi
+    class CameraStream {
+        constructor(id, imgEl, statusEl, fpsEl, loaderEl) {
+            this.id = id.toString();
+            this.imgEl = imgEl;
+            this.statusEl = statusEl;
+            this.fpsMeter = new FpsMeter(fpsEl);
+            this.loaderEl = loaderEl;
+
+            this.ws = null;
+            this.reconnectDelay = 1000;
+            this.maxReconnectDelay = 10000;
+            this.shouldRun = true;
+            this.connect();
+        }
+
+        connect() {
+            if (!this.shouldRun) return;
+
+            try {
+                this.ws = new WebSocket(`${wsBase}${this.id}/`);
+            } catch (e) {
+                console.error('[WS][ERROR] New WebSocket failed', e);
+                this.scheduleReconnect();
+                return;
+            }
+
+            this.ws.binaryType = 'arraybuffer';
+
+            this.ws.onopen = () => {
+                this.reconnectDelay = 1000;
+                if (this.statusEl) {
+                    this.statusEl.innerHTML = '<small class="text-success">● LIVE</small>';
+                }
+                // Ulanish ochilganda ham loader qoladi – birinchi frame kelganda o'chiramiz
+            };
+
+            this.ws.onmessage = e => {
+                if (!this.shouldRun) return;
+
+                const blob = new Blob([e.data], {type: 'image/jpeg'});
+                const url = URL.createObjectURL(blob);
+
+                const prev = lastUrls.get(this.id);
+                if (prev) URL.revokeObjectURL(prev);
+                lastUrls.set(this.id, url);
+
+                // Birinchi frame kelganda loaderni yashirish va imgni ko'rsatish
+                if (this.loaderEl) {
+                    this.loaderEl.classList.add('d-none');
+                }
+                this.imgEl.classList.remove('d-none');
+
+                this.imgEl.src = url;
+                this.fpsMeter.tick();
+
+                if (activeCamId === this.id) {
+                    fsImg.src = url;
+                    fsImg.style.display = 'block';
+                    fsLoader.style.display = 'none';
+                    overlayFps.tick();
+                }
+            };
+
+            this.ws.onclose = () => {
+                if (!this.shouldRun) return;
+
+                // Qayta ulanayotganda loaderni yana ko'rsatish
+                if (this.loaderEl) {
+                    this.loaderEl.classList.remove('d-none');
+                }
+                this.imgEl.classList.add('d-none');
+
+                if (this.statusEl) {
+                    this.statusEl.innerHTML = '<small class="text-warning">Qayta ulanmoqda...</small>';
+                }
+                this.scheduleReconnect();
+            };
+
+            this.ws.onerror = () => {
+                if (this.ws) {
+                    this.ws.close();
+                }
+            };
+        }
+
+        scheduleReconnect() {
+            if (!this.shouldRun) return;
+            const delay = this.reconnectDelay;
+            this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+            setTimeout(() => {
+                if (this.shouldRun) this.connect();
+            }, delay);
+        }
+
+        stop() {
+            this.shouldRun = false;
+            if (this.ws) {
+                try { this.ws.close(); } catch (e) {}
+            }
+            this.fpsMeter.destroy();
+
+            const last = lastUrls.get(this.id);
+            if (last) {
+                URL.revokeObjectURL(last);
+                lastUrls.delete(this.id);
+            }
+        }
+    }
+
+    // Barcha kameralar uchun WS ishga tushirish
+    document.querySelectorAll('img[id^="cam-"]').forEach(imgEl => {
+        const id = imgEl.id.replace('cam-', '');
+        const statusEl = document.getElementById(`status-${id}`);
+        const fpsEl = document.getElementById(`fps-${id}`);
+        const loaderEl = document.getElementById(`loader-${id}`);
+
+        const stream = new CameraStream(id, imgEl, statusEl, fpsEl, loaderEl);
+        streams.set(id.toString(), stream);
+    });
+
+    // Fullscreen boshqaruvi
+    const openFullscreen = (id, name) => {
+        activeCamId = id.toString();
+        fsTitle.textContent = name || `Kamera ${id}`;
+        fsImg.style.display = 'none';
+        fsLoader.style.display = 'block';
+        fsOverlay.classList.remove('d-none');
+        document.body.style.overflow = 'hidden';
+
+        const url = lastUrls.get(activeCamId);
+        if (url) {
+            fsImg.src = url;
+            fsImg.style.display = 'block';
+            fsLoader.style.display = 'none';
+        }
+    };
+
+    const closeFullscreen = () => {
+        fsOverlay.classList.add('d-none');
+        document.body.style.overflow = '';
+        activeCamId = null;
+        fsImg.src = '';
+        fsImg.style.display = 'none';
+        fsLoader.style.display = 'block';
+    };
+
+    document.querySelectorAll('.js-fullscreen-cam').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            const name = btn.dataset.name;
+            openFullscreen(id, name);
+        });
+    });
+
+    document.getElementById('fs-close').addEventListener('click', closeFullscreen);
+    fsOverlay.addEventListener('click', e => {
+        if (e.target === fsOverlay) closeFullscreen();
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !fsOverlay.classList.contains('d-none')) {
+            closeFullscreen();
+        }
+    });
+
+    // Sahifadan chiqishda tozalash
+    window.addEventListener('beforeunload', () => {
+        streams.forEach(stream => stream.stop());
+        overlayFps.destroy();
+    });
+})();
+</script>
+{% endblock %}
