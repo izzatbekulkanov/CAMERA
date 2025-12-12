@@ -115,11 +115,6 @@ def get_device_info():
 
 @login_required(login_url='login')
 def site_settings_view(request):
-    """
-    Site Settings sahifasi.
-    - GET -> sozlamalar + avtomatik qurilma ma'lumoti
-    - POST -> sozlamalarni saqlaydi
-    """
     site_settings, created = SiteSettings.objects.get_or_create(id=1)
 
     if request.method == 'POST':
@@ -135,10 +130,13 @@ def site_settings_view(request):
             site_settings.face_processing_device
         )
 
-        if 'logo_dark' in request.FILES and request.FILES['logo_dark']:
-            site_settings.logo_dark = request.FILES['logo_dark']
-        if 'logo_light' in request.FILES and request.FILES['logo_light']:
-            site_settings.logo_light = request.FILES['logo_light']
+        # KATTA logo (large)
+        if 'logo_large' in request.FILES and request.FILES['logo_large']:
+            site_settings.logo_large = request.FILES['logo_large']
+
+        # KICHIK logo (small)
+        if 'logo_small' in request.FILES and request.FILES['logo_small']:
+            site_settings.logo_small = request.FILES['logo_small']
 
         site_settings.save()
 
@@ -149,10 +147,8 @@ def site_settings_view(request):
         )
         return redirect('site_settings')
 
-    # GET holatida — avtomatik qurilma ma'lumotlarini olib kelamiz
     device_info = get_device_info()
 
-    # psutil yo'q bo'lsa — bir marta bo'lsa ham ogohlantirish foydali
     if not device_info.get("psutil_ok"):
         messages.warning(
             request,
@@ -160,7 +156,6 @@ def site_settings_view(request):
             "(pip install psutil)."
         )
 
-    # Agar GPU rejimi tanlangan, lekin GPU topilmagan bo‘lsa — ogohlantiramiz
     if site_settings.face_processing_device == "gpu" and not device_info.get("gpus"):
         messages.error(
             request,

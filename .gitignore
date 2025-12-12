@@ -90,3 +90,4 @@ staticfiles/
 # Git attributes
 .gitattributes
 .gitignore
+yolov8n.pt

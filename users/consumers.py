@@ -1,43 +1,61 @@
 # users/consumers.py
 import json
+import aiohttp
+import cv2
+import numpy as np
+import os
+import asyncio
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-
-from PIL import Image
-import face_recognition
-import numpy as np
-import os
-import asyncio
-from io import BytesIO
-
-from core import settings
+from django.conf import settings
+from users.models import CustomUser, FaceEncoding
 
 User = get_user_model()
-MAX_THREADS = 4
+
+# ============================
+# INSIGHTFACE GLOBAL MODEL
+# ============================
+try:
+    from insightface.app import FaceAnalysis
+
+    print("[INSIGHTFACE] buffalo_l modeli yuklanmoqda...")
+    face_app = FaceAnalysis(name="buffalo_l", providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+    face_app.prepare(ctx_id=0, det_size=(640, 640))
+    print("[INSIGHTFACE] Model yuklandi (L40S GPU)")
+except Exception as e:
+    print(f"[INSIGHTFACE XATO] {e}")
+    face_app = None
 
 
-def has_image(user):
-    """Foydalanuvchi rasmga ega ekanligini tekshiradi"""
-    return hasattr(user, "image") and user.image and bool(getattr(user.image, "name", None))
+async def send_json(consumer, data):
+    """Yordamchi funksiya — json yuborish"""
+    await consumer.send(text_data=json.dumps(data, ensure_ascii=False))
 
 
 class FaceEncodingConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+        if face_app is None:
+            await self.close(code=1011)
+            return
+        self.user_id = self.scope["user"].id if self.scope["user"].is_authenticated else None
         await self.accept()
-        print("[WS] Connected:", self.channel_name)
-        await self.send_json({"status": "connected", "message": "WS connected for face encoding."})
+        print(f"[FACE WS] Ulanish: {self.channel_name} (user {self.user_id})")
+        await send_json(self, {
+            "status": "ready",
+            "message": "InsightFace tayyor! Encoding yaratish boshlanishi mumkin.",
+            "model": "buffalo_l"
+        })
 
     async def disconnect(self, close_code):
-        print("[WS] Disconnected:", self.channel_name, "code:", close_code)
+        print(f"[FACE WS] Uzildi: {close_code}")
 
     async def receive(self, text_data):
-        print("[WS] Received:", text_data)
         try:
             data = json.loads(text_data)
         except json.JSONDecodeError:
-            await self.send_json({"status": "error", "error": "Invalid JSON"})
+            await send_json(self, {"status": "error", "error": "Noto‘g‘ri JSON"})
             return
 
         action = data.get("action")
@@ -45,137 +63,305 @@ class FaceEncodingConsumer(AsyncWebsocketConsumer):
         role = data.get("role")
 
         if action == "generate_single" and user_id:
-            print(f"[WS] Action: generate_single user_id={user_id}")
-            await self.generate_single(user_id)
+            await self.generate_single(int(user_id))
         elif action == "generate_all" and role:
-            print(f"[WS] Action: generate_all role={role}")
             await self.generate_all(role)
         else:
-            print("[WS] Unknown action:", action)
-            await self.send_json({"status": "error", "error": "Unknown action"})
+            await send_json(self, {"status": "error", "error": "Noto‘g‘ri action"})
 
-    async def generate_single(self, user_id):
-        print(f"[WS] Generating single encoding for user_id={user_id}")
-        user = await database_sync_to_async(User.objects.filter(id=user_id).first)()
-        if not user or not has_image(user):
-            await self.send_json({"status": "error", "user_id": user_id, "error": "User has no image"})
+    async def generate_single(self, user_id: int):
+        # Progressni boshlash
+        cache_key = f"sync_progress_{self.user_id}"
+        cache.set(cache_key, {"percent": 0, "message": "Boshlanmoqda..."}, timeout=300)
+        await send_json(self, {"status": "started", "user_id": user_id})
+
+        user = await database_sync_to_async(
+            lambda: CustomUser.objects.filter(id=user_id).first()
+        )()
+        if not user or not user.image:
+            cache.set(cache_key, {"percent": 100, "message": "Rasm yo‘q"}, timeout=300)
+            await send_json(
+                self,
+                {"status": "error", "user_id": user_id, "error": "Foydalanuvchi rasmsiz"},
+            )
             return
 
-        # Agar encoding mavjud bo'lsa skip qilamiz
-        existing = await database_sync_to_async(user.face_encodings.exists)()
-        if existing:
-            await self.send_json({"status": "skipped", "user_id": user_id, "message": "Encoding already exists"})
+        # Agar allaqachon buffalo_l encoding bo‘lsa – o‘tkazib yuboramiz
+        exists = await database_sync_to_async(
+            lambda: user.face_encodings.filter(
+                model_version="insightface_buffalo_l"
+            ).exists()
+        )()
+        if exists:
+            cache.set(
+                cache_key,
+                {"percent": 100, "message": "Encoding allaqachon mavjud"},
+                timeout=300,
+            )
+            await send_json(
+                self,
+                {
+                    "status": "skipped",
+                    "user_id": user_id,
+                    "reason": "Encoding allaqachon mavjud",
+                },
+            )
             return
 
-        encoding, error = await self.get_encoding(user.image.url)
-        if encoding:
-            await database_sync_to_async(self.save_encoding)(user, encoding)
-            await self.send_json({"status": "ok", "user_id": user.id})
+        cache.set(
+            cache_key,
+            {"percent": 50, "message": "Encoding yaratilmoqda..."},
+            timeout=300,
+        )
+        success, message = await self.create_insightface_encoding(user)
+
+        if success:
+            cache.set(
+                cache_key,
+                {"percent": 100, "message": "Muvaffaqiyatli!"},
+                timeout=300,
+            )
+            await send_json(
+                self,
+                {"status": "success", "user_id": user_id, "message": message},
+            )
         else:
-            await self.send_json({"status": "error", "user_id": user.id, "error": error})
+            cache.set(cache_key, {"percent": 100, "message": "Xato"}, timeout=300)
+            await send_json(
+                self,
+                {"status": "failed", "user_id": user_id, "error": message},
+            )
 
-    async def generate_all(self, role):
-        print(f"[WS] Generating all encodings for role={role}")
+    async def generate_all(self, role: str):
+        """
+        Berilgan role uchun:
+        - Rasmli userlar
+        - VA buffalo_l encodingi hali yo‘q bo‘lganlarini tanlaymiz
+        - Har biriga InsightFace encoding yaratamiz
+        """
+        # 1) Encoding yo‘q userlarni DB darajasida filtrlaymiz
         users = await database_sync_to_async(list)(
-            User.objects.filter(role=role).only("id", "image")
+            CustomUser.objects
+            .filter(role=role, image__isnull=False)
+            .exclude(face_encodings__model_version="insightface_buffalo_l")
+            .only("id", "image")
+            .distinct()
         )
-        total_users = len(users)
-        print(f"[WS] Total users to process: {total_users}")
 
-        for idx, user in enumerate(users, start=1):
-            if not has_image(user):
-                await self.send_json({
-                    "status": "skipped",
-                    "user_id": user.id,
-                    "progress": f"{idx}/{total_users}",
-                    "message": "No image"
-                })
+        total = len(users)
+        if total == 0:
+            await send_json(self, {
+                "status": "completed",
+                "message": "Bu rol uchun encoding yaratilmagan yangi foydalanuvchi topilmadi"
+            })
+            return
+
+        cache.set(
+            f"sync_progress_{self.user_id}",
+            {"percent": 0, "message": f"0/{total} tayyorlanmoqda..."},
+            timeout=600,
+        )
+        await send_json(self, {"status": "started", "total": total, "role": role})
+
+        processed = 0
+        success_count = 0
+
+        for user in users:
+            processed += 1
+            percent = int((processed / total) * 100)
+
+            cache.set(
+                f"sync_progress_{self.user_id}",
+                {
+                    "percent": percent,
+                    "message": f"{processed}/{total} — ID {user.id} ishlanmoqda..."
+                },
+                timeout=600,
+            )
+
+            # Asosan bu userlar uchun encoding yo‘q, lekin baribir double-check qilamiz
+            has_enc = await database_sync_to_async(
+                lambda: user.face_encodings.filter(
+                    model_version="insightface_buffalo_l"
+                ).exists()
+            )()
+            if has_enc:
+                await send_json(
+                    self,
+                    {
+                        "status": "skipped",
+                        "user_id": user.id,
+                        "reason": "Encoding allaqachon mavjud",
+                        "progress": f"{processed}/{total}",
+                    },
+                )
                 continue
 
-            # Encoding mavjud bo‘lsa skip qilamiz
-            existing = await database_sync_to_async(user.face_encodings.exists)()
-            if existing:
-                await self.send_json({
-                    "status": "skipped",
-                    "user_id": user.id,
-                    "progress": f"{idx}/{total_users}",
-                    "message": "Encoding already exists"
-                })
-                continue
-
-            encoding, error = await self.get_encoding(user.image.url)
-            if encoding:
-                await database_sync_to_async(self.save_encoding)(user, encoding)
-                await self.send_json({
-                    "status": "ok",
-                    "user_id": user.id,
-                    "progress": f"{idx}/{total_users}"
-                })
+            success, msg = await self.create_insightface_encoding(user)
+            if success:
+                success_count += 1
+                await send_json(
+                    self,
+                    {
+                        "status": "success",
+                        "user_id": user.id,
+                        "message": msg,
+                        "progress": f"{processed}/{total}",
+                    },
+                )
             else:
-                await self.send_json({
-                    "status": "error",
-                    "user_id": user.id,
-                    "error": error,
-                    "progress": f"{idx}/{total_users}"
-                })
+                await send_json(
+                    self,
+                    {
+                        "status": "failed",
+                        "user_id": user.id,
+                        "error": msg,
+                        "progress": f"{processed}/{total}",
+                    },
+                )
 
-        await self.send_json({"status": "done", "message": "Barcha users processed"})
-        print("[WS] All users processed")
+            # Katta ro‘yxatda event loopni "nafas oldirish" uchun kichik pauza
+            await asyncio.sleep(0.01)
 
-    async def get_encoding(self, image_url):
+        cache.set(
+            f"sync_progress_{self.user_id}",
+            {
+                "percent": 100,
+                "message": f"Yakunlandi! {success_count} ta user uchun encoding yaratildi",
+            },
+            timeout=600,
+        )
+        await send_json(
+            self,
+            {
+                "status": "completed",
+                "total_processed": processed,
+                "success_count": success_count,
+                "message": f"{role} roli uchun bulk encoding tayyor bo‘ldi!",
+            },
+        )
+
+    async def create_insightface_encoding(self, user):
+        """
+        Bitta foydalanuvchi uchun:
+        - Rasmni diskdan (yoki kerak bo‘lsa HTTP’dan) o‘qiydi
+        - InsightFace (buffalo_l, GPU) bilan eng yaxshi yuzni topadi
+        - FaceEncoding.update_or_create(...) bilan 512D encoding saqlaydi
+        """
+        if face_app is None:
+            return False, "InsightFace modeli yuklanmagan"
+
         try:
-            if image_url.startswith("/media/"):
-                path = os.path.join(settings.BASE_DIR, image_url.lstrip("/"))
-                if not os.path.exists(path):
-                    return None, f"File not found: {path}"
-                img = Image.open(path)
-            else:
-                import aiohttp
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(image_url) as resp:
-                        if resp.status != 200:
-                            return None, f"HTTP {resp.status}"
-                        content = await resp.read()
-                img = Image.open(BytesIO(content))
+            # 1) Rasmni olish – avval lokal diskdan, keyin HTTP fallback
+            img = None
 
-            if img.mode != "RGB":
-                img = img.convert("RGB")
-            img.thumbnail((400, 400), Image.Resampling.LANCZOS)
-            img_array = np.array(img)
-            encodings = face_recognition.face_encodings(img_array, num_jitters=2, model='large')
-            if not encodings:
-                return None, "Face not found"
-            encoding = encodings[0] / np.linalg.norm(encodings[0])
-            return encoding.tolist(), None
+            # Agar FileField bo‘lsa -> .path ishlatish eng tez variat
+            try:
+                if user.image and hasattr(user.image, "path") and os.path.exists(user.image.path):
+                    img = cv2.imread(user.image.path)
+            except Exception:
+                img = None
+
+            if img is None:
+                image_url = user.image.url
+                # /media/... bo'lsa baribir lokal file
+                if image_url.startswith("/media/") and hasattr(user.image, "name"):
+                    rel_path = user.image.name  # masalan: users/images/xxx.jpg
+                    path = os.path.join(settings.MEDIA_ROOT, rel_path)
+                    if not os.path.exists(path):
+                        return False, f"Fayl topilmadi: {path}"
+                    img = cv2.imread(path)
+                else:
+                    # To'liq URL holatida HTTP orqali o‘qish
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(image_url) as resp:
+                            if resp.status != 200:
+                                return False, f"HTTP {resp.status}"
+                            img_bytes = await resp.read()
+                    nparr = np.frombuffer(img_bytes, np.uint8)
+                    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+            if img is None:
+                return False, "Rasmni o‘qib bo‘lmadi"
+
+            # 2) InsightFace bilan yuzlarni olish (GPU)
+            faces = face_app.get(img)
+            if len(faces) == 0:
+                return False, "Yuz topilmadi"
+
+            # Eng ishonchli yuzni tanlaymiz
+            best_face = max(faces, key=lambda x: x.det_score)
+            if best_face.det_score < 0.4:
+                return False, f"Ishonchlilik past: {best_face.det_score:.2f}"
+
+            embedding = best_face.normed_embedding  # 512D
+
+            # 3) DB ga yozish – bitta user + model_version uchun bitta row
+            await database_sync_to_async(FaceEncoding.objects.update_or_create)(
+                user=user,
+                model_version="insightface_buffalo_l",
+                defaults={
+                    "encoding_data": embedding.tolist(),
+                    "confidence": float(best_face.det_score),
+                },
+            )
+
+            return True, f"Muvaffaqiyatli (conf: {best_face.det_score:.3f})"
         except Exception as e:
-            print("[WS] Exception in get_encoding:", e)
-            return None, str(e)
-
-    def save_encoding(self, user, encoding):
-        from users.models import FaceEncoding
-        FaceEncoding.objects.update_or_create(
-            user=user,
-            defaults={"encoding_data": encoding}
-        )
-        print(f"[WS] Encoding saved for user_id={user.id}")
-
-    async def send_json(self, content):
-        await self.send(text_data=json.dumps(content))
+            return False, str(e)
 
 
+# SyncProgressConsumer — progressni har soniyada yangilab turadi
 class SyncProgressConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.user_id = self.scope["user"].id
-        await self.accept()
-        print(f"[WS] SyncProgressConsumer connected for user {self.user_id}")
+        # Faqat login bo'lgan foydalanuvchiga ruxsat
+        if not self.scope["user"].is_authenticated:
+            await self.close(code=4001)
+            return
 
-        try:
-            while True:
-                progress = cache.get(f"sync_progress_{self.user_id}", {"percent": 0, "message": "..."})
-                await self.send(text_data=json.dumps(progress))
-                await asyncio.sleep(1)
-        except asyncio.CancelledError:
-            print(f"[WS] SyncProgressConsumer cancelled for user {self.user_id}")
+        self.user_id = self.scope["user"].id
+        self._progress_task: asyncio.Task | None = None
+
+        await self.accept()
+        print(f"[PROGRESS WS] Ulanish: user {self.user_id}")
+
+        # 🔥 Cheksiz loopni connect ichida emas, alohida taskda ishga tushiramiz
+        self._progress_task = asyncio.create_task(self.progress_loop())
 
     async def disconnect(self, close_code):
-        print(f"[WS] SyncProgressConsumer disconnected for user {self.user_id}, code={close_code}")
+        print(f"[PROGRESS WS] Uzildi: user {self.user_id}, code={close_code}")
+
+        # 🔥 Background taskni toza cancel qilamiz
+        if self._progress_task is not None:
+            self._progress_task.cancel()
+            try:
+                await self._progress_task
+            except asyncio.CancelledError:
+                pass
+
+    async def receive(self, text_data=None, bytes_data=None):
+        """
+        Agar kerak bo'lsa, kelajakda clientdan xabar qabul qilish uchun.
+        Hozircha WS bir yoqlama (faqat server → client), shuning uchun ignore qilamiz.
+        """
+        return
+
+    async def progress_loop(self):
+        """
+        Har 1 sekundda foydalanuvchiga progressni yuboradigan background loop.
+        Connection yopilganda cancel qilinadi.
+        """
+        try:
+            while True:
+                progress = cache.get(
+                    f"sync_progress_{self.user_id}",
+                    {"percent": 0, "message": "Kutilmoqda..."},
+                )
+                await self.send(text_data=json.dumps(progress, ensure_ascii=False))
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            # Task bekor qilinsa, sokin chiqib ketamiz
+            print(f"[PROGRESS WS] progress_loop cancel qilindi: user {self.user_id}")
+        except Exception as e:
+            # Debug uchun
+            print(f"[PROGRESS WS] progress_loop xato: {e}")

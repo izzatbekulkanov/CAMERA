@@ -9,87 +9,87 @@
 {% endblock styles %}
 
 {% block content %}
-<div class="container-fluid">
+    <div class="container-fluid">
 
-    {% include 'includes/breadcrumbs.html' %}
+        {% include 'includes/breadcrumbs.html' %}
 
-    {# ==== Yuqori: Statistika kartalar ==== #}
-    <div class="row mb-3">
-        <div class="col-md-4">
-            <div class="card mini-stats-wid h-100">
-                <div class="card-body d-flex align-items-center">
-                    <div class="flex-shrink-0 me-3">
-                        <div class="avatar-sm rounded-circle bg-soft-primary d-flex align-items-center justify-content-center">
-                            <i class="mdi mdi-cctv text-primary font-size-20"></i>
+        {# ==== Yuqori: Statistika kartalar ==== #}
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="card mini-stats-wid h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-primary d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-cctv text-primary font-size-20"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small">Jami kameralar</p>
+                            <h4 class="mb-0">{{ stats.total }}</h4>
+                            <small class="text-muted">Baza bo'yicha jami kamera</small>
                         </div>
                     </div>
-                    <div class="flex-grow-1">
-                        <p class="text-muted mb-1 text-uppercase small">Jami kameralar</p>
-                        <h4 class="mb-0">{{ stats.total }}</h4>
-                        <small class="text-muted">Baza bo'yicha jami kamera</small>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card mini-stats-wid h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-success d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-check-circle-outline text-success font-size-20"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small">Faol kameralar</p>
+                            <h4 class="mb-0">{{ stats.active }}</h4>
+                            <small class="text-muted">Hozir tizimda ishlayotgan</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card mini-stats-wid h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-danger d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-close-circle-outline text-danger font-size-20"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small">Nofaol kameralar</p>
+                            <h4 class="mb-0">{{ stats.inactive }}</h4>
+                            <small class="text-muted">Faollashtirilmagan yoki o'chirilgan</small>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card mini-stats-wid h-100">
-                <div class="card-body d-flex align-items-center">
-                    <div class="flex-shrink-0 me-3">
-                        <div class="avatar-sm rounded-circle bg-soft-success d-flex align-items-center justify-content-center">
-                            <i class="mdi mdi-check-circle-outline text-success font-size-20"></i>
-                        </div>
-                    </div>
-                    <div class="flex-grow-1">
-                        <p class="text-muted mb-1 text-uppercase small">Faol kameralar</p>
-                        <h4 class="mb-0">{{ stats.active }}</h4>
-                        <small class="text-muted">Hozir tizimda ishlayotgan</small>
-                    </div>
-                </div>
+        {# ==== Header + "Kamera qo'shish" tugmasi ==== #}
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h4 class="mb-0">Kameralar ro'yhati</h4>
+                <small class="text-muted">
+                    IP kameralar ro'yxati, holati va yuz aniqlash sozlamalari.
+                </small>
+            </div>
+            <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+                <a href="/cameras/add/" class="btn btn-primary">
+                    <i class="mdi mdi-plus me-1"></i> Kamera qo‘shish
+                </a>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card mini-stats-wid h-100">
-                <div class="card-body d-flex align-items-center">
-                    <div class="flex-shrink-0 me-3">
-                        <div class="avatar-sm rounded-circle bg-soft-danger d-flex align-items-center justify-content-center">
-                            <i class="mdi mdi-close-circle-outline text-danger font-size-20"></i>
-                        </div>
-                    </div>
-                    <div class="flex-grow-1">
-                        <p class="text-muted mb-1 text-uppercase small">Nofaol kameralar</p>
-                        <h4 class="mb-0">{{ stats.inactive }}</h4>
-                        <small class="text-muted">Faollashtirilmagan yoki o'chirilgan</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {# ==== Header + "Kamera qo'shish" tugmasi ==== #}
-    <div class="row mb-2">
-        <div class="col-sm-6">
-            <h4 class="mb-0">Kameralar ro'yhati</h4>
-            <small class="text-muted">
-                IP kameralar ro'yxati, holati va yuz aniqlash sozlamalari.
-            </small>
-        </div>
-        <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
-            <a href="/cameras/add/" class="btn btn-primary">
-                <i class="mdi mdi-plus me-1"></i> Kamera qo‘shish
-            </a>
-        </div>
-    </div>
-
-    {# ==== Kameralar jadvali ==== #}
-    <div class="row g-4 justify-content-center">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {% if cameras %}
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light">
+        {# ==== Kameralar jadvali ==== #}
+        <div class="row g-4 justify-content-center">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body table-responsive">
+                        {% if cameras %}
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
                                 <tr>
                                     <th>#</th>
                                     <th>Kamera nomi</th>
@@ -100,8 +100,8 @@
                                     <th>Qo‘shilgan sana</th>
                                     <th class="text-end">Amallar</th>
                                 </tr>
-                            </thead>
-                            <tbody>
+                                </thead>
+                                <tbody>
                                 {% for camera in cameras %}
                                     <tr id="camera-row-{{ camera.ip|slugify }}">
                                         <td>{{ forloop.counter }}</td>
@@ -150,6 +150,19 @@
                                             {% endif %}
                                         </td>
                                         <td class="text-end">
+                                            <!-- Tahrirlash tugmasi -->
+                                            <button type="button"
+                                                    class="btn btn-sm btn-soft-primary me-1 btn-edit-camera"
+                                                    title="Tahrirlash"
+                                                    data-ip="{{ camera.ip }}"
+                                                    data-name="{{ camera.name|default:'' }}"
+                                                    data-port="{{ camera.port }}"
+                                                    data-username="{{ camera.username }}"
+                                                    data-detection="{{ camera.enable_face_detection|yesno:'true,false' }}">
+                                                <i class="mdi mdi-pencil-outline"></i>
+                                            </button>
+
+                                            <!-- O‘chirish tugmasi -->
                                             <button type="button"
                                                     class="btn btn-sm btn-soft-danger btn-delete-camera"
                                                     data-ip="{{ camera.ip }}">
@@ -158,19 +171,81 @@
                                         </td>
                                     </tr>
                                 {% endfor %}
-                            </tbody>
-                        </table>
-                    {% else %}
-                        <p class="mb-0 text-center text-muted">
-                            Hozircha kamera qo‘shilmagan.
-                            <a href="/cameras/add/">Yangi kamera qo‘shish</a>
-                        </p>
-                    {% endif %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p class="mb-0 text-center text-muted">
+                                Hozircha kamera qo‘shilmagan.
+                                <a href="/cameras/add/">Yangi kamera qo‘shish</a>
+                            </p>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+
+    <div class="modal fade" id="editCameraModal" tabindex="-1" aria-labelledby="editCameraModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editCameraModalLabel">Kamera ma'lumotlarini tahrirlash</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Yopish"></button>
+                </div>
+                <form id="editCameraForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Kamera nomi</label>
+                            <input type="text" class="form-control" name="name"
+                                   placeholder="Masalan: Kirish eshigi">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">IP manzil</label>
+                            <input type="text" class="form-control" name="ip" readonly>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Port</label>
+                                <input type="number" class="form-control" name="port"
+                                       min="1" max="65535" value="554">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Foydalanuvchi</label>
+                                <input type="text" class="form-control" name="username">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Parol</label>
+                            <input type="password" class="form-control" name="password"
+                                   placeholder="O‘zgartirmasangiz bo‘sh qoldiring">
+                            <small class="text-muted">
+                                Yangi parol kiritmasangiz, avvalgi parol saqlanadi
+                            </small>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input"
+                                   name="enable_face_detection" id="modalDetection">
+                            <label class="form-check-label" for="modalDetection">
+                                Yuz aniqlash yoqilsin
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary"
+                                data-bs-dismiss="modal">Bekor qilish
+                        </button>
+                        <button type="submit" class="btn btn-primary">Saqlash</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 {% endblock content %}
 
 {% block scripts %}
@@ -186,28 +261,105 @@
                 },
                 body: JSON.stringify(payload)
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    toastr.success(data.message || "Kamera sozlamalari yangilandi");
-                } else {
-                    toastr.error(data.message || "Sozlamalarni yangilashda xatolik");
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        toastr.success(data.message || "Kamera sozlamalari yangilandi");
+                    } else {
+                        toastr.error(data.message || "Sozlamalarni yangilashda xatolik");
+                        if (typeof onErrorRollback === "function") {
+                            onErrorRollback();
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    toastr.error("Server bilan bog‘lanishda xatolik");
                     if (typeof onErrorRollback === "function") {
                         onErrorRollback();
                     }
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                toastr.error("Server bilan bog‘lanishda xatolik");
-                if (typeof onErrorRollback === "function") {
-                    onErrorRollback();
-                }
-            });
+                });
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            // Kamera o'chirish
+            // === Modal va formni tayyorlab olamiz ===
+            const editModalEl = document.getElementById('editCameraModal');
+            const editModal = new bootstrap.Modal(editModalEl);
+            const editForm = document.getElementById('editCameraForm');
+
+            // ========= Tahrirlash tugmalarini ulash =========
+            document.querySelectorAll('.btn-edit-camera').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const ip = this.dataset.ip;
+                    const name = this.dataset.name || "";
+                    const port = this.dataset.port || "554";
+                    const username = this.dataset.username || "";
+                    const detection = this.dataset.detection === 'true';
+
+                    // Formdagi maydonlarni to‘ldiramiz
+                    editForm.ip.value = ip;
+                    editForm.name.value = name;
+                    editForm.port.value = port;
+                    editForm.username.value = username;
+                    editForm.password.value = "";
+                    editForm.enable_face_detection.checked = detection;
+
+                    editModal.show();
+                });
+            });
+
+            // ========= Modal form submit (API: /api/camera/update/<ip>/) =========
+            editForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const ip = editForm.ip.value.trim();
+                if (!ip) {
+                    toastr.error("IP manzili aniqlanmadi");
+                    return;
+                }
+
+                const payload = {
+                    name: editForm.name.value.trim(),
+                    port: parseInt(editForm.port.value, 10),
+                    username: editForm.username.value.trim(),
+                    enable_face_detection: editForm.enable_face_detection.checked,
+                };
+
+                // Faqat kiritilgan bo‘lsa parol jo‘natamiz
+                if (editForm.password.value.trim()) {
+                    payload.password = editForm.password.value.trim();
+                }
+
+                fetch("/api/camera/update/" + encodeURIComponent(ip) + "/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            toastr.success(data.message || "Kamera ma'lumotlari yangilandi");
+
+                            // Modalni yopamiz
+                            editModal.hide();
+
+                            // Eng sodda yo'l: sahifani yangilab yuboramiz, hamma ma'lumotlar fresh bo'ladi
+                            location.reload();
+
+                            // Agar xohlasang, reload o‘rniga jadvaldagi row’ni JS bilan yangilab berish ham mumkin.
+                        } else {
+                            toastr.error(data.message || "Kamera ma'lumotlarini yangilashda xatolik");
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        toastr.error("Server bilan bog‘lanishda xatolik");
+                    });
+            });
+
+            // === Kamera o'chirish (senda bor kod) ===
             const deleteButtons = document.querySelectorAll('.btn-delete-camera');
             deleteButtons.forEach(function (btn) {
                 btn.addEventListener('click', function () {
@@ -228,29 +380,27 @@
                             fetch("/api/cameras/remove/" + encodeURIComponent(ip) + "/", {
                                 method: "POST"
                             })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    const rowId = "camera-row-" + ip.replace(/\./g, "-");
-                                    const row = document.getElementById(rowId);
-                                    if (row) {
-                                        row.remove();
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        const rowId = "camera-row-" + ip.replace(/\./g, "-");
+                                        const row = document.getElementById(rowId);
+                                        if (row) row.remove();
+                                        toastr.success(data.message || "Kamera o‘chirildi");
+                                    } else {
+                                        toastr.error(data.message || "O‘chirishda xatolik yuz berdi");
                                     }
-                                    toastr.success(data.message || "Kamera o‘chirildi");
-                                } else {
-                                    toastr.error(data.message || "O‘chirishda xatolik yuz berdi");
-                                }
-                            })
-                            .catch(err => {
-                                console.error(err);
-                                toastr.error("Server bilan bog‘lanishda xatolik");
-                            });
+                                })
+                                .catch(err => {
+                                    console.error(err);
+                                    toastr.error("Server bilan bog‘lanishda xatolik");
+                                });
                         }
                     });
                 });
             });
 
-            // Faollik switchi
+            // === Faollik switchi ===
             document.querySelectorAll('.toggle-active').forEach(function (input) {
                 input.addEventListener('change', function () {
                     const ip = this.getAttribute('data-ip');
@@ -258,13 +408,12 @@
                     const self = this;
 
                     updateCamera(ip, {is_active: checked}, function () {
-                        // xatolik bo'lsa, avvalgi holatga qaytaramiz
                         self.checked = !checked;
                     });
                 });
             });
 
-            // Yuz aniqlash switchi
+            // === Yuz aniqlash switchi ===
             document.querySelectorAll('.toggle-detection').forEach(function (input) {
                 input.addEventListener('change', function () {
                     const ip = this.getAttribute('data-ip');

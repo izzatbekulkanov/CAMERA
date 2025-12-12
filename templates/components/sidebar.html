@@ -4,17 +4,59 @@
 
     <!-- Brand Logo -->
     <div class="logo-box">
-        <!-- Brand Logo Light -->
+
+        <!-- LIGHT LOGO -->
         <a href="{% url 'dashboard' %}" class="logo-light">
-            <img src="{% static 'assets/images/logo-light.png' %}" alt="logo" class="logo-lg">
-            <img src="{% static 'assets/images/logo-sm.png' %}" alt="small logo" class="logo-sm">
+
+            {# LARGE LOGO #}
+            {% if global_site_settings and global_site_settings.logo_large %}
+                <img src="{{ global_site_settings.logo_large.url }}"
+                     alt="{{ global_site_settings.site_name }}"
+                     class="logo-lg">
+            {% else %}
+                <img src="{% static 'assets/images/logo-light.png' %}"
+                     alt="logo"
+                     class="logo-lg">
+            {% endif %}
+
+            {# SMALL LOGO #}
+            {% if global_site_settings and global_site_settings.logo_small %}
+                <img src="{{ global_site_settings.logo_small.url }}"
+                     alt="{{ global_site_settings.site_name }}"
+                     class="logo-sm">
+            {% else %}
+                <img src="{% static 'assets/images/logo-sm.png' %}"
+                     alt="small logo"
+                     class="logo-sm">
+            {% endif %}
         </a>
 
-        <!-- Brand Logo Dark -->
+
+
+        <!-- DARK LOGO (fallback; theme bo‘lmasa ham qoladi) -->
         <a href="{% url 'dashboard' %}" class="logo-dark">
-            <img src="{% static 'assets/images/logo-dark.png' %}" alt="dark logo" class="logo-lg">
-            <img src="{% static 'assets/images/logo-sm.png' %}" alt="small logo" class="logo-sm">
+
+            {% if global_site_settings and global_site_settings.logo_large %}
+                <img src="{{ global_site_settings.logo_large.url }}"
+                     alt="{{ global_site_settings.site_name }}"
+                     class="logo-lg">
+            {% else %}
+                <img src="{% static 'assets/images/logo-dark.png' %}"
+                     alt="dark logo"
+                     class="logo-lg">
+            {% endif %}
+
+            {% if global_site_settings and global_site_settings.logo_small %}
+                <img src="{{ global_site_settings.logo_small.url }}"
+                     alt="{{ global_site_settings.site_name }}"
+                     class="logo-sm">
+            {% else %}
+                <img src="{% static 'assets/images/logo-sm.png' %}"
+                     alt="small logo"
+                     class="logo-sm">
+            {% endif %}
         </a>
+
     </div>
 
     <!--- Menu -->
@@ -67,6 +109,15 @@
                                 <span class="menu-text">{% trans "Kameralarni ko‘rish" %}</span>
                             </a>
                         </li>
+
+                        <!-- ✅ IP kameralar menyusi -->
+                        <li class="menu-item">
+                            <a href="{% url 'ip_camera_view' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="wifi"></i></span>
+                                <span class="menu-text">{% trans "IP Kamerani ko'rish" %}</span>
+                            </a>
+                        </li>
+
                         <li class="menu-item">
                             <a href="{% url 'add_camera_view' %}" class="menu-link">
                                 <span class="menu-icon"><i data-feather="plus-circle"></i></span>
@@ -79,12 +130,12 @@
                                 <span class="menu-text">{% trans "Kameralar ro‘yxati" %}</span>
                             </a>
                         </li>
-                        <li class="menu-item">
-                            <a href="{% url 'usb_camera_view' %}" class="menu-link">
-                                <span class="menu-icon"><i data-feather="camera-off"></i></span>
-                                <span class="menu-text">{% trans "USB Kamera" %}</span>
-                            </a>
-                        </li>
+{#                        <li class="menu-item">#}
+{#                            <a href="{% url 'usb_camera_view' %}" class="menu-link">#}
+{#                                <span class="menu-icon"><i data-feather="camera-off"></i></span>#}
+{#                                <span class="menu-text">{% trans "USB Kamera" %}</span>#}
+{#                            </a>#}
+{#                        </li>#}
                     </ul>
                 </div>
             </li>

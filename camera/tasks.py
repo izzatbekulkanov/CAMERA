@@ -1,280 +1,168 @@
-# camera/tasks.py — TO‘LIQ, PROFESSIONAL, 100% ISHLAYDI (2025)
+# camera/tasks.py
 
 import asyncio
+import logging
+import uuid
+
 import cv2
 import numpy as np
-import face_recognition
-import base64
-import uuid
-from concurrent.futures import ThreadPoolExecutor
-
 import requests
 from asgiref.sync import sync_to_async
 from celery import shared_task
-from django.utils import timezone
 from django.core.files.base import ContentFile
+from django.utils import timezone
 
-from camera.models import Camera
-from users.models import FaceEncoding, CustomUser
 from attendance.models import Attendance, AttendancePhoto
+from camera.models import Camera
+from users.models import CustomUser
 
-# ============================
-# SOZLAMALAR — ENG YAXSHI NATIJA UCHUN
-# ============================
-FRAME_INTERVAL = 0.03                    # ~33 FPS teorik
-DETECTION_INTERVAL = 1         # Har frameda qidiramiz → ramka yo‘qolmaydi
-RESIZE_WIDTH = 500             # Biroz kattaroq → aniqlik oshadi
-FACE_THRESHOLD = 0.60          # ← ENG MUHIM O‘ZGARTIRISH! (0.58 ~ 0.62 oralig‘i ideal)
-MIN_FACE_SIZE = 70             # Kichik yuzlarni rad etamiz → xato kamayadi
-EXIT_TIMEOUT = 180                       # 3 daqiqa ko‘rinmasa → chiqdi deb hisoblaydi
-PHOTO_INTERVAL = 20                      # Har 20 soniyada 1 ta rasm saqlaydi
-ENCODING_REFRESH_INTERVAL = 60           # Har 1 daqiqada encoding yangilanadi
+logger = logging.getLogger(__name__)
 
-executor = ThreadPoolExecutor(max_workers=6)
-CAMERA_INSTANCES = {}
-KNOWN_ENCODINGS = {"data": None, "users": None, "last_update": None}
-ACTIVE_SESSIONS = {}                     # {user_id: last_seen_time}
-last_photo_cache = {}                    # {user_id: last_photo_time}
+# ================== GLOBAL STATE ==================
 
-# ============================
-# KAMERA BOSHQARUVI
-# ============================
-async def get_camera(camera_id=0):
-    if camera_id in CAMERA_INSTANCES:
-        CAMERA_INSTANCES[camera_id]["users"] += 1
-        print(f"[KAMERA] {camera_id} → qayta ishlatildi (users: {CAMERA_INSTANCES[camera_id]['users']})")
-        return CAMERA_INSTANCES[camera_id]
+EXIT_TIMEOUT = 180      # 3 daqiqa ko'rinmasa → chiqdi
+PHOTO_INTERVAL = 20     # har 20 s da 1 ta rasm
 
-    print(f"[KAMERA] Yangi kamera ochilmoqda: {camera_id}")
-    cap = cv2.VideoCapture(camera_id)
-    if not cap.isOpened():
-        print(f"[XATO] Kamera {camera_id} ochilmadi! USB yoki ruxsatlar tekshiring!")
-        return None
+ACTIVE_SESSIONS: dict[int, timezone.datetime] = {}      # user_id → last_seen
+last_photo_cache: dict[int, timezone.datetime] = {}     # user_id → last_photo_time
 
-    # Optimal sozlamalar
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    cap.set(cv2.CAP_PROP_FPS, 30)
 
-    lock = asyncio.Lock()
-    CAMERA_INSTANCES[camera_id] = {
-        "cap": cap,
-        "frame": None,
-        "lock": lock,
-        "users": 1,
-        "task": None
-    }
+# ================== ATTENDANCE & PHOTO ==================
 
-    async def update_frames():
-        while True:
-            ret, frame = cap.read()
-            if ret:
-                async with lock:
-                    CAMERA_INSTANCES[camera_id]["frame"] = frame.copy()
-            else:
-                print(f"[XATO] Kamera {camera_id} → frame olishda xato!")
-            await asyncio.sleep(FRAME_INTERVAL)
-
-    CAMERA_INSTANCES[camera_id]["task"] = asyncio.create_task(update_frames())
-    print(f"[MUVOFFAQIYAT] Kamera {camera_id} muvaffaqiyatli ochildi!")
-    return CAMERA_INSTANCES[camera_id]
-
-async def release_camera_if_unused(camera_id):
-    cam = CAMERA_INSTANCES.get(camera_id)
-    if cam and cam["users"] <= 0:
-        print(f"[KAMERA] {camera_id} bo‘sh → yopilmoqda...")
-        if cam["task"]:
-            cam["task"].cancel()
-        cam["cap"].release()
-        del CAMERA_INSTANCES[camera_id]
-        print(f"[KAMERA] {camera_id} yopildi.")
-
-# ============================
-# ENCODING YUKLASH
-# ============================
 @sync_to_async
-def get_latest_encodings():
-    global KNOWN_ENCODINGS
+def mark_exit(user: CustomUser) -> None:
+    """EXIT_TIMEOUT dan oshsa → chiqish vaqtini belgilash."""
+    today = timezone.localdate()
+    att = Attendance.objects.filter(
+        user=user,
+        date=today,
+        is_present=True,
+    ).first()
+    if not att:
+        return
+
     now = timezone.now()
-    if (KNOWN_ENCODINGS["last_update"] is None or
-        (now - KNOWN_ENCODINGS["last_update"]).total_seconds() > ENCODING_REFRESH_INTERVAL):
+    att.exit_time = now
+    att.is_present = False
+    att.duration_minutes = max(
+        1, int((att.exit_time - att.entry_time).total_seconds() // 60)
+    )
+    att.save()
+    logger.info("[CHIQISH] %s → %s", user.full_name or user.username, att.exit_time)
 
-        encodings = []
-        users = []
-        for fe in FaceEncoding.objects.select_related("user").all():
-            vec = np.array(fe.encoding_data, dtype=np.float32)
-            if vec.shape == (128,):
-                norm_vec = vec / np.linalg.norm(vec)
-                encodings.append(norm_vec)
-                users.append(fe.user)
 
-        KNOWN_ENCODINGS["data"] = np.array(encodings) if encodings else np.empty((0, 128))
-        KNOWN_ENCODINGS["users"] = users
-        KNOWN_ENCODINGS["last_update"] = now
-        print(f"[ENCODING] Yangilandi → {len(encodings)} ta odam yuklandi")
-
-    return KNOWN_ENCODINGS["data"], KNOWN_ENCODINGS["users"]
-
-# ============================
-# CHIQISH ANIQLASH (AUTO EXIT)
-# ============================
-async def auto_exit_detector():
-    print("[AUTO EXIT] Ishga tushdi → har 30 sekundda tekshiradi")
+async def auto_exit_detector() -> None:
+    """Har 30 s da ACTIVE_SESSIONS ni tekshiradi va chiqishlarni belgilaydi."""
+    logger.info("[AUTO EXIT] ishga tushdi")
     while True:
         await asyncio.sleep(30)
         now = timezone.now()
-        expired = [uid for uid, t in list(ACTIVE_SESSIONS.items()) if (now - t).total_seconds() > EXIT_TIMEOUT]
-        for uid in expired:
-            user = await sync_to_async(CustomUser.objects.get)(id=uid)
+
+        expired_ids = [
+            uid
+            for uid, last_seen in list(ACTIVE_SESSIONS.items())
+            if (now - last_seen).total_seconds() > EXIT_TIMEOUT
+        ]
+
+        for uid in expired_ids:
+            try:
+                user = await sync_to_async(CustomUser.objects.get)(id=uid)
+            except CustomUser.DoesNotExist:
+                ACTIVE_SESSIONS.pop(uid, None)
+                continue
+
             await mark_exit(user)
             ACTIVE_SESSIONS.pop(uid, None)
 
-@sync_to_async
-def mark_exit(user):
-    today = timezone.localdate()
-    att = Attendance.objects.filter(user=user, date=today, is_present=True).first()
-    if att:
-        att.exit_time = timezone.now()
-        att.is_present = False
-        duration = (att.exit_time - att.entry_time).total_seconds() // 60
-        att.duration_minutes = max(1, int(duration))
-        att.save()
-        print(f"[CHIQISH] {user.full_name} chiqdi → {att.exit_time.strftime('%H:%M')}")
 
-# ============================
-# TANISH + RASM SAQLASH
-# ============================
 @sync_to_async
-def process_recognition(user, face_crop):
+def process_recognition(user: CustomUser, face_crop: np.ndarray) -> None:
+    """
+    Yuz tanilganda:
+    - Attendance (entry/last_seen/is_present) yangilanadi
+    - ACTIVE_SESSIONS update bo'ladi
+    - FOTO interval bilan saqlanadi
+    """
     today = timezone.localdate()
     now = timezone.now()
 
     att, created = Attendance.objects.get_or_create(
-        user=user, date=today,
-        defaults={'entry_time': now, 'last_seen': now, 'is_present': True}
+        user=user,
+        date=today,
+        defaults={"entry_time": now, "last_seen": now, "is_present": True},
     )
+
     if not created:
         att.last_seen = now
         att.is_present = True
-        att.save(update_fields=['last_seen', 'is_present'])
+        att.save(update_fields=["last_seen", "is_present"])
 
     ACTIVE_SESSIONS[user.id] = now
-    print(f"[TANISH] {user.full_name} tanildi → last_seen yangilandi")
+    logger.debug("[TANISH] %s → last_seen=%s", user.username, now)
 
-    # Rasm saqlash (faqat ma'lum vaqt oralig‘ida)
     last_time = last_photo_cache.get(user.id)
-    if not last_time or (now - last_time).total_seconds() > PHOTO_INTERVAL:
-        _, buffer = cv2.imencode('.jpg', face_crop, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
-        photo = AttendancePhoto(attendance=att)
-        filename = f"{user.username}_{uuid.uuid4().hex[:8]}.jpg"
-        photo.image.save(filename, ContentFile(buffer.tobytes()))
-        last_photo_cache[user.id] = now
-        print(f"[RASMI] {user.full_name} uchun rasm saqlandi → {filename}")
+    if last_time and (now - last_time).total_seconds() <= PHOTO_INTERVAL:
+        return
 
-# ============================
-# ASOSIY GENERATOR — HAR FRAMEda YUZ QIDIRADI!
-# ============================
-async def detect_faces(camera):
-    print("[DETECT] detect_faces generator ishga tushdi — HAR FRAMEda ishlaydi!")
+    try:
+        ok, buffer = cv2.imencode(".jpg", face_crop, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+    except Exception as exc:
+        logger.error("[FOTO] %s encodlash xato: %s", user.id, exc)
+        return
 
-    while True:
-        async with camera["lock"]:
-            current_frame = camera["frame"]
-            frame = current_frame.copy() if current_frame is not None else None
+    if not ok:
+        return
 
-        if frame is None:
-            await asyncio.sleep(FRAME_INTERVAL)
-            continue
+    filename = f"{user.username or 'user'}_{uuid.uuid4().hex[:8]}.jpg"
+    photo = AttendancePhoto(attendance=att)
+    photo.image.save(filename, ContentFile(buffer.tobytes()))
+    last_photo_cache[user.id] = now
 
-        faces_data = []
-        h, w = frame.shape[:2]
-        small_frame = cv2.resize(frame, (RESIZE_WIDTH, int(h * RESIZE_WIDTH / w)))
-        rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+    logger.info("[FOTO] %s uchun rasm saqlandi: %s", user.full_name or user.username, filename)
 
-        # Tez va aniq model → HOG (real-time uchun ideal)
-        locations = face_recognition.face_locations(rgb_small, model="hog")
-        encodings = face_recognition.face_encodings(rgb_small, locations)
 
-        known_enc, known_users = await get_latest_encodings()
+# ================== BACKGROUND STARTER ==================
 
-        for (t, r, b, l), enc in zip(locations, encodings):
-            # Kattalashtirish
-            scale_x = w / RESIZE_WIDTH
-            scale_y = h / small_frame.shape[0]
-            l, r, t, b = int(l * scale_x), int(r * scale_x), int(t * scale_y), int(b * scale_y)
+def start_background_tasks() -> None:
+    """ASGI ishga tushganda auto_exit_detector ni loop ga qo'shish."""
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
-            if (b - t) < MIN_FACE_SIZE or (r - l) < MIN_FACE_SIZE:
-                continue
-
-            # Masofa hisoblash
-            if len(known_enc) == 0:
-                continue
-
-            enc_norm = enc / np.linalg.norm(enc)
-            distances = np.linalg.norm(known_enc - enc_norm, axis=1)
-            min_dist = np.min(distances)
-            idx = np.argmin(distances)
-
-            if min_dist >= FACE_THRESHOLD:
-                continue  # Bu yerda rad etamiz
-
-            confidence = 1 - min_dist
-            if confidence < 0.55:  # 55% dan past → ishonchsiz
-                continue
-
-            user = known_users[idx]
-            face_crop = frame[t:b, l:r]
-
-            # process_recognition ni chaqiramiz
-            asyncio.create_task(process_recognition(user, face_crop))
-
-            # ← MANA SHU YERDA crop_b64 yaratiladi!
-            crop_resized = cv2.resize(face_crop, (120, 120))  # Kichik o‘lcham → tez yuklanadi
-            _, buffer = cv2.imencode('.jpg', crop_resized, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-            crop_b64 = base64.b64encode(buffer).decode('utf-8')  # ← ANIQLIK UCHUN!
-
-            # Endi frontendga yuboramiz
-            faces_data.append({
-                "name": user.full_name or user.username,
-                "role": getattr(user, 'get_role_display', lambda: "Noma'lum")(),
-                "id": user.student_id_number or user.employee_id_number or str(user.id),
-                "crop": crop_b64,  # ← BU YERDA ISHLATILADI
-                "bbox": [l, t, r, b],
-                "confidence": round(confidence * 100, 1)
-            })
-
-        yield frame, faces_data
-        await asyncio.sleep(FRAME_INTERVAL)
-
-# ============================
-# BACKGROUND TASK — server ishga tushganda
-# ============================
-def start_background_tasks():
-    loop = asyncio.get_event_loop()
     loop.create_task(auto_exit_detector())
-    print("[BACKGROUND] auto_exit_detector ishga tushdi!")
+    logger.info("[BACKGROUND] auto_exit_detector ishga tushdi")
 
+
+# ================== CELERY TASK: HEALTH CHECK ==================
 
 @shared_task
-def check_camera_health():
-    """Har 30 sekundda kameralar ishlayotganini tekshiradi"""
+def check_camera_health() -> None:
+    """
+    Celery beat orqali kameralarning ish holatini tekshiradi
+    va Camera.is_online maydonini yangilaydi.
+    """
     cameras = Camera.objects.filter(is_active=True)
+
     for cam in cameras:
         url = f"http://{cam.ip}:{cam.port}/"
         try:
             r = requests.get(url, auth=(cam.username, cam.password), timeout=5)
-            if r.status_code in [200, 401, 302]:
-                if not cam.is_online:
-                    cam.is_online = True
-                    cam.save(update_fields=['is_online'])
-                    print(f"[HEALTH] {cam.ip} → ONLINE")
-            else:
-                if cam.is_online:
-                    cam.is_online = False
-                    cam.save(update_fields=['is_online'])
-                    print(f"[HEALTH] {cam.ip} → OFFLINE (status: {r.status_code})")
-        except:
+        except Exception as exc:
             if cam.is_online:
                 cam.is_online = False
-                cam.save(update_fields=['is_online'])
-                print(f"[HEALTH] {cam.ip} → ULANMADI")
+                cam.save(update_fields=["is_online"])
+            logger.warning("[HEALTH] %s ulanmagan: %s", cam.ip, exc)
+            continue
+
+        if r.status_code in (200, 401, 302):
+            if not cam.is_online:
+                cam.is_online = True
+                cam.save(update_fields=["is_online"])
+                logger.info("[HEALTH] %s → ONLINE", cam.ip)
+        else:
+            if cam.is_online:
+                cam.is_online = False
+                cam.save(update_fields=["is_online"])
+                logger.info("[HEALTH] %s → OFFLINE (status=%s)", cam.ip, r.status_code)

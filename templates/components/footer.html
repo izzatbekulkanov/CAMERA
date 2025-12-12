@@ -6,7 +6,10 @@
             <div class="col-md-6">
                 <div>
                     <script>document.write(new Date().getFullYear())</script>
-                    © NamDPI - <a href="https://namspi.uz/" target="_blank">NamSPI.uz</a>
+                    © {{ global_site_settings.site_name|default:"NamDPI" }}
+                    - <a href="https://namspi.uz/" target="_blank">
+                    {{ global_site_settings.site_name|default:"NamSPI.uz" }}
+                </a>
                 </div>
             </div>
             <div class="col-md-6">

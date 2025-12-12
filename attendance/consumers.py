@@ -1,9 +1,13 @@
 import json
+
 from channels.generic.websocket import AsyncWebsocketConsumer
-from .models import Attendance
+from .models import Attendance, SiteSettings
 from .tasks import analyze_attendance_psychology
 from django.utils import timezone
 from asgiref.sync import sync_to_async
+
+
+
 
 class PsychologyConsumer(AsyncWebsocketConsumer):
     async def connect(self):

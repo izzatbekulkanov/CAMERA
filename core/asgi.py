@@ -25,22 +25,28 @@ application = ProtocolTypeRouter({
 })
 
 # ================================================================
-# Agar event loop mavjud bo‘lsa, background task ishga tushirish
+# Background tasklarni ASGI loopga xavfsiz ulash
 # ================================================================
+import asyncio
+
 async def start_tasks_safe():
+    """
+    Bu coroutine ichida start_background_tasks() ni chaqiramiz.
+    start_background_tasks() ODDIY (sync) funksiya, uni await QILMAYMIZ.
+    """
     try:
         from camera.tasks import start_background_tasks
-        await start_background_tasks()
+        start_background_tasks()   # ✅ bu yerda 'await' yo'q
     except Exception as e:
         print("Background task start xatolik:", e)
 
-# Daphne yoki Uvicorn ishga tushganda
 try:
-    import asyncio
     loop = asyncio.get_event_loop()
     if loop.is_running():
+        # Agar loop allaqachon ishlayotgan bo'lsa (masalan, Daphne ichida)
         loop.create_task(start_tasks_safe())
     else:
+        # Import vaqtida ishlashi uchun bir marta run qilamiz
         loop.run_until_complete(start_tasks_safe())
 except Exception as e:
     print("ASGI loop error:", e)

@@ -2,6 +2,12 @@
 {% load static %}
 
 {% block styles %}
+    <link href="{% static 'assets/libs/select2/css/select2.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/sweetalert2/sweetalert2.min.css' %}" rel="stylesheet">
+    <link href="{% static 'assets/libs/dropzone/min/dropzone.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/quill/quill.core.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/quill/quill.snow.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css" />
 {% endblock styles %}
 
 {% block title %}
@@ -146,8 +152,14 @@ Foydalanuvchilar ro'yxati
                                             <a href="{% url 'my_profile' %}?id={{ user.id }}" class="action-icon text-primary" title="Tahrirlash">
                                                 <i class="mdi mdi-square-edit-outline"></i>
                                             </a>
-                                            <a href="#" class="action-icon text-danger" title="O‘chirish">
-                                                <i class="mdi mdi-delete"></i>
+                                            <!-- Tugma (Material Design ikonka bilan) -->
+                                            <a href="javascript:void(0)"
+                                               class="action-icon text-danger delete-user-btn"
+                                               data-user-id="{{ user.id|default:'0' }}"
+                                               data-user-name="{{ user.full_name|default:user.username|escapejs }}"
+                                               data-user-debug="{{ user.id }} - {{ user.username }}"
+                                            title="Butunlay o‘chirish">
+                                            <i class="mdi mdi-delete-forever"></i>
                                             </a>
                                         </td>
                                     </tr>
@@ -197,4 +209,131 @@ Foydalanuvchilar ro'yxati
 {% endblock content %}
 
 {% block scripts %}
+    <script src="{% static 'assets/libs/select2/js/select2.min.js' %}"></script>
+    <script src="{% static 'assets/libs/sweetalert2/sweetalert2.min.js' %}"></script>
+    <script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('📋 Sahifa yuklandi — o‘chirish tugmalarini qidiramiz...');
+
+            // Barcha tugmalarni topamiz va debug
+            const deleteButtons = document.querySelectorAll('.delete-user-btn');
+            console.log(`🔍 Topildi: ${deleteButtons.length} ta o‘chirish tugmasi`);
+
+            deleteButtons.forEach((btn, index) => {
+                const userId = btn.dataset.userId;
+                const userName = btn.dataset.userName;
+                const debugInfo = btn.dataset.userDebug;
+
+                // DEBUG: Har bir tugma uchun ID ni konsolga chiqaramiz
+                console.log(`Tugma ${index + 1}: ID=${userId}, Name="${userName}", Debug="${debugInfo}"`);
+
+                // Agar ID bo‘sh yoki 0 bo‘lsa — xato
+                if (!userId || userId === '0' || userId === 'undefined') {
+                    console.error(`❌ XATO: ${index + 1}-tugma uchun user ID mavjud emas!`);
+                    btn.style.backgroundColor = 'red';
+                    return;
+                }
+
+                btn.addEventListener('click', function () {
+                    console.log(`🗑️ O‘chirish boshlandi: ID=${userId}, Name=${userName}`);
+
+                    Swal.fire({
+                        title: 'Diqqat!',
+                        html: `<strong>${userName}</strong> ni <br><span style="color: #d33; font-weight: bold;">BUTUNLAY bazadan o‘chirmoqchimisiz?</span>`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Ha, o‘chir!',
+                        cancelButtonText: 'Bekor qilish',
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.fire({
+                                title: 'OXIRGI OGOHLANTIRISH!',
+                                html: `
+                                    <div style="background:#f8d7da; color:#721c24; padding:15px; border-radius:8px; border:1px solid #f5c6cb; text-align:left; font-size:14px;">
+                                        <strong>Barcha ma'lumotlar yo‘q bo‘ladi:</strong><br>
+                                        • Kelish-ketish tarixi (Attendance)<br>
+                                        • Yuz rasmlari va encodinglar<br>
+                                        • Psixologik tahlillar<br>
+                                        • Barcha fotosuratlar va loglar
+                                    </div>
+                                    <br><strong style="color:#d33;">Bu amal qaytarib bo‘lmaydi!</strong>
+                                `,
+                                icon: 'error',
+                                showCancelButton: true,
+                                confirmButtonColor: '#c82333',
+                                cancelButtonColor: '#6c757d',
+                                confirmButtonText: 'Ha, baribir o‘chir!',
+                                cancelButtonText: 'Yo‘q, saqlayman',
+                                reverseButtons: true
+                            }).then((finalResult) => {
+                                if (finalResult.isConfirmed) {
+                                    console.log(`🚀 AJAX so‘rov yuborilmoqda → /users/delete-permanently/${userId}/`);
+
+                                    fetch(`/users/delete-permanently/${userId}/`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'X-Requested-With': 'XMLHttpRequest',
+                                            'X-CSRFToken': '{{ csrf_token }}',
+                                        },
+                                    })
+                                        .then(response => {
+                                            console.log(`📡 Javob keldi: Status=${response.status}`);
+                                            return response.json();
+                                        })
+                                        .then(data => {
+                                            console.log('📦 JSON javob:', data);
+
+                                            if (data.success) {
+                                                $.toast({
+                                                    heading: 'Muvaffaqiyatli!',
+                                                    text: `<strong>${userName}</strong> butunlay o‘chirildi!`,
+                                                    icon: 'success',
+                                                    showHideTransition: 'slide',
+                                                    hideAfter: 6000,
+                                                    position: 'top-right',
+                                                    bgColor: '#28a745',
+                                                    textColor: '#fff'
+                                                });
+                                                setTimeout(() => location.reload(), 1800);
+                                            } else {
+                                                $.toast({
+                                                    heading: 'Xato!',
+                                                    text: data.message || 'Foydalanuvchini o‘chirishda xatolik yuz berdi.',
+                                                    icon: 'error',
+                                                    showHideTransition: 'fade',
+                                                    hideAfter: 8000,
+                                                    position: 'top-right',
+                                                    bgColor: '#dc3545'
+                                                });
+                                            }
+                                        })
+                                        .catch(err => {
+                                            console.error('❌ Fetch xatosi:', err);
+                                            $.toast({
+                                                heading: 'Ulanish xatosi',
+                                                text: 'Server bilan aloqa uzildi. Internetni tekshiring.',
+                                                icon: 'error',
+                                                hideAfter: 8000,
+                                                position: 'top-right',
+                                                bgColor: '#dc3545'
+                                            });
+                                        });
+                                }
+                            });
+                        }
+                    });
+                });
+            });
+
+            // Agar hech qanday tugma topilmasa
+            if (deleteButtons.length === 0) {
+                console.warn('⚠️ Hech qanday o‘chirish tugmasi topilmadi!');
+            }
+        });
+    </script>
 {% endblock scripts %}

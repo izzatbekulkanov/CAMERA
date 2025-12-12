@@ -60,17 +60,11 @@ class CustomUser(AbstractUser):
 
 
 class FaceEncoding(models.Model):
-    """
-    Foydalanuvchi yuz ma’lumotlarini saqlovchi model.
-    Bir foydalanuvchiga bir yoki bir nechta encoding yozuvi tegishli bo‘lishi mumkin.
-    """
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="face_encodings", verbose_name=_("Foydalanuvchi"))
-    encoding_data = models.JSONField(verbose_name=_("Yuz encoding ma’lumoti"))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Yaratilgan vaqt"))
-
-    def __str__(self):
-        return f"{self.user.full_name or self.user.username} — {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="face_encodings")
+    encoding_data = models.JSONField()
+    model_version = models.CharField(max_length=50, default="insightface_buffalo_l")
+    confidence = models.FloatField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = _("Yuz ma’lumoti")
-        verbose_name_plural = _("Yuz ma’lumotlari")
+        unique_together = ('user', 'model_version')

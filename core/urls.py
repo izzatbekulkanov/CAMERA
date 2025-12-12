@@ -4,6 +4,8 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import render
+from django.urls import re_path
+from django.views.static import serve
 
 
 # ===============================
@@ -40,14 +42,21 @@ urlpatterns = [
 # 🔹 Dev holatda static & media fayllarni servis qilish
 # ===============================
 if settings.DEBUG:
-    # Agar STATICFILES_DIRS ishlatilsa, document_root sifatida birinchi papkani belgilang
-    static_root = settings.STATIC_ROOT if settings.STATIC_ROOT else (settings.STATICFILES_DIRS[0] if hasattr(settings, "STATICFILES_DIRS") else None)
-    if static_root:
-        urlpatterns += static(settings.STATIC_URL, document_root=static_root)
-    # Media fayllar
-    if hasattr(settings, "MEDIA_URL") and hasattr(settings, "MEDIA_ROOT"):
-        urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # STATIC: devda Django static view orqali
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    # MEDIA: devda Django static view orqali
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    # ⚠️ Production:
+    # Static fayllarni WhiteNoise beradi (MIDDLEWARE orqali),
+    # shu sababli bu yerda STATIC uchun hech narsa yozmaymiz.
 
+    # Media fayllar uchun oddiy serve (nginx bo'lmaguncha vaqtinchalik yechim)
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', serve, {
+            'document_root': settings.MEDIA_ROOT,
+        }),
+    ]
 # ===============================
 # 🔹 Custom error handlers
 # ===============================

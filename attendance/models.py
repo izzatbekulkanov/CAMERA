@@ -18,7 +18,7 @@ class SiteSettings(models.Model):
         help_text='Saytning hozirgi holati'
     )
 
-    # ⚙️ Face recognition ishlash rejimi (CPU / GPU)
+    # Face recognition qurilmasi
     FACE_DEVICE_CHOICES = [
         ('cpu', 'CPU'),
         ('gpu', 'GPU'),
@@ -27,56 +27,52 @@ class SiteSettings(models.Model):
         max_length=10,
         choices=FACE_DEVICE_CHOICES,
         default='cpu',
-        help_text="Face encoding va face recognition qaysi qurilmada ishlasin"
+        help_text="Face recognition qaysi qurilmada ishlasin"
     )
 
-    # Sayt logolari
-    logo_dark = models.ImageField(
+    # Bitta logo — katta va kichik o‘lcham uchun
+    logo_large = models.ImageField(
         upload_to='site_logos/',
         null=True,
         blank=True,
-        help_text='Saytning qora (dark) logosi'
+        help_text='Saytning asosiy logosi (katta o‘lcham, masalan: header uchun)'
     )
-    logo_light = models.ImageField(
+    logo_small = models.ImageField(
         upload_to='site_logos/',
         null=True,
         blank=True,
-        help_text='Saytning oq (light) logosi'
+        help_text='Saytning kichik logosi (masalan: navbar, favicon yonida)'
     )
 
-    # HEMIS ma’lumotlari
-    hemis_url = models.URLField(
-        max_length=255,
-        blank=True,
-        help_text='HEMIS tizimining URL manzili'
-    )
-    hemis_api_token = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text='HEMIS API tokeni'
-    )
+    # HEMIS sozlamalari
+    hemis_url = models.URLField(max_length=255, blank=True, help_text='HEMIS API URL')
+    hemis_api_token = models.CharField(max_length=255, blank=True, help_text='HEMIS API token')
 
-    # Qo‘shimcha sayt sozlamalari
+    # Sayt haqida
     site_name = models.CharField(max_length=100, default='NamDPI', help_text='Sayt nomi')
-    contact_email = models.EmailField(blank=True, help_text='Asosiy kontakt email')
-    contact_phone = models.CharField(max_length=50, blank=True, help_text='Asosiy kontakt telefoni')
+    contact_email = models.EmailField(blank=True, help_text='Kontakt email')
+    contact_phone = models.CharField(max_length=50, blank=True, help_text='Kontakt telefon')
 
-    # Timestamps
+    # Vaqt belgilari
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Site Settings ({self.site_name})"
+        return f"{self.site_name} - Sozlamalar"
 
     class Meta:
-        verbose_name = "Site Settings"
-        verbose_name_plural = "Site Settings"
+        verbose_name = "Sayt sozlamalari"
+        verbose_name_plural = "Sayt sozlamalari"
 
     def save(self, *args, **kwargs):
-        """Ensure only one instance exists."""
-        if not self.pk and SiteSettings.objects.exists():
-            raise ValueError('Faqat bitta SiteSettings instance bo‘lishi mumkin')
-        return super().save(*args, **kwargs)
+        """Faqat bitta obyekt bo‘lishi shart (Singleton pattern)"""
+        self.pk = 1  # Har doim ID=1 bo‘ladi
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_settings(cls):
+        """Har qanday joydan oson chaqirish uchun"""
+        return cls.objects.first() or cls.objects.create(site_name="NamDPI")
 
 
 class Attendance(models.Model):

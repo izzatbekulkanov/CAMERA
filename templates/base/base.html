@@ -10,7 +10,23 @@
     {% endblock title %}
       </title>
     <style>
+        /* KATTA LOGO */
+        .logo-lg {
+            height: 48px !important;   /* oldin 24–32px edi → kattalashtirdik */
+            width: auto !important;
+            object-fit: contain;
+        }
 
+        /* KICHIK LOGO */
+        .logo-sm {
+            height: 36px !important;  /* kerak bo‘lsa o‘zgartirishing mumkin */
+            width: auto !important;
+            object-fit: contain;
+        }
+
+        .logo-box img {
+            display: block;
+        }
     </style>
     {% block styles %}
     {% endblock styles %}

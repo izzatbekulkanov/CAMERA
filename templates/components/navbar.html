@@ -6,16 +6,55 @@
 
             <!-- Logo -->
             <div class="logo-box">
+                {# LIGHT LOGO #}
                 <a href="{% url 'dashboard' %}" class="logo-light">
-                    <img src="{% static 'assets/images/logo-light.png' %}" class="logo-lg" alt="logo">
-                    <img src="{% static 'assets/images/logo-sm.png' %}" class="logo-sm" alt="logo">
+                    {# KATTA LOGO (large) #}
+                    {% if global_site_settings and global_site_settings.logo_large %}
+                        <img src="{{ global_site_settings.logo_large.url }}"
+                             class="logo-lg"
+                             alt="{{ global_site_settings.site_name }}">
+                    {% else %}
+                        <img src="{% static 'assets/images/logo-light.png' %}"
+                             class="logo-lg"
+                             alt="logo">
+                    {% endif %}
+
+                    {# KICHIK LOGO (small) #}
+                    {% if global_site_settings and global_site_settings.logo_small %}
+                        <img src="{{ global_site_settings.logo_small.url }}"
+                             class="logo-sm"
+                             alt="{{ global_site_settings.site_name }}">
+                    {% else %}
+                        <img src="{% static 'assets/images/logo-sm.png' %}"
+                             class="logo-sm"
+                             alt="logo">
+                    {% endif %}
                 </a>
+
+                {# DARK LOGO (hozircha tema yo‘q bo‘lsa ham qolsin) #}
                 <a href="{% url 'dashboard' %}" class="logo-dark">
-                    <img src="{% static 'assets/images/logo-dark.png' %}" class="logo-lg" alt="logo">
-                    <img src="{% static 'assets/images/logo-sm.png' %}" class="logo-sm" alt="logo">
+                    {% if global_site_settings and global_site_settings.logo_large %}
+                        <img src="{{ global_site_settings.logo_large.url }}"
+                             class="logo-lg"
+                             alt="{{ global_site_settings.site_name }}">
+                    {% else %}
+                        <img src="{% static 'assets/images/logo-dark.png' %}"
+                             class="logo-lg"
+                             alt="logo">
+                    {% endif %}
+
+                    {% if global_site_settings and global_site_settings.logo_small %}
+                        <img src="{{ global_site_settings.logo_small.url }}"
+                             class="logo-sm"
+                             alt="{{ global_site_settings.site_name }}">
+                    {% else %}
+                        <img src="{% static 'assets/images/logo-sm.png' %}"
+                             class="logo-sm"
+                             alt="logo">
+                    {% endif %}
                 </a>
             </div>
-              <!-- Sidebar Menu Toggle Button -->
+            <!-- Sidebar Menu Toggle Button -->
 
             <button class="button-toggle-menu">
                 <i class="mdi mdi-menu"></i>
@@ -49,11 +88,11 @@
                    data-bs-toggle="dropdown" href="#">
                     {% get_current_language as LANGUAGE_CODE %}
                     {% if LANGUAGE_CODE == 'uz' %}
-                    <img src="{% static 'assets/images/flags/uz.svg' %}" height="20">
+                        <img src="{% static 'assets/images/flags/uz.svg' %}" height="20">
                     {% elif LANGUAGE_CODE == 'ru' %}
-                    <img src="{% static 'assets/images/flags/ru.svg' %}" height="20">
+                        <img src="{% static 'assets/images/flags/ru.svg' %}" height="20">
                     {% else %}
-                    <img src="{% static 'assets/images/flags/us.svg' %}" height="20">
+                        <img src="{% static 'assets/images/flags/us.svg' %}" height="20">
                     {% endif %}
                 </a>
 
@@ -96,7 +135,8 @@
             <li class="dropdown">
                 <a class="nav-link dropdown-toggle nav-user me-0 waves-effect"
                    data-bs-toggle="dropdown" href="#">
-                    <img src="{% if request.user.image %}{{ request.user.image.url }}{% else %}{% static 'assets/images/users/user.webp' %}{% endif %}"
+                    <img src="
+                            {% if request.user.image %}{{ request.user.image.url }}{% else %}{% static 'assets/images/users/user.webp' %}{% endif %}"
                          class="rounded-circle" alt="{% trans 'Foydalanuvchi' %}">
                     <span class="ms-1 d-none d-md-inline-block">
                         {{ request.user.first_name|default:request.user.username }}

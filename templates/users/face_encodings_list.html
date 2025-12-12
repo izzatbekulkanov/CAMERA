@@ -188,115 +188,310 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'assets/libs/sweetalert2/sweetalert2.min.js' %}"></script>
-<script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
+    <script src="{% static 'assets/libs/sweetalert2/sweetalert2.min.js' %}"></script>
+    <script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const overlay = document.getElementById('progress-overlay');
-    const progressText = document.getElementById('progress-text');
-    const progressSubtext = document.getElementById('progress-subtext');
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.getElementById('progress-overlay');
+            const progressText = document.getElementById('progress-text');
+            const progressSubtext = document.getElementById('progress-subtext');
 
-    const showProgress = (main = 'Jarayon boshlanmoqda...', sub = 'Iltimos, kuting') => {
-        progressText.textContent = main;
-        progressSubtext.textContent = sub;
-        overlay.classList.add('show');
-    };
-    const hideProgress = () => overlay.classList.remove('show');
+            const showProgress = (main = 'Jarayon boshlanmoqda...', sub = 'Iltimos, kuting') => {
+                progressText.textContent = main;
+                progressSubtext.textContent = sub;
+                overlay.classList.add('show');
+            };
+            const hideProgress = () => {
+                overlay.classList.remove('show');
+            };
 
-    // Avval protokolni aniqlaymiz
-    const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+            const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+            const faceWsUrl = wsScheme + "://" + window.location.host + "/ws/face-encoding/";
+            const progressWsUrl = wsScheme + "://" + window.location.host + "/ws/sync-progress/";
 
-    // URL ni tuzamiz
-    const wsUrl = wsScheme + "://" + window.location.host + "/ws/face-encoding/";
+            let faceSocket = null;
+            let progressSocket = null;
+            let encodingInProgress = false;
 
-    // WebSocket ulanishi
-    const socket = new WebSocket(wsUrl);
+            function connectFaceSocket() {
+                if (faceSocket && (faceSocket.readyState === WebSocket.OPEN || faceSocket.readyState === WebSocket.CONNECTING)) {
+                    return;
+                }
 
-    socket.onopen = () => console.log("WebSocket connected.");
-    socket.onclose = () => console.log("WebSocket disconnected.");
-    socket.onerror = e => console.error("WebSocket error:", e);
+                faceSocket = new WebSocket(faceWsUrl);
 
-    socket.onmessage = function(event) {
-        const data = JSON.parse(event.data);
+                faceSocket.onopen = () => {
+                    console.log("[FACE WS] connected");
+                };
 
-        if (data.status === "ok") {
-            progressText.textContent = `User ID ${data.user_id} encoding yaratildi (${data.progress})`;
-            $.toast({ heading: 'Muvaffaqiyat!', text: `User ID ${data.user_id} encoding yaratildi`, icon: 'success', position: 'top-right', stack: 3 });
-        } else if (data.status === "skipped") {
-            progressText.textContent = `User ID ${data.user_id} da rasm yo‘q (${data.progress})`;
-        } else if (data.status === "error") {
-            progressText.textContent = `Xato User ID ${data.user_id} (${data.progress})`;
-            $.toast({ heading: 'Xato!', text: `User ID ${data.user_id || ''}: ${data.error}`, icon: 'error', position: 'top-right', stack: 3 });
-        } else if (data.status === "done") {
-            progressText.textContent = "Barcha encodinglar tugadi";
-            $.toast({ heading: 'Tugadi', text: `Barcha encodinglar yaratildi`, icon: 'success', position: 'top-right', stack: 3 });
-            hideProgress();
-            setTimeout(() => location.reload(), 1500);
-        }
-    };
+                faceSocket.onclose = (e) => {
+                    console.log("[FACE WS] disconnected", e.code);
+                };
 
-    const sendWS = (payload, progressMain, progressSub) => {
-        showProgress(progressMain, progressSub);
-        socket.send(JSON.stringify(payload));
-    };
+                faceSocket.onerror = (e) => {
+                    console.error("[FACE WS] error", e);
+                    $.toast({
+                        heading: 'Xatolik!',
+                        text: 'WebSocket bilan aloqa uzildi (encoding)',
+                        icon: 'error',
+                        position: 'top-right',
+                        stack: 3
+                    });
+                };
 
-    document.getElementById('generate-students-btn').onclick = () => sendWS(
-        { action: 'generate_all', role: 'student' },
-        "Talabalar uchun encoding yaratilmoqda...",
-        "Iltimos kuting"
-    );
+                faceSocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data || "{}");
+                    console.log("[FACE WS] message:", data);
 
-    document.getElementById('generate-employees-btn').onclick = () => sendWS(
-        { action: 'generate_all', role: 'employee' },
-        "Xodimlar uchun encoding yaratilmoqda...",
-        "Iltimos kuting"
-    );
+                    const status = data.status;
 
-    document.querySelectorAll('.generate-single').forEach(btn => {
-        btn.onclick = () => sendWS(
-            { action: 'generate_single', user_id: parseInt(btn.dataset.id) },
-            "Yuz encoding yaratilmoqda...",
-            "Iltimos kuting"
-        );
-    });
+                    if (status === "ready") {
+                        // faqat informatsiya
+                        $.toast({
+                            heading: 'Model tayyor',
+                            text: data.message || 'InsightFace tayyor',
+                            icon: 'info',
+                            position: 'top-right',
+                            stack: 3
+                        });
+                        return;
+                    }
 
-    document.querySelectorAll('.delete-single').forEach(btn => {
-        btn.onclick = async () => {
-            const confirm = await Swal.fire({
-                title: 'Tasdiqlang',
-                text: "Yuz encoding o‘chiriladi. Davom etasizmi?",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Ha',
-                cancelButtonText: 'Bekor qilish',
-                reverseButtons: true,
-                customClass: { confirmButton: 'btn btn-danger me-2', cancelButton: 'btn btn-outline-secondary' },
-                buttonsStyling: false
-            });
-            if (!confirm.isConfirmed) return;
+                    if (status === "started") {
+                        // single yoki all – total bor/yo‘qligiga qarab
+                        if (data.total) {
+                            const role = data.role === 'student' ? 'Talabalar' :
+                                data.role === 'employee' ? 'Xodimlar' :
+                                    data.role;
+                            showProgress(
+                                `${role} uchun encoding yaratilmoqda...`,
+                                `0/${data.total} tayyorlanmoqda...`
+                            );
+                        } else {
+                            showProgress(
+                                "Yuz encoding yaratilmoqda...",
+                                `User ID: ${data.user_id || ''}`
+                            );
+                        }
+                        encodingInProgress = true;
+                        return;
+                    }
 
-            showProgress("Encoding o‘chirilmoqda...", "Iltimos kuting");
+                    if (status === "success") {
+                        const uid = data.user_id || "";
+                        $.toast({
+                            heading: 'Muvaffaqiyat!',
+                            text: `User ID ${uid} uchun encoding yaratildi`,
+                            icon: 'success',
+                            position: 'top-right',
+                            stack: 5
+                        });
+                        return;
+                    }
 
-            try {
-                const res = await fetch(`/users/face-encodings/delete/${btn.dataset.id}/`, {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': document.cookie.split('; ').find(c => c.startsWith('csrftoken='))?.split('=')[1] || '' },
-                    credentials: 'same-origin'
-                });
-                const data = await res.json();
-                if (data.success) {
-                    $.toast({ heading: 'Muvaffaqiyat!', text: "Encoding o‘chirildi", icon: 'success', position: 'top-right', stack: 3 });
-                    setTimeout(() => location.reload(), 1000);
-                } else throw new Error(data.error || "Xato yuz berdi");
-            } catch (err) {
-                $.toast({ heading: 'Xato!', text: err.message, icon: 'error', position: 'top-right', stack: 3 });
-            } finally {
-                hideProgress();
+                    if (status === "skipped") {
+                        const uid = data.user_id || "";
+                        $.toast({
+                            heading: 'O‘tkazib yuborildi',
+                            text: `User ID ${uid} — encoding allaqachon mavjud`,
+                            icon: 'info',
+                            position: 'top-right',
+                            stack: 5
+                        });
+                        return;
+                    }
+
+                    if (status === "failed") {
+                        const uid = data.user_id || "";
+                        $.toast({
+                            heading: 'Xato!',
+                            text: `User ID ${uid}: ${data.error || "Noma’lum xato"}`,
+                            icon: 'error',
+                            position: 'top-right',
+                            stack: 5
+                        });
+                        return;
+                    }
+
+                    if (status === "error") {
+                        $.toast({
+                            heading: 'Xato!',
+                            text: data.error || "Noma’lum xato",
+                            icon: 'error',
+                            position: 'top-right',
+                            stack: 5
+                        });
+                        return;
+                    }
+
+                    if (status === "completed") {
+                        encodingInProgress = false;
+                        const msg = data.message || "Jarayon yakunlandi";
+                        $.toast({
+                            heading: 'Tugadi',
+                            text: msg,
+                            icon: 'success',
+                            position: 'top-right',
+                            stack: 3
+                        });
+                        progressText.textContent = msg;
+                        progressSubtext.textContent = "Sahifa yangilanmoqda...";
+                        setTimeout(() => {
+                            hideProgress();
+                            window.location.reload();
+                        }, 1200);
+                        return;
+                    }
+                };
             }
-        };
-    });
 
-});
-</script>
+            function connectProgressSocket() {
+                if (progressSocket && (progressSocket.readyState === WebSocket.OPEN || progressSocket.readyState === WebSocket.CONNECTING)) {
+                    return;
+                }
+
+                progressSocket = new WebSocket(progressWsUrl);
+
+                progressSocket.onopen = () => {
+                    console.log("[PROGRESS WS] connected");
+                };
+
+                progressSocket.onclose = (e) => {
+                    console.log("[PROGRESS WS] disconnected", e.code);
+                };
+
+                progressSocket.onerror = (e) => {
+                    console.error("[PROGRESS WS] error", e);
+                };
+
+                progressSocket.onmessage = (event) => {
+                    if (!encodingInProgress) return;
+
+                    try {
+                        const data = JSON.parse(event.data || "{}");
+                        const percent = data.percent ?? 0;
+                        const message = data.message || "Jarayon davom etmoqda...";
+
+                        showProgress(message, `Jarayon: ${percent}%`);
+                    } catch (e) {
+                        console.error("[PROGRESS WS] parse error", e);
+                    }
+                };
+            }
+
+            // Yuborish helperi
+            function sendWS(payload, main, sub) {
+                encodingInProgress = true;
+                showProgress(main, sub);
+
+                connectFaceSocket();
+                connectProgressSocket();
+
+                const sendPayload = () => {
+                    if (!faceSocket || faceSocket.readyState !== WebSocket.OPEN) {
+                        // biroz kutib, keyin yana urinamiz
+                        setTimeout(sendPayload, 100);
+                        return;
+                    }
+                    faceSocket.send(JSON.stringify(payload));
+                };
+                sendPayload();
+            }
+
+            // Tugmalar
+            const btnStudents = document.getElementById('generate-students-btn');
+            const btnEmployees = document.getElementById('generate-employees-btn');
+
+            if (btnStudents) {
+                btnStudents.onclick = () => sendWS(
+                    { action: 'generate_all', role: 'student' },
+                    "Talabalar uchun encoding yaratilmoqda...",
+                    "Iltimos, kuting"
+                );
+            }
+
+            if (btnEmployees) {
+                btnEmployees.onclick = () => sendWS(
+                    { action: 'generate_all', role: 'employee' },
+                    "Xodimlar uchun encoding yaratilmoqda...",
+                    "Iltimos, kuting"
+                );
+            }
+
+            document.querySelectorAll('.generate-single').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const uid = parseInt(btn.dataset.id);
+                    if (!uid) return;
+                    sendWS(
+                        { action: 'generate_single', user_id: uid },
+                        "Yuz encoding yaratilmoqda...",
+                        `User ID: ${uid}`
+                    );
+                });
+            });
+
+            // Encodingni o‘chirish (HTTP) – o‘zgarmadi, faqat progress overlay bilan uyg‘unlashtirdik
+            document.querySelectorAll('.delete-single').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const confirm = await Swal.fire({
+                        title: 'Tasdiqlang',
+                        text: "Yuz encoding o‘chiriladi. Davom etasizmi?",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Ha',
+                        cancelButtonText: 'Bekor qilish',
+                        reverseButtons: true,
+                        customClass: {
+                            confirmButton: 'btn btn-danger me-2',
+                            cancelButton: 'btn btn-outline-secondary'
+                        },
+                        buttonsStyling: false
+                    });
+
+                    if (!confirm.isConfirmed) return;
+
+                    showProgress("Encoding o‘chirilmoqda...", "Iltimos kuting");
+
+                    try {
+                        const csrf = (document.cookie.split('; ')
+                            .find(c => c.startsWith('csrftoken=')) || '').split('=')[1] || '';
+
+                        const res = await fetch(`/users/face-encodings/delete/${btn.dataset.id}/`, {
+                            method: 'POST',
+                            headers: { 'X-CSRFToken': csrf },
+                            credentials: 'same-origin'
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            $.toast({
+                                heading: 'Muvaffaqiyat!',
+                                text: "Encoding o‘chirildi",
+                                icon: 'success',
+                                position: 'top-right',
+                                stack: 3
+                            });
+                            setTimeout(() => window.location.reload(), 1000);
+                        } else {
+                            throw new Error(data.error || "Xato yuz berdi");
+                        }
+                    } catch (err) {
+                        $.toast({
+                            heading: 'Xato!',
+                            text: err.message,
+                            icon: 'error',
+                            position: 'top-right',
+                            stack: 3
+                        });
+                    } finally {
+                        hideProgress();
+                    }
+                });
+            });
+
+            // Boshlanishida soketlarni ulab qo'yamiz
+            connectFaceSocket();
+            connectProgressSocket();
+        });
+    </script>
 {% endblock %}

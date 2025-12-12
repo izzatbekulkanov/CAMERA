@@ -4,16 +4,21 @@ import logging
 from django.core.files.base import ContentFile
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
+
+from django.views.decorators.http import require_POST
+
 from attendance.models import SiteSettings
 from users.models import CustomUser, FaceEncoding
 from django.core.paginator import Paginator
 import requests
 from django.db.models import Count
 from django.db.models import Q, Exists, OuterRef
+
+from users.view.api import permanently_delete_user
 
 
 @login_required(login_url='login')
@@ -676,3 +681,16 @@ def clear_students(request):
             "success": False,
             "message": f"O‘chirishda xatolik: {str(e)}"
         }, status=500)
+
+
+def is_superuser(user):
+    return user.is_superuser
+
+@user_passes_test(is_superuser)
+@require_POST
+def permanently_delete_user_view(request, user_id):
+    success, message = permanently_delete_user(
+        user_id=user_id,
+        requested_by=request.user
+    )
+    return JsonResponse({'success': success, 'message': message})
