@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'users',
     'attendance',
     'camera',
+    'youtube',  # ✅ qo‘shing
 
     # 3rd-party apps
     'channels',

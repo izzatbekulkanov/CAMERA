@@ -1,4 +1,6 @@
 # attendance/admin.py
+import json
+
 from django.contrib import admin
 from django.utils.html import format_html
 
@@ -42,21 +44,124 @@ class AttendancePhotoAdmin(admin.ModelAdmin):
 
 @admin.register(PsychologicalProfile)
 class PsychologicalProfileAdmin(admin.ModelAdmin):
-    list_display = ('attendance', 'dominant_emotion', 'mood_score', 'stress_level', 'updated_at')
+    # 🔹 LIST SAHIFA (jadval)
+    list_display = (
+        'attendance',
+        'dominant_emotion',
+        'mood_score',
+        'stress_level',
+        'energy_level',
+        'confidence',
+        'stability',
+        'negative_ratio',
+        'photo_count',
+        'updated_at',
+    )
+
+    list_filter = (
+        'dominant_emotion',
+        'attendance__date',
+    )
+
+    search_fields = (
+        'attendance__user__full_name',
+        'attendance__user__username',
+    )
+
+    ordering = ('-updated_at',)
+
+    # 🔹 DETAIL SAHIFA (ko‘rish)
     readonly_fields = (
         'attendance',
+
+        # asosiy
         'dominant_emotion',
         'stress_level',
         'energy_level',
         'mood_score',
+
+        # yangi insightlar
+        'confidence',
+        'stability',
+        'negative_ratio',
+        'positive_ratio',
+        'neutral_ratio',
+        'valence',
+        'arousal',
+        'photo_count',
+        'face_quality',
+
+        # json + text
+        'pretty_emotion_probs',
         'summary_text',
+
         'created_at',
-        'updated_at'
+        'updated_at',
     )
 
+    fieldsets = (
+        ("Asosiy ma’lumotlar", {
+            "fields": (
+                'attendance',
+                'dominant_emotion',
+                'mood_score',
+                'stress_level',
+                'energy_level',
+            )
+        }),
+
+        ("Psixologik ko‘rsatkichlar (AI)", {
+            "fields": (
+                'confidence',
+                'stability',
+                'negative_ratio',
+                'positive_ratio',
+                'neutral_ratio',
+                'valence',
+                'arousal',
+                'photo_count',
+                'face_quality',
+            )
+        }),
+
+        ("Emotion taqsimoti", {
+            "fields": ('pretty_emotion_probs',),
+        }),
+
+        ("AI xulosasi", {
+            "fields": ('summary_text',),
+        }),
+
+        ("Tizim ma’lumotlari", {
+            "fields": (
+                'created_at',
+                'updated_at',
+            )
+        }),
+    )
+
+    # 🔹 JSON field’ni chiroyli ko‘rsatish
+    def pretty_emotion_probs(self, obj):
+        if not obj.emotion_probs:
+            return "-"
+
+        formatted = json.dumps(obj.emotion_probs, indent=2, ensure_ascii=False)
+        return format_html(
+            "<pre style='max-height:300px; overflow:auto;'>{}</pre>",
+            formatted
+        )
+
+    pretty_emotion_probs.short_description = "Emotion ehtimollari (JSON)"
+
+    # 🔒 Faqat superuser o‘zgartira oladi
     def has_change_permission(self, request, obj=None):
         return request.user.is_superuser
 
+    def has_add_permission(self, request):
+        return False  # qo‘lda qo‘shish yo‘q
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
 
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):

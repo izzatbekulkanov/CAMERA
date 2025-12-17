@@ -1,114 +1,142 @@
-# utils/psychology_comment.py
+# attendance/data.py
 import random
 from datetime import timedelta
 from django.utils import timezone
-from attendance.models import PsychologicalProfile
 
-# O‘zbekcha to‘g‘ri tarjimalar
+# FER+ 8-class mos tarjimalar
 UZ_EMOTIONS = {
-    "happy": "quvonch", "joy": "quvonch",
-    "calm": "tinchlik", "peace": "tinchlik",
     "neutral": "betaraf",
-    "sadness": "qayg‘u", "sad": "qayg‘u",
-    "tired": "charchoq", "fatigue": "charchoq",
-    "angry": "jahl", "anger": "jahl",
-    "fear": "qo‘rquv", "anxiety": "xavotir",
-    "surprised": "hayrat", "surprise": "hayrat",
+    "happiness": "quvonch",
+    "surprise": "hayrat",
+    "sadness": "qayg‘u",
+    "anger": "jahl",
     "disgust": "jirkanish",
-    "confused": "chalkashlik",
-    "contempt": "nafrat"
+    "fear": "qo‘rquv",
+    "contempt": "nafrat",
 }
 
-# 200+ klinik darajada aniq, o‘zbekona va professional shablonlar
 TEMPLATES = {
     "perfect": [
-        "So‘nggi oyda psixologik holati ideal — stress deyarli yo‘q, kayfiyat va energiya cho‘qqida. Ish samaradorligi eng yuqori darajada.",
-        "Xodim o‘zini a’lo his qilmoqda. Motivatsiya, diqqat va ijodkorlik maksimal darajada.",
-        "Burnout ehtimoli nolga yaqin. Bunday holatni saqlab qolish uchun hozirgi rejim yetarli.",
-        "Dominant {emotion} kayfiyati bilan birga yuqori energiya — jamoa uchun namunaviy holat."
+        "So‘nggi davrda holat ideal: stress deyarli yo‘q, kayfiyat va energiya yuqori. Ish samaradorligi maksimal.",
+        "Kayfiyat barqaror, resurslar yetarli. Burnout ehtimoli juda past.",
+        "Dominant {emotion} va yuqori energiya — jamoada ijobiy dinamika beradi."
     ],
     "excellent": [
-        "Holat juda yaxshi. Stress minimal, energiya va kayfiyat barqaror yuqori. Kichik optimallashtirishlar bilan ideal holatga o‘tishi mumkin.",
-        "Xodim resurslarini to‘g‘ri boshqarmoqda. Ishga bo‘lgan qiziqish va samaradorlik yuqori.",
-        "Dominant {emotion} holati ijobiy ta’sir ko‘rsatmoqda — xodim jamoada yetakchi bo‘la oladi."
+        "Holat juda yaxshi: stress past, energiya va kayfiyat barqaror yuqori. Shu rejimni ushlab turish tavsiya etiladi.",
+        "Dominant {emotion} holati ijobiy; ishga bo‘lgan qiziqish va diqqat yaxshi."
     ],
     "good": [
-        "Umumiy holat yaxshi, lekin resurslar chegarada. Haftada 1-2 marta qisqa dam yoki sport samarani yanada oshiradi.",
-        "Stress va charchoq belgisi sezilmoqda, ammo hali nazorat ostida. Profilaktika choralarini ko‘rish maqsadga muvofiq.",
-        "Energiya o‘rtacha yuqori, kayfiyat barqaror. Vazifa yuklamasini biroz tekshirish foydali bo‘ladi."
+        "Umumiy holat yaxshi, ammo resurslar chegarada bo‘lishi mumkin. Kichik tanaffuslar foydali.",
+        "Stress o‘rtacha; profilaktik dam va uyqu rejimi holatni yaxshilaydi."
     ],
     "stable": [
-        "Holat barqaror, lekin ehtiyot bo‘lish kerak. So‘nggi haftalarda {emotion} kayfiyati ko‘proq sezilmoqda.",
-        "Stress o‘rtacha, energiya yetarli, lekin motivatsiya biroz pasaygan. Kichik tanaffuslar yordam berishi mumkin.",
-        "Xodim ishini bajaradi, ammo ichki resurslar asta-sekin kamaymoqda. Suhbat foydali bo‘lardi."
+        "Holat barqaror, lekin ehtiyot: so‘nggi kuzatuvlarda {emotion} holati ko‘proq sezilmoqda.",
+        "Stress o‘rtacha; energiya yetarli, ammo motivatsiya pasayishi ehtimoli bor."
     ],
     "attention_needed": [
-        "So‘nggi 10-15 kunda stress oshgani va energiya pasaygani aniq kuzatilmoqda — burnoutning dastlabki bosqichi bo‘lishi mumkin.",
-        "Dominant {emotion} holati + kayfiyatning pasayishi — xodimda emotsional charchoq belgisi bor.",
-        "Xodim tashqaridan yaxshi ko‘rinadi, ammo ichki holat yomonlashmoqda. Rahbar bilan ochiq suhbat zarur."
+        "So‘nggi kunlarda stress oshgani va energiya pasaygani seziladi — burnoutning boshlanish belgilari bo‘lishi mumkin.",
+        "Dominant {emotion} + kayfiyat pasayishi — rahbar/HR bilan yumshoq suhbat foydali bo‘ladi."
     ],
     "high_risk": [
-        "Yuqori stress + past energiya + dominant {emotion} kayfiyati — burnout ehtimoli 80%+. Zudlik bilan individual suhbat kerak.",
-        "So‘nggi oyda holat keskin yomonlashgan. Xodim o‘zini yolg‘iz yoki tushunilmagandek his qilishi mumkin.",
-        "Ishga bo‘lgan qiziqish sezilarli darajada pasaygan. Qo‘llab-quvvatlash choralarini darhol ko‘rish lozim."
+        "Yuqori stress va past energiya — burnout xavfi yuqori. Zudlik bilan yuklamani yengillatish va qo‘llab-quvvatlash kerak.",
+        "Dominant {emotion} holati uzoq davom etsa, emotsional charchoq kuchayishi mumkin."
     ],
     "critical": [
-        "Burnoutning oxirgi bosqichi aniq. Xodim psixologik jihatdan charchagan, ishga qiziqish deyarli yo‘q. Darhol dam olish yoki professional yordam zarur.",
-        "Dominant {emotion} + yuqori stress + minimal energiya — bu jiddiy signal. HR va rahbar zudlik bilan aralashishi shart.",
-        "Xodimda depressiv belgilar bor. Uzoq muddatli kasallik xavfi yuqori — choralar kechiktirilmasin."
+        "Jiddiy signal: stress yuqori, energiya past. Dam olish va professional yordam masalasini ko‘rib chiqish kerak.",
+        "Dominant {emotion} + yuqori stress — HR va rahbar darhol aralashishi zarur."
+    ],
+    "low_confidence": [
+        "Bugungi kadrlar sifati past (yuz noaniq/yorug‘lik yetarli emas). Natija taxminiy — qo‘shimcha kuzatuv kerak."
     ]
 }
 
-
 def generate_psychology_comment(
-        stress: float,
-        mood: int,
-        energy: float,
-        dominant_emotion: str = "neutral",
-        previous_profiles=None  # oldingi 30 kunlik PsychologicalProfile queryset
+    stress: float,
+    mood: int,
+    energy: float,
+    dominant_emotion: str = "neutral",
+    previous_profiles=None,
+    confidence: float | None = None,
+    stability: float | None = None,
+    negative_ratio: float | None = None,
 ) -> str:
     """
-    2025-yil darajasidagi O‘zbek AI psixolog — har bir detalni hisobga oladi
+    FER+ (8 emotion) natijalariga mos, barqaror va izohli xulosa.
     """
-    s = stress
-    e = energy
-    m = mood
-    emotion_key = dominant_emotion.lower().strip()
+    emotion_key = (dominant_emotion or "neutral").lower().strip()
     uz_emotion = UZ_EMOTIONS.get(emotion_key, "betaraf")
 
-    # Trendni aniqlash
-    trend = "stable"
-    if previous_profiles and len(previous_profiles) > 5:
-        old_stress = [p.stress_level for p in previous_profiles.order_by('-attendance__date')[5:10]]
-        new_stress = [p.stress_level for p in previous_profiles.order_by('-attendance__date')[:5]]
-        if len(old_stress) > 0 and len(new_stress) > 0:
-            if sum(new_stress) / len(new_stress) > sum(old_stress) / len(old_stress) + 0.1:
-                trend = "declining"
-            elif sum(new_stress) / len(new_stress) < sum(old_stress) / len(old_stress) - 0.1:
-                trend = "improving"
+    # Agar ishonchlilik past bo'lsa - alohida shablon
+    if confidence is not None and confidence < 0.35:
+        return random.choice(TEMPLATES["low_confidence"]).strip()
 
-    # Burnout risk skorini ilmiy formula bilan hisoblash
-    base_risk = (s * 0.55) + ((100 - m) / 100 * 0.30) + ((1 - e) * 0.25)
-    emotion_impact = max(-0.2,
-                         min(0.2, (UZ_EMOTIONS.get(emotion_key, "neutral") in ["quvonch", "tinchlik"]) * 0.2 - 0.1))
-    trend_impact = {"declining": 0.18, "stable": 0, "improving": -0.12}.get(trend, 0)
+    # Trend (oldingi profile-lar bo'lsa)
+    trend_impact = 0.0
 
+    if previous_profiles:
+        # previous_profiles list yoki QuerySet bo‘lishi mumkin
+        prev_list = list(previous_profiles)
+
+        # Sana bo‘yicha saralash (eng yangisi oldinda)
+        prev_list.sort(
+            key=lambda p: p.attendance.date if p.attendance else None,
+            reverse=True
+        )
+
+        if len(prev_list) >= 10:
+            new_stress = [p.stress_level for p in prev_list[:5]]
+            old_stress = [p.stress_level for p in prev_list[5:10]]
+
+            avg_new = sum(new_stress) / len(new_stress)
+            avg_old = sum(old_stress) / len(old_stress)
+
+            if avg_new > avg_old + 0.10:
+                trend_impact = 0.18
+            elif avg_new < avg_old - 0.10:
+                trend_impact = -0.12
+
+    # Emotion impact (faqat FER+ bo'yicha)
+    if emotion_key == "happiness":
+        emotion_impact = -0.10
+    elif emotion_key in ["sadness", "anger", "fear", "disgust", "contempt"]:
+        emotion_impact = 0.10
+    else:
+        emotion_impact = 0.00
+
+    # Risk score (barqaror formula)
+    base_risk = (stress * 0.55) + ((100 - mood) / 100 * 0.30) + ((1 - energy) * 0.25)
     final_risk = max(0.0, min(1.0, base_risk + trend_impact + emotion_impact))
 
-    # Kategoriyani aniqlash
+    # Kategoriya
     if final_risk < 0.20:
-        template = random.choice(TEMPLATES["perfect"])
+        key = "perfect"
     elif final_risk < 0.35:
-        template = random.choice(TEMPLATES["excellent"])
+        key = "excellent"
     elif final_risk < 0.48:
-        template = random.choice(TEMPLATES["good"])
+        key = "good"
     elif final_risk < 0.60:
-        template = random.choice(TEMPLATES["stable"])
+        key = "stable"
     elif final_risk < 0.75:
-        template = random.choice(TEMPLATES["attention_needed"])
+        key = "attention_needed"
     elif final_risk < 0.90:
-        template = random.choice(TEMPLATES["high_risk"])
+        key = "high_risk"
     else:
-        template = random.choice(TEMPLATES["critical"])
+        key = "critical"
 
-    return template.format(emotion=uz_emotion).strip()
+    text = random.choice(TEMPLATES[key]).format(emotion=uz_emotion).strip()
+
+    # Qo'shimcha "individual" izoh (ixtiyoriy)
+    extra = []
+    if stability is not None:
+        extra.append("Holat barqaror" if stability >= 0.70 else "Holat o‘zgaruvchan")
+    if negative_ratio is not None:
+        if negative_ratio >= 0.55:
+            extra.append("salbiy affekt ulushi yuqori")
+        elif negative_ratio >= 0.35:
+            extra.append("salbiy affekt o‘rtacha")
+        else:
+            extra.append("salbiy affekt past")
+
+    if extra:
+        text += " (" + ", ".join(extra) + ")."
+    return text

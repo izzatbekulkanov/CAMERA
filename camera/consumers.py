@@ -175,30 +175,6 @@ def faiss_cosine_search(emb: np.ndarray) -> tuple[float, int] | None:
 FACE_MODEL = None
 FACE_WEIGHTS = None
 
-# try:
-#     import ultralytics
-#     from ultralytics import YOLO
-#
-#     logger.info("[YOLO] ultralytics=%s", getattr(ultralytics, "__version__", "unknown"))
-#
-#     BASE_DIR = Path(__file__).resolve().parent.parent
-#     MODELS_DIR = BASE_DIR / "models"
-#     MODELS_DIR.mkdir(exist_ok=True, parents=True)
-#
-#     FACE_WEIGHTS = MODELS_DIR / "yolov8n-face.pt"
-#
-#     if FACE_WEIGHTS.exists():
-#         logger.info("[YOLO] FACE model: %s", FACE_WEIGHTS)
-#         FACE_MODEL = YOLO(str(FACE_WEIGHTS))
-#     else:
-#         logger.warning("[YOLO] %s topilmadi, yolov8n.pt bilan ishlaymiz", FACE_WEIGHTS)
-#         FACE_MODEL = YOLO("yolov8n.pt")
-#
-#     FACE_MODEL.to(DEVICE)
-#     logger.info("[YOLO] yuklandi, DEVICE=%s", DEVICE.type.upper())
-# except Exception as exc:  # noqa: BLE001
-#     logger.error("[YOLO] yuklanmadi: %s", exc)
-#     FACE_MODEL = None
 
 # ================== InsightFace init ==================
 

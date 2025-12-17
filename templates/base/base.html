@@ -3,23 +3,19 @@
 {% load static %}
 <head>
     {% include 'includes/head.html' %}
-<title>
-        {% block title %}
+    <title>{% block title %}{% endblock title %}</title>
 
-
-    {% endblock title %}
-      </title>
     <style>
         /* KATTA LOGO */
         .logo-lg {
-            height: 48px !important;   /* oldin 24–32px edi → kattalashtirdik */
+            height: 48px !important;
             width: auto !important;
             object-fit: contain;
         }
 
         /* KICHIK LOGO */
         .logo-sm {
-            height: 36px !important;  /* kerak bo‘lsa o‘zgartirishing mumkin */
+            height: 36px !important;
             width: auto !important;
             object-fit: contain;
         }
@@ -27,51 +23,495 @@
         .logo-box img {
             display: block;
         }
+
+        /* =========================
+           Dynamic Island Widget (Glassmorphism)
+           ========================= */
+        :root {
+            --di-bg: rgba(18, 18, 18, .55);
+            --di-border: rgba(255, 255, 255, .14);
+            --di-shadow: 0 20px 60px rgba(0, 0, 0, .45);
+            --di-text: rgba(255, 255, 255, .92);
+            --di-muted: rgba(255, 255, 255, .65);
+            --di-accent: rgba(0, 200, 255, .95);
+            --di-danger: rgba(255, 80, 80, .95);
+            --di-success: rgba(60, 220, 140, .95);
+        }
+
+        .di-wrap {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 99999;
+            display: none; /* JS controls */
+            user-select: none;
+        }
+
+        .di-card {
+            width: 360px;
+            border-radius: 22px;
+            padding: 12px 12px 12px 12px;
+            background: var(--di-bg);
+            border: 1px solid var(--di-border);
+            box-shadow: var(--di-shadow);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            color: var(--di-text);
+            transform: translateY(12px) scale(.98);
+            opacity: 0;
+            transition: transform .22s ease, opacity .22s ease;
+            overflow: hidden;
+        }
+
+        .di-wrap.show .di-card {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+
+        .di-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 2px 2px 8px 2px;
+        }
+
+        .di-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .di-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .28);
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, .06);
+            flex: 0 0 auto;
+        }
+
+        .di-dot.running {
+            background: var(--di-accent);
+            box-shadow: 0 0 0 4px rgba(0, 200, 255, .14);
+        }
+
+        .di-dot.error {
+            background: var(--di-danger);
+            box-shadow: 0 0 0 4px rgba(255, 80, 80, .14);
+        }
+
+        .di-dot.completed {
+            background: var(--di-success);
+            box-shadow: 0 0 0 4px rgba(60, 220, 140, .14);
+        }
+
+        .di-titlewrap {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .di-title {
+            font-weight: 800;
+            font-size: 13px;
+            letter-spacing: .2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 230px;
+            line-height: 1.2;
+        }
+
+        .di-sub {
+            font-size: 12px;
+            color: var(--di-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 260px;
+        }
+
+        .di-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+        .di-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, .14);
+            background: rgba(255, 255, 255, .08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform .12s ease, background .12s ease;
+        }
+
+        .di-btn:hover {
+            background: rgba(255, 255, 255, .12);
+            transform: translateY(-1px);
+        }
+
+        .di-btn:active {
+            transform: translateY(0);
+        }
+
+        .di-btn svg {
+            width: 14px;
+            height: 14px;
+            opacity: .92;
+        }
+
+        .di-pill {
+            font-weight: 900;
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .09);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: rgba(255, 255, 255, .9);
+        }
+
+        .di-body {
+            padding: 0 2px 2px 2px;
+        }
+
+        .di-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .di-metric {
+            font-size: 12px;
+            color: var(--di-muted);
+        }
+
+        .di-bar {
+            margin-top: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .10);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, .10);
+        }
+
+        .di-bar > div {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, rgba(0, 200, 255, .85), rgba(60, 220, 140, .85));
+            border-radius: 999px;
+            transition: width .25s ease;
+        }
+
+        .di-collapsed .di-body {
+            display: none;
+        }
+
+        .di-collapsed .di-card {
+            width: 260px;
+            border-radius: 999px;
+            padding: 10px 10px;
+        }
+
+        .di-collapsed .di-title {
+            max-width: 140px;
+        }
+
+        .di-collapsed .di-sub {
+            display: none;
+        }
+
+        /* small screens */
+        @media (max-width: 420px) {
+            .di-card {
+                width: calc(100vw - 24px);
+            }
+
+            .di-wrap {
+                right: 12px;
+                bottom: 12px;
+            }
+        }
     </style>
-    {% block styles %}
-    {% endblock styles %}
+
+    {% block styles %}{% endblock styles %}
 </head>
+
 <body>
-    <!-- Begin page -->
-    <div id="wrapper">
+<div id="wrapper">
+    {% include 'components/sidebar.html' %}
 
-        <!-- ========== Left Sidebar Start ========== -->
-        {% include 'components/sidebar.html' %}
-        <!-- ========== Left Sidebar End ========== -->
+    <div class="content-page">
+        {% include 'components/navbar.html' %}
 
-        <!-- ============================================================== -->
-        <!-- Start Page Content here -->
-        <!-- ============================================================== -->
-        <div class="content-page">
-
-            <!-- ========== Topbar Start ========== -->
-            {% include 'components/navbar.html' %}
-            <!-- ========== Topbar End ========== -->
-
-            <div class="content">
-                <!-- Start Content-->
-                {% block content %}
-                {% endblock content %}
-                <!-- End Content -->
-            </div> <!-- content -->
-
-            <!-- ========== Footer Start ========== -->
-            {% include 'components/footer.html' %}
-            <!-- ========== Footer End ========== -->
-
+        <div class="content">
+            {% block content %}{% endblock content %}
         </div>
-        <!-- ============================================================== -->
-        <!-- End Page content -->
-        <!-- ============================================================== -->
+
+        {% include 'components/footer.html' %}
     </div>
-    <!-- END wrapper -->
+</div>
+<!-- END wrapper -->
 
-    <!-- Theme Settings -->
-    {% include 'includes/site_settings.html' %}
+<!-- =========================
+     Dynamic Island Widget (Overlay)
+     ========================= -->
+<div class="di-wrap" id="diWrap" aria-live="polite">
+    <div class="di-card" id="diCard">
+        <div class="di-header">
+            <div class="di-left">
+                <div class="di-dot" id="diDot"></div>
+                <div class="di-titlewrap">
+                    <div class="di-title" id="diTitle">Face encoding</div>
+                    <div class="di-sub" id="diSubLine">Kutilmoqda…</div>
+                </div>
+            </div>
 
-    <!-- Scripts -->
-    {% include 'includes/scripts.html' %}
-    {% block scripts %}
-    {% endblock scripts %}
+            <div class="di-actions">
+                <div class="di-pill" id="diPct">0%</div>
+
+                <!-- Collapse button -->
+                <button type="button" class="di-btn" id="diMinBtn" title="Qisqartirish">
+                    <!-- minus icon -->
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+
+                <!-- Close button -->
+                <button type="button" class="di-btn" id="diCloseBtn" title="Yopish">
+                    <!-- x icon -->
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="di-body" id="diBody">
+            <div class="di-row">
+                <div class="di-metric" id="diCount">0 / 0</div>
+                <div class="di-metric" id="diStatusText">idle</div>
+            </div>
+            <div class="di-bar">
+                <div id="diBar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'includes/site_settings.html' %}
+{% include 'includes/scripts.html' %}
+
+<script>
+    (function () {
+        const wrap = document.getElementById("diWrap");
+        const card = document.getElementById("diCard");
+        const dot = document.getElementById("diDot");
+
+        const title = document.getElementById("diTitle");
+        const subline = document.getElementById("diSubLine");
+        const pct = document.getElementById("diPct");
+        const count = document.getElementById("diCount");
+        const statusText = document.getElementById("diStatusText");
+        const bar = document.getElementById("diBar");
+
+        const btnMin = document.getElementById("diMinBtn");
+        const btnClose = document.getElementById("diCloseBtn");
+
+        const LS_COLLAPSED = "di_collapsed_v1";
+
+        // ✅ Run-level dismiss (professional)
+        const LS_DISMISSED_RUN = "face_di_dismissed_run_id_v1";
+
+        function nowMs() {
+            return Date.now();
+        }
+
+        function setCollapsed(v) {
+            localStorage.setItem(LS_COLLAPSED, v ? "1" : "0");
+            if (v) card.classList.add("di-collapsed");
+            else card.classList.remove("di-collapsed");
+        }
+
+        setCollapsed(localStorage.getItem(LS_COLLAPSED) === "1");
+
+        btnMin?.addEventListener("click", () => {
+            setCollapsed(!card.classList.contains("di-collapsed"));
+        });
+
+        function show() {
+            wrap.style.display = "block";
+            requestAnimationFrame(() => wrap.classList.add("show"));
+        }
+
+        function hide(force = false) {
+            wrap.classList.remove("show");
+            if (force) {
+                wrap.style.display = "none";
+                return;
+            }
+            setTimeout(() => {
+                if (!wrap.classList.contains("show")) wrap.style.display = "none";
+            }, 220);
+        }
+
+        function wsUrl(path) {
+            const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
+            return `${scheme}://${window.location.host}${path}`;
+        }
+
+        function clampPct(p) {
+            p = Number(p || 0);
+            return Math.max(0, Math.min(100, p));
+        }
+
+        function setDot(status) {
+            dot.classList.remove("running", "error", "completed");
+            if (status) dot.classList.add(status);
+        }
+
+        function dismissedRunId() {
+            return localStorage.getItem(LS_DISMISSED_RUN) || null;
+        }
+
+        function dismissRun(runId) {
+            if (!runId) return;
+            localStorage.setItem(LS_DISMISSED_RUN, runId);
+        }
+
+        function shouldShowForRun(runId) {
+            // runId bo'lmasa -> ko'rsatamiz (legacy)
+            if (!runId) return true;
+            return dismissedRunId() !== runId;
+        }
+
+        // ✅ X bosilsa: faqat shu run'ni dismiss qilamiz
+        let lastRunId = null;
+        btnClose?.addEventListener("click", () => {
+            if (lastRunId) dismissRun(lastRunId);
+            hide(true);
+        });
+
+        // ✅ Flicker bloklovchi state
+        let lastStatus = "idle";
+        let completedAt = 0;
+
+        function render(data) {
+            // enabled false => butunlay yashir
+            if (data && data.enabled === false) {
+                hide(true);
+                return;
+            }
+
+            const status = (data && data.status) ? data.status : "idle";
+            const processed = Number((data && data.processed) || 0);
+            const total = Number((data && data.total) || 0);
+            const percent = Number((data && data.percent) || 0);
+            const message = (data && data.message) ? data.message : "";
+
+            const runId = (data && data.run_id) ? String(data.run_id) : null;
+            lastRunId = runId;
+
+            // ✅ completed dan keyin 4s ichida kelgan idle'larni ignore (flicker yo‘q)
+            if (status === "idle" && lastStatus === "completed" && (nowMs() - completedAt) < 4000) {
+                return;
+            }
+
+            // ✅ Dismiss qilingan run bo'lsa — ko'rsatmaymiz (running bo'lsa ham)
+            // Agar siz "running boshlanganida baribir ko'rsatilsin" desangiz, bu if'ni olib tashlaymiz.
+            if (!shouldShowForRun(runId) && status !== "idle") {
+                hide(true);
+                lastStatus = status;
+                return;
+            }
+
+            if (status === "running") {
+                show();
+                setDot("running");
+                title.textContent = "Face encoding";
+                subline.textContent = message || "Yaratilmoqda…";
+
+                const p = clampPct(percent);
+                pct.textContent = `${p}%`;
+                count.textContent = `${processed} / ${total || processed || 0}`;
+                statusText.textContent = "running";
+                bar.style.width = `${p}%`;
+            } else if (status === "completed") {
+                show();
+                setDot("completed");
+                title.textContent = "Face encoding";
+                subline.textContent = message || "Yakunlandi";
+                pct.textContent = "100%";
+                const done = (total || processed || 0);
+                count.textContent = `${done} / ${done}`;
+                statusText.textContent = "completed";
+                bar.style.width = "100%";
+
+                completedAt = nowMs();
+
+                // ❌ BUNI OLIB TASHLA:
+                // setTimeout(() => hide(), 2200);
+            } else if (status === "error") {
+                show();
+                setDot("error");
+                title.textContent = "Face encoding";
+                subline.textContent = message || "Xatolik";
+                const p = clampPct(percent);
+                pct.textContent = `${p}%`;
+                count.textContent = `${processed} / ${total || processed || 0}`;
+                statusText.textContent = "error";
+                bar.style.width = `${p}%`;
+
+                // ❌ BUNI OLIB TASHLA:
+                // setTimeout(() => hide(), 6000);
+            } else {
+                // idle
+                hide();
+            }
+
+            lastStatus = status;
+        }
+
+        let ws;
+
+        function connect() {
+            ws = new WebSocket(wsUrl("/ws/face-encoding-progress/"));
+
+            ws.onmessage = (ev) => {
+                let data;
+                try {
+                    data = JSON.parse(ev.data);
+                } catch (e) {
+                    return;
+                }
+                render(data);
+            };
+
+            ws.onclose = () => setTimeout(connect, 1500);
+            ws.onerror = () => {
+                try {
+                    ws.close();
+                } catch (e) {
+                }
+            };
+        }
+
+        connect();
+    })();
+</script>
+
+
+{% block scripts %}{% endblock scripts %}
 </body>
 </html>

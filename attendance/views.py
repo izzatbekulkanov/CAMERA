@@ -35,6 +35,33 @@ class AttendanceView(LoginRequiredMixin, View):
 # ===============================================================
 # YANGI PSIXOLOGIK PORTRET SAHIFASI
 # ===============================================================
+EMOTIONS = ['neutral', 'happiness', 'surprise', 'sadness', 'anger', 'disgust', 'fear', 'contempt']
+
+
+def _merge_probs(profiles):
+    """
+    Bir userda bir nechta profile bo'lsa, emotion_probs ni birlashtirib o'rtacha qiladi.
+    """
+    sums = {e: 0.0 for e in EMOTIONS}
+    cnt = 0
+    for p in profiles:
+        probs = getattr(p, "emotion_probs", None) or {}
+        if probs:
+            for e in EMOTIONS:
+                sums[e] += float(probs.get(e, 0.0))
+            cnt += 1
+    if cnt == 0:
+        return {}
+    return {e: sums[e] / cnt for e in EMOTIONS}
+
+
+def _top3_text(probs: dict) -> str:
+    if not probs:
+        return ""
+    top3 = sorted(probs.items(), key=lambda x: x[1], reverse=True)[:3]
+    return ", ".join([f"{k}:{v:.2f}" for k, v in top3])
+
+
 class PsychologicalProfileView(LoginRequiredMixin, View):
     login_url = 'login'
     template_name = "attendance/psychological_profile.html"
@@ -42,97 +69,119 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         today = timezone.localdate()
 
-        # Faqat bugungi attendance ga tegishli profile-larni olish
         profiles_qs = PsychologicalProfile.objects.filter(
             attendance__date=today
-        ).select_related(
-            'attendance__user'
-        ).order_by('attendance__user__full_name')
+        ).select_related('attendance__user').order_by('attendance__user__full_name')
 
-        # Foydalanuvchi bo‘yicha guruhlash
-        user_data = {}
+        # User bo'yicha guruhlash (agar bir userda ko'p profile bo'lsa ham)
+        user_map = {}
         for profile in profiles_qs:
             user = profile.attendance.user
             user_id = user.id
+            user_map.setdefault(user_id, {"user": user, "profiles": []})
+            user_map[user_id]["profiles"].append(profile)
 
-            if user_id not in user_data:
-                user_data[user_id] = {
-                    "user": user,
-                    "stress_sum": 0.0,
-                    "mood_sum": 0,
-                    "energy_sum": 0.0,
-                    "emotions": [],
-                    "all_profiles": [],
-                    "count": 0
-                }
-
-            data = user_data[user_id]
-            data["stress_sum"] += profile.stress_level
-            data["mood_sum"] += profile.mood_score
-            data["energy_sum"] += profile.energy_level
-            data["count"] += 1
-
-            if profile.dominant_emotion:
-                data["emotions"].append(profile.dominant_emotion.lower().strip())
-
-            data["all_profiles"].append(profile)
-
-        # Yakuniy natijalarni tayyorlash
         final_profiles = []
-        for data in user_data.values():
-            count = max(data["count"], 1)
-            avg_stress = data["stress_sum"] / count
-            avg_mood = int(data["mood_sum"] / count)
-            avg_energy = data["energy_sum"] / count
+        for data in user_map.values():
+            user = data["user"]
+            plist = data["profiles"]
+            count = len(plist)
 
-            most_common_emotion = "neutral"
-            if data["emotions"]:
-                emotion_counts = Counter(data["emotions"])
-                most_common_emotion = emotion_counts.most_common(1)[0][0]
+            # O'rtacha metrikalar
+            avg_stress = sum(float(p.stress_level or 0) for p in plist) / max(count, 1)
+            avg_energy = sum(float(p.energy_level or 0) for p in plist) / max(count, 1)
+            avg_mood = int(round(sum(int(p.mood_score or 0) for p in plist) / max(count, 1)))
 
-            # AI comment generatsiyasi
+            # Emotion: (1) dominant_emotion bo'yicha (2) probs bo'lsa probsdan top
+            emotions = [ (p.dominant_emotion or "neutral").lower().strip() for p in plist if p.dominant_emotion ]
+            most_common_emotion = Counter(emotions).most_common(1)[0][0] if emotions else "neutral"
+
+            # Qo'shimcha insightlar: avg confidence/stability/ratios/valence/arousal + emotion_probs merge
+            avg_conf = sum(float(getattr(p, "confidence", 0.0) or 0.0) for p in plist) / max(count, 1)
+            avg_stab = sum(float(getattr(p, "stability", 0.0) or 0.0) for p in plist) / max(count, 1)
+            avg_neg  = sum(float(getattr(p, "negative_ratio", 0.0) or 0.0) for p in plist) / max(count, 1)
+            avg_pos  = sum(float(getattr(p, "positive_ratio", 0.0) or 0.0) for p in plist) / max(count, 1)
+            avg_neu  = sum(float(getattr(p, "neutral_ratio", 0.0) or 0.0) for p in plist) / max(count, 1)
+            avg_val  = sum(float(getattr(p, "valence", 0.0) or 0.0) for p in plist) / max(count, 1)
+            avg_ar   = sum(float(getattr(p, "arousal", 0.0) or 0.0) for p in plist) / max(count, 1)
+
+            photo_count = sum(int(getattr(p, "photo_count", 0) or 0) for p in plist)
+            avg_quality = sum(float(getattr(p, "face_quality", 0.0) or 0.0) for p in plist) / max(count, 1)
+
+            probs = _merge_probs(plist)
+            if probs:
+                # probs mavjud bo'lsa dominantni probsdan aniqroq olamiz
+                most_common_emotion = max(probs, key=probs.get)
+
+            # AI comment (modelga mos parametrlar bilan)
             psychology_text = generate_psychology_comment(
-                stress=avg_stress,
-                mood=avg_mood,
-                energy=avg_energy,
+                stress=float(avg_stress),
+                mood=int(avg_mood),
+                energy=float(avg_energy),
                 dominant_emotion=most_common_emotion,
-                previous_profiles=data["all_profiles"]
+                previous_profiles=PsychologicalProfile.objects.filter(
+                    attendance__user=user,
+                    attendance__date__lt=today,
+                    attendance__date__gte=today - timezone.timedelta(days=30)
+                ).select_related("attendance"),
+                confidence=float(avg_conf),
+                stability=float(avg_stab),
+                negative_ratio=float(avg_neg),
             )
 
-            # Holat aniqlash
-            if avg_stress < 0.30 and avg_mood > 75 and avg_energy > 0.70:
-                state = "excellent"
-                state_display = "A'lo"
-            elif avg_stress < 0.45 and avg_mood > 65:
-                state = "good"
-                state_display = "Yaxshi"
-            elif avg_stress < 0.65:
+            # State aniqlash (endi ko'proq indikator bilan)
+            # Past confidence bo'lsa: holatni "normal"ga tushiramiz (taxminiy bo'lgani uchun)
+            if avg_conf < 0.35:
                 state = "normal"
-                state_display = "O‘rtacha"
-            elif avg_stress < 0.80:
-                state = "warning"
-                state_display = "Ehtiyot"
+                state_display = "Taxminiy"
             else:
-                state = "critical"
-                state_display = "Jiddiy"
+                if avg_stress >= 0.80 or avg_neg >= 0.60:
+                    state = "critical"
+                    state_display = "Jiddiy"
+                elif avg_stress >= 0.65 or avg_neg >= 0.45:
+                    state = "warning"
+                    state_display = "Ehtiyot"
+                elif avg_stress < 0.30 and avg_mood > 75 and avg_energy > 0.70 and avg_neg < 0.25:
+                    state = "excellent"
+                    state_display = "A'lo"
+                elif avg_stress < 0.45 and avg_mood > 65 and avg_neg < 0.35:
+                    state = "good"
+                    state_display = "Yaxshi"
+                else:
+                    state = "normal"
+                    state_display = "O‘rtacha"
 
             final_profiles.append({
-                "user": data["user"],
-                "stress": int(avg_stress * 100),
-                "mood": avg_mood,
-                "energy": int(avg_energy * 100),
+                "user": user,
+
+                # UI uchun foizga o'giramiz
+                "stress": int(round(avg_stress * 100)),
+                "mood": int(avg_mood),
+                "energy": int(round(avg_energy * 100)),
+
                 "psychology": psychology_text,
                 "state": state,
                 "state_display": state_display,
-                "count": data["count"],
-                "dominant_emotion": most_common_emotion.title()
+
+                # qo'shimcha insightlar
+                "dominant_emotion": most_common_emotion.title(),
+                "confidence": round(avg_conf, 2),
+                "stability": round(avg_stab, 2),
+                "negative_ratio": round(avg_neg, 2),
+                "positive_ratio": round(avg_pos, 2),
+                "neutral_ratio": round(avg_neu, 2),
+                "valence": round(avg_val, 2),
+                "arousal": round(avg_ar, 2),
+                "photo_count": photo_count,
+                "face_quality": round(avg_quality, 2),
+                "emotion_probs": probs,
+                "top_emotions": _top3_text(probs),
+                "count": count,
             })
 
-        # Tartiblash: eng muhimlari yuqorida
+        # Tartiblash: muhimlari yuqorida
         state_order = ["critical", "warning", "normal", "good", "excellent"]
-        final_profiles.sort(
-            key=lambda x: (state_order.index(x["state"]), -x["count"])
-        )
+        final_profiles.sort(key=lambda x: (state_order.index(x["state"]), -x["photo_count"]))
 
         breadcrumbs = [
             {'name': 'Bosh sahifa', 'url': '/'},
@@ -140,7 +189,6 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
             {'name': 'Psixologik portretlar', 'url': None},
         ]
 
-        # Bugungi statistikalar
         critical_count = sum(1 for p in final_profiles if p["state"] == "critical")
         warning_count = sum(1 for p in final_profiles if p["state"] == "warning")
 

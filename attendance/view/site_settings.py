@@ -113,42 +113,47 @@ def get_device_info():
     return info
 
 
-@login_required(login_url='login')
+@login_required(login_url="login")
 def site_settings_view(request):
     site_settings, created = SiteSettings.objects.get_or_create(id=1)
 
-    if request.method == 'POST':
-        site_settings.site_name = request.POST.get('site_name', site_settings.site_name)
-        site_settings.site_status = request.POST.get('site_status', site_settings.site_status)
-        site_settings.contact_email = request.POST.get('contact_email', site_settings.contact_email)
-        site_settings.contact_phone = request.POST.get('contact_phone', site_settings.contact_phone)
-        site_settings.hemis_url = request.POST.get('hemis_url', site_settings.hemis_url)
-        site_settings.hemis_api_token = request.POST.get('hemis_api_token', site_settings.hemis_api_token)
+    if request.method == "POST":
+        # --- oddiy text fieldlar ---
+        site_settings.site_name = request.POST.get("site_name", site_settings.site_name)
+        site_settings.site_status = request.POST.get("site_status", site_settings.site_status)
+        site_settings.contact_email = request.POST.get("contact_email", site_settings.contact_email)
+        site_settings.contact_phone = request.POST.get("contact_phone", site_settings.contact_phone)
+        site_settings.hemis_url = request.POST.get("hemis_url", site_settings.hemis_url)
+        site_settings.hemis_api_token = request.POST.get("hemis_api_token", site_settings.hemis_api_token)
 
         site_settings.face_processing_device = request.POST.get(
-            'face_processing_device',
+            "face_processing_device",
             site_settings.face_processing_device
         )
 
-        # KATTA logo (large)
-        if 'logo_large' in request.FILES and request.FILES['logo_large']:
-            site_settings.logo_large = request.FILES['logo_large']
+        # ✅ AUTO FACE ENCODING toggle (checkbox)
+        # HTML checkbox checked bo'lsa "on" keladi, bo'lmasa umuman kelmaydi
+        site_settings.enable_auto_face_encoding = (request.POST.get("enable_auto_face_encoding") == "on")
 
-        # KICHIK logo (small)
-        if 'logo_small' in request.FILES and request.FILES['logo_small']:
-            site_settings.logo_small = request.FILES['logo_small']
+        # --- logo uploadlar ---
+        if request.FILES.get("logo_large"):
+            site_settings.logo_large = request.FILES["logo_large"]
+
+        if request.FILES.get("logo_small"):
+            site_settings.logo_small = request.FILES["logo_small"]
 
         site_settings.save()
 
         messages.success(
             request,
             "Sayt sozlamalari muvaffaqiyatli saqlandi.",
-            extra_tags="settings"
+            extra_tags="settings",
         )
-        return redirect('site_settings')
+        return redirect("site_settings")
 
     device_info = get_device_info()
 
+    # psutil bo'lmasa ogohlantirish
     if not device_info.get("psutil_ok"):
         messages.warning(
             request,
@@ -156,6 +161,7 @@ def site_settings_view(request):
             "(pip install psutil)."
         )
 
+    # GPU tanlangan, lekin GPU yo'q bo'lsa xabar
     if site_settings.face_processing_device == "gpu" and not device_info.get("gpus"):
         messages.error(
             request,
@@ -164,15 +170,15 @@ def site_settings_view(request):
         )
 
     breadcrumbs = [
-        {'name': 'Asosiy sahifa', 'url': '/'},
-        {'name': 'Sayt sozlamalari', 'url': None},
+        {"name": "Asosiy sahifa", "url": "/"},
+        {"name": "Sayt sozlamalari", "url": None},
     ]
 
     context = {
-        'breadcrumbs': breadcrumbs,
-        'site_settings': site_settings,
-        'page_title': 'Sayt sozlamalari',
-        'device_info': device_info,
+        "breadcrumbs": breadcrumbs,
+        "site_settings": site_settings,
+        "page_title": "Sayt sozlamalari",
+        "device_info": device_info,
     }
 
-    return render(request, 'pages/settings.html', context)
+    return render(request, "pages/settings.html", context)

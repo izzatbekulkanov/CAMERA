@@ -204,35 +204,38 @@
                             <div class="mb-3">
                                 <label for="site-status" class="form-label">Sayt holati</label>
                                 <select id="site-status" name="site_status" class="form-control select2">
-                                    <option value="online"
-                                            {% if site_settings.site_status == 'online' %}selected{% endif %}>Online
-                                    </option>
-                                    <option value="maintenance"
-                                            {% if site_settings.site_status == 'maintenance' %}selected{% endif %}>
-                                        Maintenance
-                                    </option>
-                                    <option value="offline"
-                                            {% if site_settings.site_status == 'offline' %}selected{% endif %}>Offline
-                                    </option>
+                                    <option value="online" {% if site_settings.site_status == 'online' %}selected{% endif %}>Online</option>
+                                    <option value="maintenance" {% if site_settings.site_status == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                                    <option value="offline" {% if site_settings.site_status == 'offline' %}selected{% endif %}>Offline</option>
                                 </select>
                             </div>
 
                             <div class="mb-3">
                                 <label for="face-device" class="form-label">Face Recognition rejimi</label>
                                 <select id="face-device" name="face_processing_device" class="form-control select2">
-                                    <option value="cpu"
-                                            {% if site_settings.face_processing_device == 'cpu' %}selected{% endif %}>
-                                        CPU
-                                    </option>
-                                    <option value="gpu"
-                                            {% if site_settings.face_processing_device == 'gpu' %}selected{% endif %}>
-                                        GPU
-                                    </option>
+                                    <option value="cpu" {% if site_settings.face_processing_device == 'cpu' %}selected{% endif %}>CPU</option>
+                                    <option value="gpu" {% if site_settings.face_processing_device == 'gpu' %}selected{% endif %}>GPU</option>
                                 </select>
                                 <small class="text-muted">
                                     GPU bo‘lmagan serverlarda <strong>CPU</strong>, aks holda <strong>GPU</strong>
                                     tavsiya etiladi.
                                 </small>
+
+                                {# ✅ NEW: Auto face encoding switch #}
+                                <div class="form-check form-switch mt-3">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="enable-auto-face-encoding"
+                                           name="enable_auto_face_encoding"
+                                           {% if site_settings.enable_auto_face_encoding %}checked{% endif %}>
+                                    <label class="form-check-label" for="enable-auto-face-encoding">
+                                        Avtomatik Face Encoding yaratish
+                                    </label>
+                                    <small class="text-muted d-block">
+                                        Yoqilsa: foydalanuvchi rasm yuklaganda Celery orqali encoding avtomatik yaratiladi.
+                                        O‘chiq bo‘lsa: avtomatik encoding umuman yaratilmaydi.
+                                    </small>
+                                </div>
                             </div>
 
                             <hr>
@@ -270,8 +273,7 @@
                     </div>
                 </div>
 
-                <!-- O‘NG: Logolar + SAQLASH TUGMASI SHU CARD ICHIDA -->
-                <!-- O‘NG: Logolar + SAQLASH TUGMASI SHU CARD ICHIDA -->
+                <!-- O‘NG: Logolar -->
                 <div class="col-lg-6">
                     <div class="card mb-0">
                         <div class="card-body">
@@ -296,8 +298,8 @@
                                                          alt="Katta logo">
                                                 {% else %}
                                                     <span class="text-muted small" id="preview-logo-large-placeholder">
-                                        Hozircha logo yo‘q
-                                    </span>
+                                                        Hozircha logo yo‘q
+                                                    </span>
                                                 {% endif %}
                                             </div>
                                         </div>
@@ -339,8 +341,8 @@
                                                          alt="Kichik logo">
                                                 {% else %}
                                                     <span class="text-muted small" id="preview-logo-small-placeholder">
-                                        Hozircha logo yo‘q
-                                    </span>
+                                                        Hozircha logo yo‘q
+                                                    </span>
                                                 {% endif %}
                                             </div>
                                         </div>
@@ -396,19 +398,16 @@
             const filenameSpan = document.getElementById(filenameId);
 
             if (!input || !input.files || input.files.length === 0) {
-                // Fayl olib tashlangan holat
                 if (filenameSpan) filenameSpan.textContent = "Fayl tanlanmagan";
                 return;
             }
 
             const file = input.files[0];
 
-            // Fayl nomini ko'rsatish
             if (filenameSpan) {
                 filenameSpan.textContent = "Tanlangan: " + file.name;
             }
 
-            // Live preview
             const reader = new FileReader();
             reader.onload = function (e) {
                 if (img) {
@@ -425,12 +424,10 @@
         {% if messages %}
             {% for message in messages %}
                 $.toast({
-                    heading: "{% if 'success' in message.tags %}Muvaffaqiyat{% elif 'error' in message.tags %}
-                        Xatolik{% else %}Xabar{% endif %}",
+                    heading: "{% if 'success' in message.tags %}Muvaffaqiyat{% elif 'error' in message.tags %}Xatolik{% else %}Xabar{% endif %}",
                     text: "{{ message|escapejs }}",
                     showHideTransition: 'slide',
-                    icon: "{% if 'success' in message.tags %}success{% elif 'error' in message.tags %}
-                        error{% elif 'warning' in message.tags %}warning{% else %}info{% endif %}",
+                    icon: "{% if 'success' in message.tags %}success{% elif 'error' in message.tags %}error{% elif 'warning' in message.tags %}warning{% else %}info{% endif %}",
                     position: 'top-right',
                     hideAfter: 5000
                 });

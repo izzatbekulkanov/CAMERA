@@ -30,6 +30,7 @@ urlpatterns = [
     path('', include('attendance.urls')),
     path('', include('users.urls')),
     path('', include('camera.urls')),
+    path("youtube/", include("youtube.urls")),
 
     # i18n URL (tilni o‘zgartirish uchun)
     path('i18n/', include('django.conf.urls.i18n')),

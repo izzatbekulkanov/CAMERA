@@ -8,6 +8,27 @@
     <link href="{% static 'assets/libs/quill/quill.core.css' %}" rel="stylesheet" type="text/css" />
     <link href="{% static 'assets/libs/quill/quill.snow.css' %}" rel="stylesheet" type="text/css" />
     <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css" />
+
+    <style>
+        /* ====== TOP STATS (1 qatorda, scroll) ====== */
+        .stats-row{
+            display:flex;
+            gap:.75rem;
+            overflow-x:auto;
+            padding-bottom:.25rem;
+            scroll-snap-type:x mandatory;
+        }
+        .stats-row::-webkit-scrollbar{ height:6px; }
+        .stats-row::-webkit-scrollbar-thumb{ background: rgba(0,0,0,.15); border-radius:8px; }
+        .stat-card{
+            min-width: 210px;
+            flex: 0 0 auto;
+            scroll-snap-align: start;
+        }
+        .stat-icon{
+            width:42px;height:42px;
+        }
+    </style>
 {% endblock styles %}
 
 {% block title %}
@@ -21,6 +42,102 @@ Foydalanuvchilar ro'yxati
     {% include 'includes/breadcrumbs.html' %}
     <!-- end page title -->
 
+    <!-- ====== TOP STATS (1 qatorda) ====== -->
+    <div class="mb-3">
+        <div class="stats-row">
+
+            <div class="card shadow-sm border-0 stat-card">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">Jami</div>
+                            <div class="h4 mb-0 fw-bold">{{ total_count }}</div>
+                        </div>
+                        <div class="stat-icon rounded bg-light d-flex align-items-center justify-content-center">
+                            <i class="mdi mdi-account-group text-primary fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 stat-card">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">Talaba</div>
+                            <div class="h4 mb-0 fw-bold text-primary">{{ student_count }}</div>
+                        </div>
+                        <div class="stat-icon rounded bg-soft-info d-flex align-items-center justify-content-center">
+                            <i class="mdi mdi-school text-info fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 stat-card">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">Xodim</div>
+                            <div class="h4 mb-0 fw-bold text-success">{{ employee_count }}</div>
+                        </div>
+                        <div class="stat-icon rounded bg-soft-success d-flex align-items-center justify-content-center">
+                            <i class="mdi mdi-briefcase-account text-success fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 stat-card">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">Rol yo‘q</div>
+                            <div class="h4 mb-0 fw-bold text-warning">{{ norole_count }}</div>
+                        </div>
+                        <div class="stat-icon rounded bg-soft-warning d-flex align-items-center justify-content-center">
+                            <i class="mdi mdi-account-question text-warning fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 stat-card">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">Face ✅</div>
+                            <div class="h4 mb-0 fw-bold text-success">{{ users_with_face }}</div>
+                        </div>
+                        <div class="stat-icon rounded bg-soft-success d-flex align-items-center justify-content-center">
+                            <i class="mdi mdi-face-recognition text-success fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 stat-card">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">Face ❌</div>
+                            <div class="h4 mb-0 fw-bold text-danger">{{ users_without_face }}</div>
+                        </div>
+                        <div class="stat-icon rounded bg-soft-danger d-flex align-items-center justify-content-center">
+                            <i class="mdi mdi-face-recognition text-danger fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="small text-muted mt-1">
+            <i class="mdi mdi-swap-horizontal me-1"></i> Kartalarni yon tomonga surib ko‘ring
+        </div>
+    </div>
+    <!-- ====== END TOP STATS ====== -->
+
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -32,7 +149,8 @@ Foydalanuvchilar ro'yxati
                     <div class="d-flex align-items-center flex-wrap gap-2">
                         <!-- Qidiruv -->
                         <form method="get" class="d-flex">
-                            <input type="text" name="q" class="form-control form-control-sm me-2" placeholder="Qidirish..." value="{{ search_query }}">
+                            <input type="text" name="q" class="form-control form-control-sm me-2"
+                                   placeholder="Qidirish..." value="{{ search_query }}">
                             <button type="submit" class="btn btn-primary btn-sm">
                                 <i class="mdi mdi-magnify"></i>
                             </button>
@@ -61,18 +179,15 @@ Foydalanuvchilar ro'yxati
 
                     <!-- O'ng: Yangi qo‘shish + Sozlamalar + Yuklash -->
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <!-- Yangi qo‘shish -->
                         <button type="button" class="btn btn-danger btn-sm waves-effect waves-light"
                                 data-bs-toggle="modal" data-bs-target="#custom-modal">
                             <i class="mdi mdi-plus-circle me-1"></i> Yangi qo‘shish
                         </button>
 
-                        <!-- Sozlamalar -->
                         <button type="button" class="btn btn-success btn-sm">
                             <i class="mdi mdi-cog"></i>
                         </button>
 
-                        <!-- Yuklash -->
                         <a href="{% url 'import_users' %}" class="btn btn-light btn-sm">
                             Yuklash
                         </a>
@@ -149,23 +264,26 @@ Foydalanuvchilar ro'yxati
                                         </td>
 
                                         <td>
-                                            <a href="{% url 'my_profile' %}?id={{ user.id }}" class="action-icon text-primary" title="Tahrirlash">
+                                            <a href="{% url 'my_profile' %}?id={{ user.id }}"
+                                               class="action-icon text-primary" title="Tahrirlash">
                                                 <i class="mdi mdi-square-edit-outline"></i>
                                             </a>
-                                            <!-- Tugma (Material Design ikonka bilan) -->
+
                                             <a href="javascript:void(0)"
                                                class="action-icon text-danger delete-user-btn"
                                                data-user-id="{{ user.id|default:'0' }}"
                                                data-user-name="{{ user.full_name|default:user.username|escapejs }}"
                                                data-user-debug="{{ user.id }} - {{ user.username }}"
-                                            title="Butunlay o‘chirish">
-                                            <i class="mdi mdi-delete-forever"></i>
+                                               title="Butunlay o‘chirish">
+                                                <i class="mdi mdi-delete-forever"></i>
                                             </a>
                                         </td>
                                     </tr>
                                 {% empty %}
                                     <tr>
-                                        <td colspan="9" class="text-center text-muted py-3">Foydalanuvchilar mavjud emas</td>
+                                        <td colspan="9" class="text-center text-muted py-3">
+                                            Foydalanuvchilar mavjud emas
+                                        </td>
                                     </tr>
                                 {% endfor %}
                             </tbody>

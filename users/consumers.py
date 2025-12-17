@@ -10,6 +10,8 @@ from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.conf import settings
+
+from attendance.models import SiteSettings
 from users.models import CustomUser, FaceEncoding
 
 User = get_user_model()
@@ -365,3 +367,75 @@ class SyncProgressConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             # Debug uchun
             print(f"[PROGRESS WS] progress_loop xato: {e}")
+
+FACE_PROGRESS_KEY = "face_encoding_progress_v1"
+FACE_PROGRESS_TOTAL_KEY = "face_encoding_progress_total_v1"
+
+
+def _percent(processed: int, total: int) -> float:
+    if not total:
+        return 0.0
+    return round((processed / total) * 100.0, 1)
+
+
+class FaceEncodingProgressConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.accept()
+        self._running = True
+        self._task = asyncio.create_task(self._loop())
+
+    async def disconnect(self, close_code):
+        self._running = False
+        if hasattr(self, "_task"):
+            self._task.cancel()
+
+    @database_sync_to_async
+    def _auto_enabled(self) -> bool:
+        s = SiteSettings.get_settings()
+        return bool(getattr(s, "enable_auto_face_encoding", False))
+
+    @database_sync_to_async
+    def _get_total_fallback(self) -> int:
+        return int(cache.get(FACE_PROGRESS_TOTAL_KEY) or 0)
+
+    async def _loop(self):
+        while self._running:
+            enabled = await self._auto_enabled()
+
+            raw = cache.get(FACE_PROGRESS_KEY) or {
+                "status": "idle",
+                "processed": 0,
+                "total": 0,
+                "message": "",
+                "updated_at": None,
+                "started_at": None,
+                "run_id": None,
+            }
+
+            processed = int(raw.get("processed") or 0)
+            total = int(raw.get("total") or 0)
+
+            # fallback
+            if total <= 0:
+                total = await self._get_total_fallback()
+            if total <= 0 and processed > 0:
+                total = processed
+
+            payload = {
+                "enabled": enabled,
+                "status": raw.get("status", "idle"),
+                "processed": processed,
+                "total": total,
+                "percent": _percent(processed, total),
+                "message": raw.get("message", "") or "",
+                "updated_at": raw.get("updated_at"),
+                "started_at": raw.get("started_at"),
+                "run_id": raw.get("run_id"),
+            }
+
+            try:
+                await self.send(text_data=json.dumps(payload))
+            except Exception:
+                break
+
+            await asyncio.sleep(1)

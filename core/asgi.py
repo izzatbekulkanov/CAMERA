@@ -4,6 +4,8 @@ from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 
+
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 django_asgi_app = get_asgi_application()
@@ -12,6 +14,7 @@ django_asgi_app = get_asgi_application()
 import users.routing
 import camera.routing
 import attendance.routing
+import youtube.routing
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
@@ -19,7 +22,8 @@ application = ProtocolTypeRouter({
         URLRouter(
             users.routing.websocket_urlpatterns +
             camera.routing.websocket_urlpatterns +
-            attendance.routing.websocket_urlpatterns
+            attendance.routing.websocket_urlpatterns +
+            youtube.routing.websocket_urlpatterns
         )
     ),
 })

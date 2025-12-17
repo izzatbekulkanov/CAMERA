@@ -44,6 +44,11 @@ class SiteSettings(models.Model):
         help_text='Saytning kichik logosi (masalan: navbar, favicon yonida)'
     )
 
+    enable_auto_face_encoding = models.BooleanField(
+        default=False,
+        help_text="Agar yoqilgan bo‘lsa, foydalanuvchi rasm yuklaganda avtomatik face encoding yaratiladi"
+    )
+
     # HEMIS sozlamalari
     hemis_url = models.URLField(max_length=255, blank=True, help_text='HEMIS API URL')
     hemis_api_token = models.CharField(max_length=255, blank=True, help_text='HEMIS API token')
@@ -93,6 +98,7 @@ class Attendance(models.Model):
     def __str__(self):
         return f"{self.user} — {self.date} ({'Binoda' if self.is_present else 'Chiqdi'})"
 
+
 class AttendancePhoto(models.Model):
     attendance = models.ForeignKey(Attendance, on_delete=models.CASCADE, related_name='photos')
     image = models.ImageField(upload_to='attendance_photos/%Y/%m/%d/')
@@ -101,39 +107,30 @@ class AttendancePhoto(models.Model):
     class Meta:
         ordering = ['-captured_at']
 
+
 class PsychologicalProfile(models.Model):
-    attendance = models.OneToOneField(
-        Attendance,
-        on_delete=models.CASCADE,
-        related_name='psychology'
-    )
+    attendance = models.OneToOneField(Attendance, on_delete=models.CASCADE, related_name='psychology')
 
-    # AI orqali aniqlangan holatlar
-    dominant_emotion = models.CharField(
-        max_length=50,
-        null=True,
-        blank=True,
-        help_text="Masalan: happy, sad, angry, neutral, surprised..."
-    )
-    stress_level = models.FloatField(
-        default=0,
-        help_text="0.0 - 1.0 oralig‘ida stress darajasi"
-    )
-    energy_level = models.FloatField(
-        default=0,
-        help_text="0.0 - 1.0 oralig‘ida energiya darajasi"
-    )
-    mood_score = models.IntegerField(
-        default=50,
-        help_text="0 - 100 oralig‘ida psixologik holat"
-    )
+    dominant_emotion = models.CharField(max_length=50, null=True, blank=True,
+                                        help_text="Masalan: happy, sad, angry, neutral, surprised...")
+    stress_level = models.FloatField(default=0, help_text="0.0 - 1.0 oralig‘ida stress darajasi")
+    energy_level = models.FloatField(default=0, help_text="0.0 - 1.0 oralig‘ida energiya darajasi")
+    mood_score = models.IntegerField(default=50, help_text="0 - 100 oralig‘ida psixologik holat")
 
-    summary_text = models.TextField(
-        null=True,
-        blank=True,
-        help_text="AI tomonidan yaratilgan psixologik tavsif"
-    )
+    summary_text = models.TextField(null=True, blank=True, help_text="AI tomonidan yaratilgan psixologik tavsif")
+    # Qo'shimcha insightlar
+    emotion_probs = models.JSONField(default=dict, blank=True)  # {"neutral":0.6,"sadness":0.1,...}
+    confidence = models.FloatField(default=0.0)  # 0..1 (o'rtacha max_prob)
+    stability = models.FloatField(default=0.0)  # 0..1 (dominant share)
+    negative_ratio = models.FloatField(default=0.0)  # 0..1
+    positive_ratio = models.FloatField(default=0.0)  # 0..1
+    neutral_ratio = models.FloatField(default=0.0)  # 0..1
+    valence = models.FloatField(default=0.0)  # -1..1
+    arousal = models.FloatField(default=0.0)  # 0..1
+    photo_count = models.IntegerField(default=0)
 
+    # Sifat metrikalari (rasm sifatiga qarab ishonchlilik)
+    face_quality = models.FloatField(default=0.0)  # 0..1 (blur+brightness)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
