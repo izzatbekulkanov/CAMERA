@@ -8,12 +8,12 @@
 
     {% include 'includes/breadcrumbs.html' with breadcrumbs=breadcrumbs %}
 
-    <!-- Asosiy card – oq fon, ko‘k emas -->
+    <!-- Asosiy card -->
     <div class="card border-0 shadow">
         <div class="card-header bg-white border-bottom py-3">
-            <h5 class="mb-0  text-muted fw-bold d-flex align-items-center justify-content-between">
+            <h5 class="mb-0 text-muted fw-bold d-flex align-items-center justify-content-between">
                 <span>Bugungi Davomat • {{ today|date:"d F Y" }}</span>
-                <small class="text-muted">Jami: {{ attendances.count }} nafar</small>
+                <small class="text-muted">Jami: {{ paginator.count }} nafar</small>
             </h5>
         </div>
 
@@ -35,11 +35,15 @@
                 <tbody>
                     {% for att in attendances %}
                     <tr>
-                        <td class="text-center small text-muted">{{ forloop.counter }}</td>
+                        <td class="text-center small text-muted">
+                            {{ forloop.counter0|add:page_obj.start_index }}
+                        </td>
+
                         <td>
                             <img src="{% if att.user.image %}{{ att.user.image.url }}{% else %}{% static 'assets/images/users/default-avatar.png' %}{% endif %}"
                                  class="rounded-circle shadow-sm" width="44" height="44" style="object-fit: cover;">
                         </td>
+
                         <td class="fw-semibold">{{ att.user.full_name|default:att.user.username }}</td>
 
                         <td class="text-center">
@@ -47,14 +51,17 @@
                                 <span class="badge bg-success">{{ att.entry_time|time:"H:i" }}</span>
                             {% else %}–{% endif %}
                         </td>
+
                         <td class="text-center">
                             {% if att.exit_time %}
                                 <span class="badge bg-danger">{{ att.exit_time|time:"H:i" }}</span>
                             {% else %}–{% endif %}
                         </td>
+
                         <td class="text-center small text-muted">
                             {{ att.last_seen|time:"H:i:s" }}
                         </td>
+
                         <td class="text-center">
                             {% if att.is_present %}
                                 <span class="text-success fw-bold">Aktiv</span>
@@ -62,17 +69,18 @@
                                 <span class="text-danger">Chiqdi</span>
                             {% endif %}
                         </td>
+
                         <td class="text-center">
                             <strong class="text-primary">{{ att.duration_minutes|default:"0" }}</strong>
                         </td>
 
-                        <!-- Rasmlar stack – faqat modal ochadi, lightbox yo‘q -->
+                        <!-- Rasmlar stack -->
                         <td class="text-center">
                             {% if att.photos.all %}
                                 <div class="d-inline-flex position-relative">
                                     {% for photo in att.photos.all|slice:":4" %}
                                         <img src="{{ photo.image.url }}"
-                                             class="border border-white shadow-sm rounded"
+                                             class="border border-white shadow-sm rounded stacked-photo"
                                              width="38" height="38"
                                              style="margin-left: -12px; object-fit: cover; cursor: pointer;{% if forloop.counter0 == 0 %}margin-left: 0;{% endif %}"
                                              data-bs-toggle="modal"
@@ -91,7 +99,7 @@
                         </td>
                     </tr>
 
-                    <!-- Modal – faqat kattaroq rasm, lightbox yo‘q -->
+                    <!-- Modal -->
                     <div class="modal fade" id="photoModal{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog modal-dialog-centered modal-xl">
                             <div class="modal-content border-0 shadow-lg">
@@ -145,16 +153,62 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- ✅ Pagination (Bootstrap) -->
+        {% if is_paginated %}
+        <div class="card-footer bg-white border-top py-3">
+            <nav aria-label="Attendance pagination">
+                <ul class="pagination justify-content-center mb-0">
+
+                    <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                        {% if page_obj.has_previous %}
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        {% else %}
+                            <span class="page-link" aria-hidden="true">&laquo;</span>
+                        {% endif %}
+                    </li>
+
+                    {% for num in paginator.page_range %}
+                        {% if num == page_obj.number %}
+                            <li class="page-item active" aria-current="page">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                        {% if page_obj.has_next %}
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        {% else %}
+                            <span class="page-link" aria-hidden="true">&raquo;</span>
+                        {% endif %}
+                    </li>
+
+                </ul>
+            </nav>
+
+            <div class="text-center mt-2 small text-muted">
+                Sahifa {{ page_obj.number }} / {{ paginator.num_pages }} —
+                {{ page_obj.start_index }}–{{ page_obj.end_index }} ({{ paginator.count }} tadan)
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-
-
 <script>
-// Hover effekti (ixtiyoriy)
-document.querySelectorAll('img[style*="margin-left: -12px"]').forEach(img => {
+document.querySelectorAll('.stacked-photo').forEach(img => {
     img.addEventListener('mouseenter', () => img.style.transform = 'translateY(-3px)');
     img.addEventListener('mouseleave', () => img.style.transform = 'translateY(0)');
 });

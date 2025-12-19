@@ -2,6 +2,7 @@
 import random
 from collections import Counter
 
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.shortcuts import render
 from django.views import View
 from django.utils import timezone
@@ -12,12 +13,27 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 
 
 class AttendanceView(LoginRequiredMixin, View):
-    login_url = 'login'  # agar foydalanuvchi login qilmagan bo'lsa
+    login_url = 'login'
     template_name = "attendance/attendance.html"
+    paginate_by = 100  # har sahifada 100 ta
 
     def get(self, request, *args, **kwargs):
         today = timezone.localdate()
-        attendances = Attendance.objects.filter(date=today).select_related('user').order_by('-last_seen')
+
+        qs = (Attendance.objects
+              .filter(date=today)
+              .select_related('user')
+              .order_by('-last_seen'))
+
+        paginator = Paginator(qs, self.paginate_by)
+        page_number = request.GET.get("page", 1)
+
+        try:
+            page_obj = paginator.page(page_number)
+        except PageNotAnInteger:
+            page_obj = paginator.page(1)
+        except EmptyPage:
+            page_obj = paginator.page(paginator.num_pages)
 
         breadcrumbs = [
             {'name': 'Bosh sahifa', 'url': '/'},
@@ -26,7 +42,10 @@ class AttendanceView(LoginRequiredMixin, View):
         ]
 
         context = {
-            "attendances": attendances,
+            "attendances": page_obj,   # endi bu page_obj (iterable)
+            "page_obj": page_obj,
+            "paginator": paginator,
+            "is_paginated": paginator.num_pages > 1,
             "breadcrumbs": breadcrumbs,
         }
         return render(request, self.template_name, context)
@@ -65,15 +84,17 @@ def _top3_text(probs: dict) -> str:
 class PsychologicalProfileView(LoginRequiredMixin, View):
     login_url = 'login'
     template_name = "attendance/psychological_profile.html"
+    paginate_by = 100
 
     def get(self, request, *args, **kwargs):
         today = timezone.localdate()
 
-        profiles_qs = PsychologicalProfile.objects.filter(
-            attendance__date=today
-        ).select_related('attendance__user').order_by('attendance__user__full_name')
+        profiles_qs = (PsychologicalProfile.objects
+                       .filter(attendance__date=today)
+                       .select_related('attendance__user')
+                       .order_by('attendance__user__full_name'))
 
-        # User bo'yicha guruhlash (agar bir userda ko'p profile bo'lsa ham)
+        # User bo'yicha guruhlash
         user_map = {}
         for profile in profiles_qs:
             user = profile.attendance.user
@@ -87,16 +108,14 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
             plist = data["profiles"]
             count = len(plist)
 
-            # O'rtacha metrikalar
             avg_stress = sum(float(p.stress_level or 0) for p in plist) / max(count, 1)
             avg_energy = sum(float(p.energy_level or 0) for p in plist) / max(count, 1)
             avg_mood = int(round(sum(int(p.mood_score or 0) for p in plist) / max(count, 1)))
 
-            # Emotion: (1) dominant_emotion bo'yicha (2) probs bo'lsa probsdan top
-            emotions = [ (p.dominant_emotion or "neutral").lower().strip() for p in plist if p.dominant_emotion ]
+            emotions = [(p.dominant_emotion or "neutral").lower().strip()
+                        for p in plist if p.dominant_emotion]
             most_common_emotion = Counter(emotions).most_common(1)[0][0] if emotions else "neutral"
 
-            # Qo'shimcha insightlar: avg confidence/stability/ratios/valence/arousal + emotion_probs merge
             avg_conf = sum(float(getattr(p, "confidence", 0.0) or 0.0) for p in plist) / max(count, 1)
             avg_stab = sum(float(getattr(p, "stability", 0.0) or 0.0) for p in plist) / max(count, 1)
             avg_neg  = sum(float(getattr(p, "negative_ratio", 0.0) or 0.0) for p in plist) / max(count, 1)
@@ -110,10 +129,8 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
 
             probs = _merge_probs(plist)
             if probs:
-                # probs mavjud bo'lsa dominantni probsdan aniqroq olamiz
                 most_common_emotion = max(probs, key=probs.get)
 
-            # AI comment (modelga mos parametrlar bilan)
             psychology_text = generate_psychology_comment(
                 stress=float(avg_stress),
                 mood=int(avg_mood),
@@ -129,8 +146,7 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
                 negative_ratio=float(avg_neg),
             )
 
-            # State aniqlash (endi ko'proq indikator bilan)
-            # Past confidence bo'lsa: holatni "normal"ga tushiramiz (taxminiy bo'lgani uchun)
+            # State aniqlash
             if avg_conf < 0.35:
                 state = "normal"
                 state_display = "Taxminiy"
@@ -153,17 +169,12 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
 
             final_profiles.append({
                 "user": user,
-
-                # UI uchun foizga o'giramiz
                 "stress": int(round(avg_stress * 100)),
                 "mood": int(avg_mood),
                 "energy": int(round(avg_energy * 100)),
-
                 "psychology": psychology_text,
                 "state": state,
                 "state_display": state_display,
-
-                # qo'shimcha insightlar
                 "dominant_emotion": most_common_emotion.title(),
                 "confidence": round(avg_conf, 2),
                 "stability": round(avg_stab, 2),
@@ -179,9 +190,19 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
                 "count": count,
             })
 
-        # Tartiblash: muhimlari yuqorida
+        # Tartiblash
         state_order = ["critical", "warning", "normal", "good", "excellent"]
         final_profiles.sort(key=lambda x: (state_order.index(x["state"]), -x["photo_count"]))
+
+        # ✅ Pagination (list uchun)
+        paginator = Paginator(final_profiles, self.paginate_by)
+        page_number = request.GET.get("page", 1)
+        try:
+            page_obj = paginator.page(page_number)
+        except PageNotAnInteger:
+            page_obj = paginator.page(1)
+        except EmptyPage:
+            page_obj = paginator.page(paginator.num_pages)
 
         breadcrumbs = [
             {'name': 'Bosh sahifa', 'url': '/'},
@@ -193,9 +214,16 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
         warning_count = sum(1 for p in final_profiles if p["state"] == "warning")
 
         return render(request, self.template_name, {
-            "profiles": final_profiles,
+            # ✅ endi shu list emas, paged list ketadi
+            "profiles": page_obj,      # template for profile in profiles -> ishlaydi
+            "page_obj": page_obj,
+            "paginator": paginator,
+            "is_paginated": paginator.num_pages > 1,
+
             "breadcrumbs": breadcrumbs,
             "today": today,
+
+            # umumiy hisoblar (hammasi bo'yicha)
             "total_employees": len(final_profiles),
             "critical_count": critical_count,
             "warning_count": warning_count,

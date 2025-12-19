@@ -100,7 +100,8 @@
           <tr class="
             {% if p.state == 'critical' %}row-soft-critical{% elif p.state == 'warning' %}row-soft-warning{% endif %}
           ">
-            <td class="text-center small muted">{{ forloop.counter }}</td>
+            <!-- ✅ global index (pagination bo'lsa ham to'g'ri sanaydi) -->
+            <td class="text-center small muted">{{ forloop.counter0|add:page_obj.start_index }}</td>
 
             <!-- Employee -->
             <td>
@@ -148,7 +149,6 @@
                   <span class="muted">Energy</span> <b class="text-success">{{ p.energy }}%</b>
                 </span>
 
-                {# qisqa izoh preview (juda qisqa) #}
                 <span class="chip" title="{{ p.psychology|default:'—' }}">
                   <span class="muted">Izoh</span>
                   <b class="text-dark">{{ p.psychology|default:"—"|truncatechars:22 }}</b>
@@ -186,7 +186,7 @@
             </td>
           </tr>
 
-          <!-- DETAIL MODAL (full, structured, readable) -->
+          <!-- DETAIL MODAL -->
           <div class="modal fade" id="psychModal{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
               <div class="modal-content" style="border-radius:1rem;">
@@ -205,7 +205,6 @@
 
                 <div class="modal-body">
                   <div class="row g-3">
-                    <!-- Summary badges -->
                     <div class="col-12">
                       <div class="d-flex flex-wrap gap-2">
                         <span class="badge rounded-pill text-bg-danger px-3 py-2">Stress: <b class="ms-1">{{ p.stress }}%</b></span>
@@ -221,7 +220,6 @@
                       </div>
                     </div>
 
-                    <!-- Ratios / V-A -->
                     <div class="col-12 col-md-6">
                       <div class="border rounded-3 p-3 h-100">
                         <div class="small muted mb-2">Emotsiya ulushi</div>
@@ -243,7 +241,6 @@
                       </div>
                     </div>
 
-                    <!-- Quick interpretation -->
                     <div class="col-12 col-md-6">
                       <div class="border rounded-3 p-3 h-100">
                         <div class="small muted mb-2">Qisqa xulosa</div>
@@ -270,7 +267,6 @@
                       </div>
                     </div>
 
-                    <!-- Full comment -->
                     <div class="col-12">
                       <div class="border rounded-3 p-3">
                         <div class="small muted mb-2">To‘liq izoh</div>
@@ -298,6 +294,58 @@
         </tbody>
       </table>
     </div>
+
+    <!-- ✅ PAGINATION (Bootstrap) -->
+    {% if is_paginated %}
+      <div class="card-footer bg-white border-top py-3">
+        <nav aria-label="Psychological profiles pagination">
+          <ul class="pagination justify-content-center mb-0">
+
+            <!-- Prev -->
+            <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+              {% if page_obj.has_previous %}
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                  <span aria-hidden="true">&laquo;</span>
+                </a>
+              {% else %}
+                <span class="page-link" aria-hidden="true">&laquo;</span>
+              {% endif %}
+            </li>
+
+            <!-- Page numbers (window: -2..+2) -->
+            {% for num in paginator.page_range %}
+              {% if num == page_obj.number %}
+                <li class="page-item active" aria-current="page">
+                  <span class="page-link">{{ num }}</span>
+                </li>
+              {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+              {% endif %}
+            {% endfor %}
+
+            <!-- Next -->
+            <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+              {% if page_obj.has_next %}
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                  <span aria-hidden="true">&raquo;</span>
+                </a>
+              {% else %}
+                <span class="page-link" aria-hidden="true">&raquo;</span>
+              {% endif %}
+            </li>
+
+          </ul>
+        </nav>
+
+        <div class="text-center mt-2 small muted">
+          Sahifa {{ page_obj.number }} / {{ paginator.num_pages }} —
+          {{ page_obj.start_index }}–{{ page_obj.end_index }} ({{ paginator.count }} tadan)
+        </div>
+      </div>
+    {% endif %}
+
   </div>
 </div>
 {% endblock %}
@@ -328,7 +376,6 @@ $(function() {
       txt.text(`AI tahlil: ${d.user_full_name || 'xodim'} · ${d.progress}%`);
     }
 
-    // Agar task error bilan yiqilsa ham UI “osilib qolmasin”
     if (d.error) {
       loader.removeClass('d-none');
       bar.removeClass('bg-primary').addClass('bg-danger');
