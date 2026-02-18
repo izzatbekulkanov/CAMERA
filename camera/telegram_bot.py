@@ -448,7 +448,7 @@ def _format_channel_log(
             f"🧾 {role} | ID: {pid_show or (person_id or '-')}\n"
             f"🏢 Bo'lim: {dept}\n"
             f"👥 Guruh: {grp}\n"
-            f"📷 Kamera: {camera_ip or '-'}\n"
+            f"📷 Kamera: KIRISH ESHIGI\n"
             f"🎯 Similarity: {sim_txt}\n"
             f"⏰ {when_str}"
         )
@@ -457,7 +457,7 @@ def _format_channel_log(
         "🟢 *KIRISH*\n"
         "👤 Noma'lum\n"
         f"🧾 ID: {person_id or '-'}\n"
-        f"📷 Kamera: {camera_ip or '-'}\n"
+        f"📷 Kamera: KIRISH ESHIGI\n"
         f"🎯 Similarity: {sim_txt}\n"
         f"⏰ {when_str}"
     )
@@ -494,7 +494,7 @@ def notify_user_arrival(
                 msg_user = (
                     "✅ *Siz keldingiz.*\n\n"
                     f"👤 *{full_name}*\n"
-                    f"📷 *Kamera:* {camera_ip or '-'}\n"
+                    f"📷 *Kamera:* KIRISH ESHIGI\n"
                     f"⏰ *Vaqt:* {when_str}\n"
                 )
                 _send_message(token, int(tp.chat_id), msg_user, keyboard=_main_keyboard(), parse_mode="Markdown")
