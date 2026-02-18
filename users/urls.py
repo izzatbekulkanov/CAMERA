@@ -14,7 +14,7 @@ urlpatterns = [
     path('reset-password/', reset_password_view, name='reset_password'),
 
     # Profil va foydalanuvchilar
-    path('profile/', profile_view, name='my_profile'),
+    path('profile/', profile_view, name='profile'),
     path('users/', users_list_view, name='users_list'),
     path('users/import/', import_users_view, name='import_users'),
 

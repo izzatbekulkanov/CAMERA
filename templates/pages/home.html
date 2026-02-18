@@ -1,50 +1,293 @@
 {% extends 'base/base.html' %}
 {% load static %}
 
-{% block title %}
-Asosiy sahifa
-{% endblock title %}
+{% block title %}Asosiy sahifa{% endblock title %}
 
 {% block styles %}
-    <link href="{% static 'assets/libs/select2/css/select2.min.css' %}" rel="stylesheet" type="text/css" />
-    <link href="{% static 'assets/libs/dropzone/min/dropzone.min.css' %}" rel="stylesheet" type="text/css" />
-    <link href="{% static 'assets/libs/quill/quill.core.css' %}" rel="stylesheet" type="text/css" />
-    <link href="{% static 'assets/libs/quill/quill.snow.css' %}" rel="stylesheet" type="text/css" />
-    <!-- jQuery Toast css -->
-    <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css" />
+<link href="{% static 'assets/libs/apexcharts/apexcharts.css' %}" rel="stylesheet" type="text/css"/>
+<link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css"/>
+<style>
+    .stat-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.04);
+    }
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+    .table td, .table th {
+        vertical-align: middle;
+    }
+</style>
 {% endblock styles %}
 
 {% block content %}
 <div class="container-fluid">
+    {% include 'includes/breadcrumbs.html' %}
+
+    <!-- ===================== TOP STATS ===================== -->
+    <div class="row g-3 mb-3">
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card stat-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Jami foydalanuvchilar</div>
+                        <h3 class="fw-bold mb-0">{{ total_users }}</h3>
+                    </div>
+                    <div class="stat-icon bg-soft-primary text-primary">
+                        <i class="mdi mdi-account-group"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card stat-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Talabalar</div>
+                        <h3 class="fw-bold mb-0 text-primary">{{ total_students }}</h3>
+                    </div>
+                    <div class="stat-icon bg-soft-info text-info">
+                        <i class="mdi mdi-school"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card stat-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Xodimlar</div>
+                        <h3 class="fw-bold mb-0 text-success">{{ total_employees }}</h3>
+                    </div>
+                    <div class="stat-icon bg-soft-success text-success">
+                        <i class="mdi mdi-briefcase-account"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card stat-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Adminlar</div>
+                        <h3 class="fw-bold mb-0 text-danger">{{ total_admins }}</h3>
+                    </div>
+                    <div class="stat-icon bg-soft-danger text-danger">
+                        <i class="mdi mdi-shield-account"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card stat-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Bugun binoda</div>
+                        <h3 class="fw-bold mb-0 text-success">{{ present_now }}</h3>
+                    </div>
+                    <div class="stat-icon bg-soft-success text-success">
+                        <i class="mdi mdi-door-open"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card stat-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Bugun chiqqan</div>
+                        <h3 class="fw-bold mb-0 text-warning">{{ exit_today }}</h3>
+                    </div>
+                    <div class="stat-icon bg-soft-warning text-warning">
+                        <i class="mdi mdi-door-closed"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card stat-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Kameralar jami</div>
+                        <h3 class="fw-bold mb-0">{{ total_cameras }}</h3>
+                    </div>
+                    <div class="stat-icon bg-soft-primary text-primary">
+                        <i class="mdi mdi-video"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card stat-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Faol kameralar</div>
+                        <h3 class="fw-bold mb-0 text-success">{{ active_cameras }}</h3>
+                    </div>
+                    <div class="stat-icon bg-soft-success text-success">
+                        <i class="mdi mdi-video-check"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <!-- ===================== END TOP STATS ===================== -->
+
+
+    <!-- ===================== CHARTS + LAST ATTENDANCE ===================== -->
+    <div class="row g-3">
+
+        <!-- Chart -->
+        <div class="col-lg-4">
+            <div class="card stat-card">
+                <div class="card-header bg-white fw-bold border-0">
+                    Talaba / Xodim taqsimoti
+                </div>
+                <div class="card-body">
+                    <div id="usersChart" style="height:280px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card stat-card">
+                <div class="card-header bg-white fw-bold border-0">
+                    Bugungi attendance
+                </div>
+                <div class="card-body">
+                    <div id="attendanceChart" style="height:280px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Last Attendance -->
+        <div class="col-lg-4">
+            <div class="card stat-card">
+                <div class="card-header bg-white fw-bold border-0">
+                    Oxirgi ko‘rilganlar
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0 table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Foydalanuvchi</th>
+                                    <th>Oxirgi</th>
+                                    <th>Holat</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for att in last_attendance %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            {% if att.user.image %}
+                                                <img src="{{ att.user.image.url }}" class="rounded-circle" width="32" height="32">
+                                            {% else %}
+                                                <img src="{% static 'assets/images/users/default-avatar.png' %}" class="rounded-circle" width="32" height="32">
+                                            {% endif %}
+                                            <div class="d-flex flex-column">
+                                                <span class="fw-semibold">{{ att.user.full_name|default:att.user.username }}</span>
+                                                <small class="text-muted">{{ att.user.get_role_display }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <span class="text-muted">
+                                            {{ att.last_seen|date:"H:i:s" }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        {% if att.is_present %}
+                                            <span class="badge bg-soft-success text-success">Binoda</span>
+                                        {% else %}
+                                            <span class="badge bg-soft-secondary text-secondary">Chiqqan</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-4">
+                                        Hozircha attendance yo‘q
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <!-- ===================== END CHARTS ===================== -->
 
 </div>
 {% endblock content %}
 
 {% block scripts %}
-    <!-- Select2 js -->
-    <script src="{% static 'assets/libs/select2/js/select2.min.js' %}"></script>
+<script src="{% static 'assets/libs/apexcharts/apexcharts.min.js' %}"></script>
+<script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
 
-    <!-- jQuery Toast Plugin -->
-    <script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
+<!-- ✅ Login toast -->
+<script>
+{% if messages %}
+{% for message in messages %}
+    {% if 'login' in message.tags %}
+        $.toast({
+            heading: "Muvaffaqiyat",
+            text: "{{ message|escapejs }}",
+            showHideTransition: 'slide',
+            icon: "success",
+            position: 'top-right',
+            hideAfter: 5000
+        });
+    {% endif %}
+{% endfor %}
+{% endif %}
+</script>
 
-    <!-- Toastr init js -->
-    <script src="{% static 'assets/js/pages/toastr.init.js' %}"></script>
+<script>
+(function(){
+    // USERS PIE CHART
+    const usersOptions = {
+        series: [{{ total_students }}, {{ total_employees }}],
+        chart: { type: "donut", height: 280 },
+        labels: ["Talabalar", "Xodimlar"],
+        legend: { position: "bottom" },
+        dataLabels: { enabled: true },
+    };
+    new ApexCharts(document.querySelector("#usersChart"), usersOptions).render();
 
-    <!-- ✅ Faqat login xabarini ko'rsatamiz -->
-    <script>
-        {% if messages %}
-            {% for message in messages %}
-                {% if 'login' in message.tags %}
-                    $.toast({
-                        heading: "Muvaffaqiyat",
-                        text: "{{ message|escapejs }}",
-                        showHideTransition: 'slide',
-                        icon: "success",
-                        position: 'top-right',
-                        hideAfter: 5000
-                    });
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-    </script>
+    // ATTENDANCE BAR
+    const attOptions = {
+        series: [{
+            name: "Bugun",
+            data: [{{ present_now }}, {{ exit_today }}]
+        }],
+        chart: { type: "bar", height: 280 },
+        xaxis: { categories: ["Binoda", "Chiqqan"] },
+        dataLabels: { enabled: true },
+    };
+    new ApexCharts(document.querySelector("#attendanceChart"), attOptions).render();
+})();
+</script>
 {% endblock scripts %}

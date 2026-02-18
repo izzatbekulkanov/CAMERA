@@ -3,15 +3,54 @@
 
 {% block styles %}
     <link href="{% static 'assets/libs/select2/css/select2.min.css' %}" rel="stylesheet" type="text/css"/>
-    <link href="{% static 'assets/libs/dropzone/min/dropzone.min.css' %}" rel="stylesheet" type="text/css"/>
-    <link href="{% static 'assets/libs/quill/quill.core.css' %}" rel="stylesheet" type="text/css"/>
-    <link href="{% static 'assets/libs/quill/quill.snow.css' %}" rel="stylesheet" type="text/css"/>
     <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css"/>
+    <style>
+        .mini-kpi small {
+            line-height: 1.2;
+            display: block;
+        }
+
+        .kpi-title {
+            letter-spacing: .6px;
+        }
+
+        .form-section-title {
+            font-size: 0.95rem;
+            letter-spacing: .6px;
+        }
+
+        .help-hint {
+            font-size: .82rem;
+        }
+
+        .badge-soft {
+            background: #eef2ff;
+            color: #3b5bfd;
+        }
+
+        .progress {
+            background: #eef2f7;
+        }
+
+        .token-wrap {
+            position: relative;
+        }
+
+        .token-actions {
+            position: absolute;
+            right: .5rem;
+            top: .45rem;
+            display: flex;
+            gap: .35rem;
+        }
+
+        .token-actions .btn {
+            padding: .2rem .45rem;
+        }
+    </style>
 {% endblock styles %}
 
-{% block title %}
-    Sayt sozlamalari
-{% endblock title %}
+{% block title %}Sayt sozlamalari{% endblock title %}
 
 {% block content %}
     <div class="container-fluid">
@@ -21,14 +60,27 @@
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
 
-            {# =================== YUQORI: QURILMA INFO CARDSLARI =================== #}
-            {% if device_info %}
-                <div class="row mb-3">
+            {# =================== TOP ACTIONS =================== #}
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h4 class="mb-0">Sayt sozlamalari</h4>
+                    <small class="text-muted">Asosiy konfiguratsiya, integratsiyalar va logotiplar</small>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success">
+                        <i class="mdi mdi-content-save-outline me-1"></i> Saqlash
+                    </button>
+                </div>
+            </div>
 
-                    <!-- CPU -->
+            {# =================== DEVICE INFO =================== #}
+            {% if device_info %}
+                <div class="row g-3 mb-3">
+
+                    {# CPU #}
                     <div class="col-md-3">
-                        <div class="card mini-stats-wid h-100">
-                            <div class="card-body py-3">
+                        <div class="card h-100">
+                            <div class="card-body mini-kpi">
                                 <div class="d-flex align-items-center">
                                     <div class="flex-shrink-0 me-3">
                                         <div class="avatar-sm rounded-circle bg-soft-primary d-flex align-items-center justify-content-center">
@@ -36,32 +88,26 @@
                                         </div>
                                     </div>
                                     <div class="flex-grow-1">
-                                        <p class="text-muted mb-1 text-uppercase small">CPU</p>
-                                        <h6 class="mb-0">
-                                            {{ device_info.cpu_model|truncatechars:24 }}
-                                        </h6>
+                                        <p class="text-muted mb-1 text-uppercase small kpi-title">CPU</p>
+                                        <h6 class="mb-1">{{ device_info.cpu_model|truncatechars:28 }}</h6>
                                         <small class="text-muted">
-                                            {{ device_info.cpu_cores|default:"-" }} fizik ·
-                                            {{ device_info.cpu_logical_cores|default:"-" }} mantiqiy
+                                            {{ device_info.cpu_cores|default:"-" }} fizik
+                                            · {{ device_info.cpu_logical_cores|default:"-" }} mantiqiy
                                         </small>
                                     </div>
                                 </div>
-                                {% if device_info.cpu_percent %}
+
+                                {% if device_info.cpu_percent != None %}
                                     <div class="mt-3">
                                         <div class="d-flex justify-content-between align-items-center mb-1">
                                             <small class="text-muted">Yuklanish</small>
-                                            <small class="fw-semibold">
-                                                {{ device_info.cpu_percent|floatformat:1 }} %
-                                            </small>
+                                            <small class="fw-semibold">{{ device_info.cpu_percent|floatformat:1 }}%</small>
                                         </div>
-                                        <div class="progress" style="height: 5px;">
-                                            <div class="progress-bar bg-info"
-                                                 role="progressbar"
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar" role="progressbar"
                                                  style="width: {{ device_info.cpu_percent|floatformat:0 }}%;"
                                                  aria-valuenow="{{ device_info.cpu_percent|floatformat:0 }}"
-                                                 aria-valuemin="0"
-                                                 aria-valuemax="100">
-                                            </div>
+                                                 aria-valuemin="0" aria-valuemax="100"></div>
                                         </div>
                                     </div>
                                 {% endif %}
@@ -69,10 +115,10 @@
                         </div>
                     </div>
 
-                    <!-- RAM -->
+                    {# RAM #}
                     <div class="col-md-3">
-                        <div class="card mini-stats-wid h-100">
-                            <div class="card-body py-3">
+                        <div class="card h-100">
+                            <div class="card-body mini-kpi">
                                 <div class="d-flex align-items-center">
                                     <div class="flex-shrink-0 me-3">
                                         <div class="avatar-sm rounded-circle bg-soft-warning d-flex align-items-center justify-content-center">
@@ -80,39 +126,30 @@
                                         </div>
                                     </div>
                                     <div class="flex-grow-1">
-                                        <p class="text-muted mb-1 text-uppercase small">RAM</p>
+                                        <p class="text-muted mb-1 text-uppercase small kpi-title">RAM</p>
                                         {% if device_info.memory_total_gb %}
-                                            <h6 class="mb-0">
-                                                {{ device_info.memory_used_gb }} / {{ device_info.memory_total_gb }} GB
-                                            </h6>
-                                            {% if device_info.memory_percent %}
-                                                <small class="text-muted">
-                                                    {{ device_info.memory_percent|floatformat:1 }} % ishlatilgan
-                                                </small>
-                                            {% endif %}
+                                            <h6 class="mb-1">{{ device_info.memory_used_gb }}
+                                                / {{ device_info.memory_total_gb }} GB</h6>
+                                            <small class="text-muted">{{ device_info.memory_percent|floatformat:1 }}%
+                                                ishlatilgan</small>
                                         {% else %}
-                                            <h6 class="mb-0">Ma’lumot yo‘q</h6>
-                                            <small class="text-muted">
-                                                psutil o‘rnatilmagan
-                                            </small>
+                                            <h6 class="mb-1">Ma’lumot yo‘q</h6>
+                                            <small class="text-muted">psutil o‘rnatilmagan</small>
                                         {% endif %}
                                     </div>
                                 </div>
+
                                 {% if device_info.memory_total_gb %}
                                     <div class="mt-3">
-                                        <div class="progress" style="height: 5px;">
-                                            <div class="progress-bar bg-warning"
-                                                 role="progressbar"
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-warning" role="progressbar"
                                                  style="width: {{ device_info.memory_percent|default:0|floatformat:0 }}%;"
                                                  aria-valuenow="{{ device_info.memory_percent|default:0|floatformat:0 }}"
-                                                 aria-valuemin="0"
-                                                 aria-valuemax="100">
-                                            </div>
+                                                 aria-valuemin="0" aria-valuemax="100"></div>
                                         </div>
                                         {% if device_info.memory_available_gb %}
-                                            <small class="text-muted d-block mt-1">
-                                                Bo‘sh: {{ device_info.memory_available_gb }} GB
-                                            </small>
+                                            <small class="text-muted d-block mt-1">Bo‘sh: {{ device_info.memory_available_gb }}
+                                                GB</small>
                                         {% endif %}
                                     </div>
                                 {% endif %}
@@ -120,10 +157,10 @@
                         </div>
                     </div>
 
-                    <!-- Tizim -->
+                    {# SYSTEM #}
                     <div class="col-md-3">
-                        <div class="card mini-stats-wid h-100">
-                            <div class="card-body py-3">
+                        <div class="card h-100">
+                            <div class="card-body mini-kpi">
                                 <div class="d-flex align-items-center">
                                     <div class="flex-shrink-0 me-3">
                                         <div class="avatar-sm rounded-circle bg-soft-secondary d-flex align-items-center justify-content-center">
@@ -131,23 +168,25 @@
                                         </div>
                                     </div>
                                     <div class="flex-grow-1">
-                                        <p class="text-muted mb-1 text-uppercase small">Tizim</p>
-                                        <h6 class="mb-0">
-                                            {{ device_info.os|truncatechars:26 }}
-                                        </h6>
-                                        <small class="text-muted">
-                                            Arxitektura: {{ device_info.architecture }}
-                                        </small>
+                                        <p class="text-muted mb-1 text-uppercase small kpi-title">Tizim</p>
+                                        <h6 class="mb-1">{{ device_info.os|truncatechars:30 }}</h6>
+                                        <small class="text-muted">Arxitektura: {{ device_info.architecture }}</small>
                                     </div>
                                 </div>
+
+                                {% if device_info.gpu_backend %}
+                                    <div class="mt-3">
+                                        <span class="badge badge-soft">Aniqlash: {{ device_info.gpu_backend }}</span>
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
 
-                    <!-- GPU -->
+                    {# GPU #}
                     <div class="col-md-3">
-                        <div class="card mini-stats-wid h-100">
-                            <div class="card-body py-3">
+                        <div class="card h-100">
+                            <div class="card-body mini-kpi">
                                 <div class="d-flex align-items-center">
                                     <div class="flex-shrink-0 me-3">
                                         <div class="avatar-sm rounded-circle bg-soft-success d-flex align-items-center justify-content-center">
@@ -155,28 +194,58 @@
                                         </div>
                                     </div>
                                     <div class="flex-grow-1">
-                                        <p class="text-muted mb-1 text-uppercase small">GPU</p>
+                                        <p class="text-muted mb-1 text-uppercase small kpi-title">GPU</p>
+
                                         {% if device_info.gpus %}
-                                            <h6 class="mb-0">
-                                                {{ device_info.gpus.0.name|truncatechars:24 }}
-                                            </h6>
+                                            <h6 class="mb-1">{{ device_info.gpus.0.name|truncatechars:28 }}</h6>
+
                                             {% if device_info.gpus.0.memory_total_mb %}
-                                                <small class="text-muted">
-                                                    {{ device_info.gpus.0.memory_total_mb }} MB
-                                                </small>
+                                                {% if device_info.gpus.0.memory_used_mb != None %}
+                                                    <small class="text-muted">
+                                                        VRAM: {{ device_info.gpus.0.memory_used_mb }}
+                                                        / {{ device_info.gpus.0.memory_total_mb }} MB
+                                                        · Bo‘sh: {{ device_info.gpus.0.memory_free_mb|default:"-" }} MB
+                                                    </small>
+                                                {% else %}
+                                                    <small class="text-muted">VRAM: {{ device_info.gpus.0.memory_total_mb }}
+                                                        MB</small>
+                                                {% endif %}
+                                            {% else %}
+                                                <small class="text-muted">GPU topildi, lekin VRAM ma’lumoti yo‘q</small>
                                             {% endif %}
                                         {% else %}
-                                            <h6 class="mb-0">Topilmadi</h6>
-                                            <small class="text-muted">
-                                                CPU rejimida ishlayapti
-                                            </small>
+                                            <h6 class="mb-1">Topilmadi</h6>
+                                            <small class="text-muted">CPU rejimida ishlayapti</small>
                                         {% endif %}
                                     </div>
                                 </div>
-                                {% if device_info.gpu_backend %}
-                                    <small class="text-muted d-block mt-2">
-                                        Aniqlash: {{ device_info.gpu_backend }}
-                                    </small>
+
+                                {% if device_info.gpus and device_info.gpus.0.memory_total_mb and device_info.gpus.0.memory_used_mb != None %}
+                                    {% with used=device_info.gpus.0.memory_used_mb total=device_info.gpus.0.memory_total_mb %}
+                                        {% if total %}
+                                            {% widthratio used total 100 as vram_pct %}
+                                            <div class="mt-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <small class="text-muted">VRAM band</small>
+                                                    <small class="fw-semibold">{{ vram_pct }}%</small>
+                                                </div>
+                                                <div class="progress" style="height: 6px;">
+                                                    <div class="progress-bar bg-success" role="progressbar"
+                                                         style="width: {{ vram_pct }}%;"
+                                                         aria-valuenow="{{ vram_pct }}" aria-valuemin="0"
+                                                         aria-valuemax="100"></div>
+                                                </div>
+
+                                                {% if device_info.gpus.0.utilization_gpu_percent != None %}
+                                                    <small class="text-muted d-block mt-1">
+                                                        GPU yuklanish: {{ device_info.gpus.0.utilization_gpu_percent }}%
+                                                        {% if device_info.gpus.0.temperature_c != None %} ·
+                                                            {{ device_info.gpus.0.temperature_c }}°C{% endif %}
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    {% endwith %}
                                 {% endif %}
                             </div>
                         </div>
@@ -185,200 +254,285 @@
                 </div>
             {% endif %}
 
-            {# =================== ASOSIY USTUNLAR: SOZLAMALAR + LOGOLAR =================== #}
-            <div class="row">
-                <!-- CHAP: Umumiy sozlamalar -->
+            {# =================== SETTINGS + LOGOS =================== #}
+            <div class="row g-3">
+
+                {# LEFT: Settings #}
                 <div class="col-lg-6">
-                    <div class="card mb-3">
+                    <div class="card">
                         <div class="card-body">
-                            <h5 class="text-uppercase bg-light p-2 mt-0 mb-3">
-                                <i class="mdi mdi-cog-outline me-1"></i> Umumiy Sozlamalar
-                            </h5>
+
+                            {# GENERAL #}
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <h5 class="text-uppercase bg-light p-2 mb-0 w-100">
+                                    <i class="mdi mdi-cog-outline me-1"></i> Umumiy Sozlamalar
+                                </h5>
+                            </div>
 
                             <div class="mb-3">
                                 <label for="site-name" class="form-label">Sayt nomi</label>
                                 <input type="text" id="site-name" name="site_name" class="form-control"
-                                       value="{{ site_settings.site_name }}">
+                                       value="{{ site_settings.site_name }}" placeholder="Masalan: NamDPI">
+                                <small class="text-muted help-hint">Header va hujjatlarda ko‘rinadi.</small>
                             </div>
 
                             <div class="mb-3">
                                 <label for="site-status" class="form-label">Sayt holati</label>
                                 <select id="site-status" name="site_status" class="form-control select2">
-                                    <option value="online" {% if site_settings.site_status == 'online' %}selected{% endif %}>Online</option>
-                                    <option value="maintenance" {% if site_settings.site_status == 'maintenance' %}selected{% endif %}>Maintenance</option>
-                                    <option value="offline" {% if site_settings.site_status == 'offline' %}selected{% endif %}>Offline</option>
+                                    <option value="online"
+                                            {% if site_settings.site_status == 'online' %}selected{% endif %}>Online
+                                    </option>
+                                    <option value="maintenance"
+                                            {% if site_settings.site_status == 'maintenance' %}selected{% endif %}>
+                                        Maintenance
+                                    </option>
+                                    <option value="offline"
+                                            {% if site_settings.site_status == 'offline' %}selected{% endif %}>Offline
+                                    </option>
                                 </select>
+                                <small class="text-muted help-hint">Maintenance holatda foydalanuvchilarga xizmat
+                                    vaqtincha cheklanishi mumkin.</small>
                             </div>
 
                             <div class="mb-3">
                                 <label for="face-device" class="form-label">Face Recognition rejimi</label>
                                 <select id="face-device" name="face_processing_device" class="form-control select2">
-                                    <option value="cpu" {% if site_settings.face_processing_device == 'cpu' %}selected{% endif %}>CPU</option>
-                                    <option value="gpu" {% if site_settings.face_processing_device == 'gpu' %}selected{% endif %}>GPU</option>
+                                    <option value="cpu"
+                                            {% if site_settings.face_processing_device == 'cpu' %}selected{% endif %}>
+                                        CPU
+                                    </option>
+                                    <option value="gpu"
+                                            {% if site_settings.face_processing_device == 'gpu' %}selected{% endif %}>
+                                        GPU
+                                    </option>
                                 </select>
-                                <small class="text-muted">
-                                    GPU bo‘lmagan serverlarda <strong>CPU</strong>, aks holda <strong>GPU</strong>
-                                    tavsiya etiladi.
+                                <small class="text-muted help-hint">
+                                    GPU bo‘lmasa — CPU. GPU bo‘lsa — GPU tezroq ishlaydi.
                                 </small>
 
-                                {# ✅ NEW: Auto face encoding switch #}
                                 <div class="form-check form-switch mt-3">
-                                    <input class="form-check-input"
-                                           type="checkbox"
-                                           id="enable-auto-face-encoding"
+                                    <input class="form-check-input" type="checkbox" id="enable-auto-face-encoding"
                                            name="enable_auto_face_encoding"
                                            {% if site_settings.enable_auto_face_encoding %}checked{% endif %}>
                                     <label class="form-check-label" for="enable-auto-face-encoding">
                                         Avtomatik Face Encoding yaratish
                                     </label>
-                                    <small class="text-muted d-block">
-                                        Yoqilsa: foydalanuvchi rasm yuklaganda Celery orqali encoding avtomatik yaratiladi.
-                                        O‘chiq bo‘lsa: avtomatik encoding umuman yaratilmaydi.
+                                    <small class="text-muted help-hint d-block">
+                                        Yoqilsa: rasm yuklanganda Celery encoding yaratadi.
                                     </small>
                                 </div>
                             </div>
 
                             <hr>
 
-                            <h6 class="text-muted text-uppercase mb-3">Kontakt ma'lumotlar</h6>
+                            {# BOT #}
+                            <h6 class="text-muted text-uppercase mb-2 form-section-title">Bot sozlamalari</h6>
 
                             <div class="mb-3">
-                                <label for="contact-email" class="form-label">Kontakt email</label>
-                                <input type="email" id="contact-email" name="contact_email" class="form-control"
-                                       value="{{ site_settings.contact_email }}">
-                            </div>
+                                <label for="bot-token" class="form-label">Bot Token</label>
 
-                            <div class="mb-3">
-                                <label for="contact-phone" class="form-label">Kontakt telefon</label>
-                                <input type="text" id="contact-phone" name="contact_phone" class="form-control"
-                                       value="{{ site_settings.contact_phone }}">
+                                <div class="input-group">
+                                    <input type="password"
+                                           id="bot-token"
+                                           name="bot_token"
+                                           class="form-control"
+                                           value="{{ site_settings.bot_token }}"
+                                           autocomplete="new-password"
+                                           placeholder="Masalan: 123456:ABC-DEF...">
+
+                                    <button class="btn btn-light" type="button"
+                                            onclick="toggleSecret('bot-token', this)"
+                                            title="Ko‘rsat / yashir">
+                                        <i class="mdi mdi-eye-outline"></i>
+                                    </button>
+
+                                    <button class="btn btn-light" type="button"
+                                            onclick="copyValue('bot-token')"
+                                            title="Nusxa olish">
+                                        <i class="mdi mdi-content-copy"></i>
+                                    </button>
+                                </div>
+
+                                <small class="text-muted help-hint d-block mt-1">
+                                    Maxfiy. Tokenni ehtiyot qiling.
+                                </small>
                             </div>
 
                             <hr>
 
-                            <h6 class="text-muted text-uppercase mb-3">HEMIS integratsiyasi</h6>
+                            {# CONTACT #}
+                            <h6 class="text-muted text-uppercase mb-2 form-section-title">Kontakt ma'lumotlar</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label for="contact-email" class="form-label">Kontakt email</label>
+                                    <input type="email" id="contact-email" name="contact_email" class="form-control"
+                                           value="{{ site_settings.contact_email }}" placeholder="info@domain.uz">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="contact-phone" class="form-label">Kontakt telefon</label>
+                                    <input type="text" id="contact-phone" name="contact_phone" class="form-control"
+                                           value="{{ site_settings.contact_phone }}" placeholder="+998...">
+                                </div>
+                            </div>
 
+                            <hr>
+
+                            {# HEMIS #}
+                            <h6 class="text-muted text-uppercase mb-2 form-section-title">HEMIS integratsiyasi</h6>
                             <div class="mb-3">
                                 <label for="hemis-url" class="form-label">HEMIS URL</label>
                                 <input type="url" id="hemis-url" name="hemis_url" class="form-control"
-                                       value="{{ site_settings.hemis_url }}">
+                                       value="{{ site_settings.hemis_url }}" placeholder="https://...">
                             </div>
 
                             <div class="mb-3">
                                 <label for="hemis-api" class="form-label">HEMIS API Token</label>
-                                <input type="text" id="hemis-api" name="hemis_api_token" class="form-control"
-                                       value="{{ site_settings.hemis_api_token }}">
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- O‘NG: Logolar -->
-                <div class="col-lg-6">
-                    <div class="card mb-0">
-                        <div class="card-body">
-                            <h5 class="text-uppercase mt-0 mb-3 bg-light p-2 d-flex align-items-center">
-                                <i class="mdi mdi-image-outline me-2"></i>
-                                Sayt logotiplari
-                            </h5>
+                                <div class="input-group">
+                                    <input type="password"
+                                           id="hemis-api"
+                                           name="hemis_api_token"
+                                           class="form-control"
+                                           value="{{ site_settings.hemis_api_token }}"
+                                           autocomplete="new-password"
+                                           placeholder="HEMIS token...">
 
-                            <div class="row">
-                                <!-- KATTA LOGO -->
-                                <div class="col-md-6 mb-4">
-                                    <label class="form-label fw-semibold">Katta logotip (large)</label>
+                                    <button class="btn btn-light" type="button"
+                                            onclick="toggleSecret('hemis-api', this)"
+                                            title="Ko‘rsat / yashir">
+                                        <i class="mdi mdi-eye-outline"></i>
+                                    </button>
 
-                                    <div class="logo-upload-wrapper border rounded p-2">
-                                        <div class="mb-2">
-                                            <div class="logo-preview-box d-flex align-items-center justify-content-center mb-2"
-                                                 style="height: 120px; background: #f8f9fa; border-radius: 6px;">
-                                                {% if site_settings.logo_large %}
-                                                    <img src="{{ site_settings.logo_large.url }}"
-                                                         id="preview-logo-large"
-                                                         class="img-fluid h-100 object-fit-contain"
-                                                         alt="Katta logo">
-                                                {% else %}
-                                                    <span class="text-muted small" id="preview-logo-large-placeholder">
-                                                        Hozircha logo yo‘q
-                                                    </span>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-
-                                        <div class="input-group">
-                                            <label class="input-group-text" for="logo-large">
-                                                <i class="mdi mdi-upload"></i>
-                                            </label>
-                                            <input type="file"
-                                                   class="form-control"
-                                                   id="logo-large"
-                                                   name="logo_large"
-                                                   accept="image/*"
-                                                   onchange="handleLogoPreview('logo-large', 'preview-logo-large', 'preview-logo-large-placeholder', 'logo-large-filename')">
-                                        </div>
-
-                                        <small id="logo-large-filename" class="text-muted d-block mt-1">
-                                            {% if site_settings.logo_large %}
-                                                Mavjud fayl: {{ site_settings.logo_large.name|default:"logo_large" }}
-                                            {% else %}
-                                                Fayl tanlanmagan
-                                            {% endif %}
-                                        </small>
-                                    </div>
+                                    <button class="btn btn-light" type="button"
+                                            onclick="copyValue('hemis-api')"
+                                            title="Nusxa olish">
+                                        <i class="mdi mdi-content-copy"></i>
+                                    </button>
                                 </div>
 
-                                <!-- KICHIK LOGO -->
-                                <div class="col-md-6 mb-4">
-                                    <label class="form-label fw-semibold">Kichik logotip (small)</label>
-
-                                    <div class="logo-upload-wrapper border rounded p-2">
-                                        <div class="mb-2">
-                                            <div class="logo-preview-box d-flex align-items-center justify-content-center mb-2"
-                                                 style="height: 120px; background: #f8f9fa; border-radius: 6px;">
-                                                {% if site_settings.logo_small %}
-                                                    <img src="{{ site_settings.logo_small.url }}"
-                                                         id="preview-logo-small"
-                                                         class="img-fluid h-100 object-fit-contain"
-                                                         alt="Kichik logo">
-                                                {% else %}
-                                                    <span class="text-muted small" id="preview-logo-small-placeholder">
-                                                        Hozircha logo yo‘q
-                                                    </span>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-
-                                        <div class="input-group">
-                                            <label class="input-group-text" for="logo-small">
-                                                <i class="mdi mdi-upload"></i>
-                                            </label>
-                                            <input type="file"
-                                                   class="form-control"
-                                                   id="logo-small"
-                                                   name="logo_small"
-                                                   accept="image/*"
-                                                   onchange="handleLogoPreview('logo-small', 'preview-logo-small', 'preview-logo-small-placeholder', 'logo-small-filename')">
-                                        </div>
-
-                                        <small id="logo-small-filename" class="text-muted d-block mt-1">
-                                            {% if site_settings.logo_small %}
-                                                Mavjud fayl: {{ site_settings.logo_small.name|default:"logo_small" }}
-                                            {% else %}
-                                                Fayl tanlanmagan
-                                            {% endif %}
-                                        </small>
-                                    </div>
-                                </div>
+                                <small class="text-muted help-hint d-block mt-1">
+                                    Maxfiy. Tokenni ehtiyot qiling.
+                                </small>
                             </div>
 
-                            <div class="text-center pt-2 border-top">
-                                <button type="submit"
-                                        class="btn btn-success waves-effect waves-light px-4 mt-3">
+                            <div class="text-end mt-3">
+                                <button type="submit" class="btn btn-success px-4">
                                     <i class="mdi mdi-content-save-outline me-1"></i> Saqlash
                                 </button>
                             </div>
+
                         </div>
                     </div>
                 </div>
+
+                {# RIGHT: Logos #}
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="text-uppercase mt-0 mb-3 bg-light p-2 d-flex align-items-center">
+                                <i class="mdi mdi-image-outline me-2"></i> Sayt logotiplari
+                            </h5>
+
+                            <div class="row g-3">
+
+                                {# LARGE #}
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Katta logotip (large)</label>
+                                    <div class="border rounded p-2">
+                                        <div class="d-flex align-items-center justify-content-center mb-2"
+                                             style="height: 130px; background: #f8f9fa; border-radius: 6px;">
+                                            {% if site_settings.logo_large %}
+                                                <img src="{{ site_settings.logo_large.url }}" id="preview-logo-large"
+                                                     class="img-fluid h-100 object-fit-contain" alt="Katta logo">
+                                            {% else %}
+                                                <span class="text-muted small" id="preview-logo-large-placeholder">Hozircha logo yo‘q</span>
+                                                <img src="" id="preview-logo-large" style="display:none;"
+                                                     class="img-fluid h-100 object-fit-contain" alt="">
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="input-group">
+                                            <label class="input-group-text" for="logo-large"><i
+                                                    class="mdi mdi-upload"></i></label>
+                                            <input type="file" class="form-control" id="logo-large" name="logo_large"
+                                                   accept="image/*"
+                                                   onchange="handleLogoPreview('logo-large','preview-logo-large','preview-logo-large-placeholder','logo-large-filename')">
+                                        </div>
+
+                                        <small id="logo-large-filename" class="text-muted d-block mt-1">
+                                            {% if site_settings.logo_large %}Mavjud:
+                                                {{ site_settings.logo_large.name }}{% else %}Fayl tanlanmagan{% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+
+                                {# SMALL #}
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Kichik logotip (small)</label>
+                                    <div class="border rounded p-2">
+                                        <div class="d-flex align-items-center justify-content-center mb-2"
+                                             style="height: 130px; background: #f8f9fa; border-radius: 6px;">
+                                            {% if site_settings.logo_small %}
+                                                <img src="{{ site_settings.logo_small.url }}" id="preview-logo-small"
+                                                     class="img-fluid h-100 object-fit-contain" alt="Kichik logo">
+                                            {% else %}
+                                                <span class="text-muted small" id="preview-logo-small-placeholder">Hozircha logo yo‘q</span>
+                                                <img src="" id="preview-logo-small" style="display:none;"
+                                                     class="img-fluid h-100 object-fit-contain" alt="">
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="input-group">
+                                            <label class="input-group-text" for="logo-small"><i
+                                                    class="mdi mdi-upload"></i></label>
+                                            <input type="file" class="form-control" id="logo-small" name="logo_small"
+                                                   accept="image/*"
+                                                   onchange="handleLogoPreview('logo-small','preview-logo-small','preview-logo-small-placeholder','logo-small-filename')">
+                                        </div>
+
+                                        <small id="logo-small-filename" class="text-muted d-block mt-1">
+                                            {% if site_settings.logo_small %}Mavjud:
+                                                {{ site_settings.logo_small.name }}{% else %}Fayl tanlanmagan{% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            {% if device_info.gpu_processes %}
+                                <hr>
+                                <h6 class="text-muted text-uppercase mb-2 form-section-title">GPU Processlar</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                        <tr>
+                                            <th>PID</th>
+                                            <th>Process</th>
+                                            <th>VRAM (MB)</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {% for p in device_info.gpu_processes %}
+                                            <tr>
+                                                <td class="text-muted">{{ p.pid|default:"-" }}</td>
+                                                <td>{{ p.process_name|default:"-" }}</td>
+                                                <td class="fw-semibold">{{ p.used_memory_mb|default:"-" }}</td>
+                                            </tr>
+                                        {% empty %}
+                                            <tr>
+                                                <td colspan="3" class="text-muted">Hozirda GPU process yo‘q.</td>
+                                            </tr>
+                                        {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <small class="text-muted d-block mt-2">* nvidia-smi mavjud bo‘lsa ko‘rinadi.</small>
+                            {% endif %}
+
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
         </form>
@@ -403,10 +557,7 @@
             }
 
             const file = input.files[0];
-
-            if (filenameSpan) {
-                filenameSpan.textContent = "Tanlangan: " + file.name;
-            }
+            if (filenameSpan) filenameSpan.textContent = "Tanlangan: " + file.name;
 
             const reader = new FileReader();
             reader.onload = function (e) {
@@ -414,20 +565,49 @@
                     img.src = e.target.result;
                     img.style.display = 'block';
                 }
-                if (placeholder) {
-                    placeholder.style.display = 'none';
-                }
+                if (placeholder) placeholder.style.display = 'none';
             };
             reader.readAsDataURL(file);
+        }
+
+        function toggleSecret(inputId, btnEl) {
+              const el = document.getElementById(inputId);
+              if (!el) return;
+
+              const isHidden = (el.type === "password");
+              el.type = isHidden ? "text" : "password";
+
+              // iconni almashtirish
+              const icon = btnEl.querySelector("i");
+              if (icon) {
+                icon.className = isHidden ? "mdi mdi-eye-off-outline" : "mdi mdi-eye-outline";
+              }
+            }
+
+        function copyValue(inputId) {
+            const el = document.getElementById(inputId);
+            if (!el) return;
+            el.select();
+            el.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(el.value || "");
+            $.toast({
+                heading: "Nusxa olindi",
+                text: "Qiymat clipboard ga nusxalandi.",
+                icon: "success",
+                position: "top-right",
+                hideAfter: 1800
+            });
         }
 
         {% if messages %}
             {% for message in messages %}
                 $.toast({
-                    heading: "{% if 'success' in message.tags %}Muvaffaqiyat{% elif 'error' in message.tags %}Xatolik{% else %}Xabar{% endif %}",
+                    heading: "{% if 'success' in message.tags %}Muvaffaqiyat{% elif 'error' in message.tags %}
+                        Xatolik{% else %}Xabar{% endif %}",
                     text: "{{ message|escapejs }}",
                     showHideTransition: 'slide',
-                    icon: "{% if 'success' in message.tags %}success{% elif 'error' in message.tags %}error{% elif 'warning' in message.tags %}warning{% else %}info{% endif %}",
+                    icon: "{% if 'success' in message.tags %}success{% elif 'error' in message.tags %}
+                        error{% elif 'warning' in message.tags %}warning{% else %}info{% endif %}",
                     position: 'top-right',
                     hideAfter: 5000
                 });

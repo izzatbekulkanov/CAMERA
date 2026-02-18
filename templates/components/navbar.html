@@ -149,11 +149,11 @@
                         <h6 class="text-overflow m-0">{% trans 'Xush kelibsiz!' %}</h6>
                     </div>
 
-                    <a href="{% url 'my_profile' %}" class="dropdown-item notify-item">
+                    <a href="{% url 'profile' %}" class="dropdown-item notify-item">
                         <i class="fe-user"></i> {% trans 'Profilim' %}
                     </a>
 
-                    <a href="#" class="dropdown-item notify-item">
+                    <a href="{% url 'site_settings' %}" class="dropdown-item notify-item">
                         <i class="fe-settings"></i> {% trans 'Sozlamalar' %}
                     </a>
 

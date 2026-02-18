@@ -9,6 +9,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+
 from camera.models import Camera
 
 logger = logging.getLogger(__name__)
@@ -341,3 +342,5 @@ def camera_list_view(request):
         'stats': stats,
     }
     return render(request, 'cameras/camera_list.html', context)
+
+

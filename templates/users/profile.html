@@ -1,0 +1,294 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block styles %}
+<style>
+    .profile-label { font-size: 12px; text-transform: uppercase; color: #98a6ad; }
+    .profile-value { font-weight: 600; }
+    .attendance-day { min-width: 80px; text-align: center; }
+    .attendance-day .badge { font-size: 11px; }
+</style>
+{% endblock styles %}
+
+{% block title %}
+    Profil - {{ user_obj.full_name|default:user_obj.username }}
+{% endblock title %}
+
+{% block content %}
+<div class="container-fluid">
+
+    {% include 'includes/breadcrumbs.html' %}
+
+    <div class="row">
+
+        <!-- ======================= LEFT SIDE ======================= -->
+        <div class="col-lg-4 col-xl-4">
+
+            <!-- Profile Card -->
+            <div class="card text-center">
+                <div class="card-body">
+                    {% if user_obj.image %}
+                        <img src="{{ user_obj.image.url }}" class="rounded-circle avatar-lg img-thumbnail" alt="Profil rasmi">
+                    {% else %}
+                        <img src="{% static 'assets/images/users/default-avatar.png' %}" class="rounded-circle avatar-lg img-thumbnail" alt="Default profil">
+                    {% endif %}
+
+                    <h4 class="mb-0 mt-2">{{ user_obj.full_name|default:user_obj.username }}</h4>
+                    <p class="text-muted">@{{ user_obj.username }}</p>
+
+                    <!-- Role badge -->
+                    <div class="mb-2">
+                        {% if user_obj.is_superuser %}
+                            <span class="badge bg-soft-danger text-danger">Superadmin</span>
+                        {% else %}
+                            {% if user_obj.role == "employee" %}
+                                <span class="badge bg-soft-success text-success">Xodim</span>
+                            {% else %}
+                                <span class="badge bg-soft-primary text-primary">Talaba</span>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+
+                    <!-- Telegram status -->
+                    <div class="mb-3">
+                        {% if telegram_profile %}
+                            <span class="badge bg-soft-success text-success">
+                                ✅ Telegram bog‘langan
+                            </span>
+                        {% else %}
+                            <span class="badge bg-soft-danger text-danger">
+                                ❌ Telegram bog‘lanmagan
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="text-start mt-3">
+                        <h4 class="font-13 text-uppercase">About Me :</h4>
+
+                        <p class="text-muted font-13 mb-3">
+                            {{ user_obj.department_name|default:"Bo‘lim ma’lumoti yo‘q" }}
+                            {% if user_obj.position %}
+                                — {{ user_obj.position }}
+                            {% elif user_obj.specialty %}
+                                — {{ user_obj.specialty }}
+                            {% endif %}
+                        </p>
+
+                        <!-- ID -->
+                        <p class="text-muted mb-2 font-13">
+                            <strong>ID :</strong>
+                            <span class="ms-2">
+                                {% if user_obj.role == "employee" %}
+                                    {{ user_obj.employee_id_number|default:"—" }}
+                                {% else %}
+                                    {{ user_obj.student_id_number|default:"—" }}
+                                {% endif %}
+                            </span>
+                        </p>
+
+                        <!-- Email -->
+                        <p class="text-muted mb-2 font-13">
+                            <strong>Email :</strong>
+                            <span class="ms-2">{{ user_obj.email|default:"—" }}</span>
+                        </p>
+
+                        <!-- Group or Position -->
+                        <p class="text-muted mb-2 font-13">
+                            <strong>
+                                {% if user_obj.role == "student" %}Guruh :{% else %}Lavozim :{% endif %}
+                            </strong>
+                            <span class="ms-2">
+                                {% if user_obj.role == "student" %}
+                                    {{ user_obj.group_name|default:"—" }}
+                                {% else %}
+                                    {{ user_obj.position|default:"—" }}
+                                {% endif %}
+                            </span>
+                        </p>
+
+                        <!-- Status -->
+                        <p class="text-muted mb-1 font-13">
+                            <strong>Status :</strong>
+                            <span class="ms-2">
+                                {% if user_obj.active %}
+                                    <span class="badge bg-soft-success text-success">Faol</span>
+                                {% else %}
+                                    <span class="badge bg-soft-danger text-danger">Nofaol</span>
+                                {% endif %}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance last logs (instead of Inbox) -->
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="header-title mb-3">So‘nggi Attendance</h4>
+
+                    <div class="inbox-widget" data-simplebar style="max-height: 350px;">
+                        {% for log in recent_attendances %}
+                        <div class="inbox-item">
+                            <div class="inbox-item-author fw-semibold">
+                                {{ log.date|date:"d.m.Y" }}
+                            </div>
+
+                            <p class="inbox-item-text">
+                                {% if log.entry_time %}
+                                    ✅ Kirish: {{ log.entry_time|date:"H:i" }}
+                                {% else %}
+                                    ❌ Kirish yo‘q
+                                {% endif %}
+
+                                {% if log.exit_time %}
+                                    <br>🚪 Chiqish: {{ log.exit_time|date:"H:i" }}
+                                {% else %}
+                                    <br>⏳ Hozir binoda
+                                {% endif %}
+                            </p>
+
+                            <p class="inbox-item-date">
+                                {% if log.is_present %}
+                                    <span class="badge bg-soft-success text-success">Binoda</span>
+                                {% else %}
+                                    <span class="badge bg-soft-secondary text-secondary">Chiqdi</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% empty %}
+                        <div class="text-muted small text-center py-3">
+                            Attendance loglar yo‘q
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ======================= RIGHT SIDE ======================= -->
+        <div class="col-lg-8 col-xl-8">
+            <div class="card">
+                <div class="card-body">
+
+                    <div id="settings">
+
+                        <h5 class="mb-4 text-uppercase">
+                            <i class="mdi mdi-account-circle me-1"></i> Personal Info
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="profile-label">Full Name</div>
+                                <div class="profile-value">{{ user_obj.full_name|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="profile-label">Username</div>
+                                <div class="profile-value">@{{ user_obj.username }}</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="profile-label">Email</div>
+                                <div class="profile-value">{{ user_obj.email|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="profile-label">Department</div>
+                                <div class="profile-value">{{ user_obj.department_name|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="profile-label">
+                                    {% if user_obj.role == "student" %}Group{% else %}Position{% endif %}
+                                </div>
+                                <div class="profile-value">
+                                    {% if user_obj.role == "student" %}
+                                        {{ user_obj.group_name|default:"—" }}
+                                    {% else %}
+                                        {{ user_obj.position|default:"—" }}
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="profile-label">Specialty</div>
+                                <div class="profile-value">{{ user_obj.specialty|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="profile-label">Created At</div>
+                                <div class="profile-value">{{ user_obj.created_at|date:"d.m.Y H:i" }}</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="profile-label">Updated At</div>
+                                <div class="profile-value">{{ user_obj.updated_at|date:"d.m.Y H:i" }}</div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- ======================= Monthly Attendance ======================= -->
+                        <h5 class="mb-3 text-uppercase bg-light p-2">
+                            <i class="mdi mdi-calendar-check me-1"></i> Attendance — {{ month_label }}
+                        </h5>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-centered table-striped">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Sana</th>
+                                        <th>Status</th>
+                                        <th>Kirish</th>
+                                        <th>Chiqish</th>
+                                        <th>Vaqt</th>
+                                        <th>Psixologiya</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for day in calendar_days %}
+                                    <tr>
+                                        <td>{{ day.date|date:"d.m.Y" }}</td>
+                                        <td>
+                                            {% if day.status == "present" %}
+                                                <span class="badge bg-soft-success text-success">Kelgan</span>
+                                            {% elif day.status == "exited" %}
+                                                <span class="badge bg-soft-warning text-warning">Chiqdi</span>
+                                            {% else %}
+                                                <span class="badge bg-soft-danger text-danger">Kelmagan</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ day.entry_time }}</td>
+                                        <td>{{ day.exit_time }}</td>
+                                        <td>{{ day.duration }} min</td>
+
+                                        <td>
+                                            {% if day.psychology %}
+                                                <span class="badge bg-soft-primary text-primary">
+                                                    {{ day.psychology.dominant_emotion|default:"—" }}
+                                                </span>
+                                                <br>
+                                                <small class="text-muted">
+                                                    Stress: {{ day.psychology.stress_level|floatformat:2 }}
+                                                    | Mood: {{ day.psychology.mood_score }}
+                                                </small>
+                                            {% else %}
+                                                <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+{% endblock content %}

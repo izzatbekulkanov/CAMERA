@@ -71,3 +71,24 @@ class FaceEncoding(models.Model):
             models.UniqueConstraint(fields=["user", "model_version"], name="uniq_user_model_version")
         ]
         unique_together = ('user', 'model_version')
+
+
+class TelegramProfile(models.Model):
+    user = models.OneToOneField(
+        "users.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="telegram_profile",
+    )
+    chat_id = models.BigIntegerField(unique=True, db_index=True)
+    tg_username = models.CharField(max_length=64, blank=True, default="")
+    first_name = models.CharField(max_length=128, blank=True, default="")
+    last_name = models.CharField(max_length=128, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Telegram Profil"
+        verbose_name_plural = "Telegram Profillar"
+
+    def __str__(self):
+        return f"{self.user} -> {self.chat_id}"

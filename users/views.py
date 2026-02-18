@@ -1,11 +1,16 @@
+from calendar import monthrange
+from datetime import date
+
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.db.models import Q, Exists, OuterRef, Count
+from django.utils import timezone
 
-from users.models import FaceEncoding, CustomUser
+from attendance.models import Attendance
+from users.models import FaceEncoding, CustomUser, TelegramProfile
 from urllib.parse import urlencode
 
 
@@ -64,21 +69,90 @@ def reset_password_view(request):
 
     return render(request, 'base/reset_password.html')
 
-@login_required(login_url='login')
+@login_required(login_url="login")
 def profile_view(request):
-    user = request.user  # hozirgi foydalanuvchi
+    # ✅ profile? id=... bo‘lsa o‘sha userni ochamiz
+    user_id = request.GET.get("id")
+    if user_id:
+        user = get_object_or_404(CustomUser, id=user_id)
+    else:
+        user = request.user
 
-    # Breadcrumbs ma’lumotlari
+    # ✅ TelegramProfile
+    telegram_profile = getattr(user, "telegram_profile", None)
+    recent_attendances = Attendance.objects.filter(user=user).order_by("-date")[:7]
+    # ✅ Joriy oy boshlanishi va tugashi
+    today = timezone.localdate()
+    year = today.year
+    month = today.month
+
+    first_day = date(year, month, 1)
+    last_day = date(year, month, monthrange(year, month)[1])
+
+    # ✅ Shu oy bo‘yicha attendance’lar
+    attendances = (
+        Attendance.objects.filter(user=user, date__range=(first_day, last_day))
+        .select_related("user")
+        .prefetch_related("photos", "psychology")
+        .order_by("date")
+    )
+
+    # ✅ Attendance map (date -> attendance)
+    attendance_map = {a.date: a for a in attendances}
+
+    # ✅ Calendar list: joriy oydagi har kun uchun dict
+    calendar_days = []
+    total_present = 0
+    total_absent = 0
+
+    for day in range(1, last_day.day + 1):
+        d = date(year, month, day)
+        att = attendance_map.get(d)
+
+        if att:
+            total_present += 1
+            psychology = getattr(att, "psychology", None)
+
+            calendar_days.append({
+                "date": d,
+                "status": "present" if att.is_present else "exited",
+                "entry_time": timezone.localtime(att.entry_time).strftime("%H:%M") if att.entry_time else "-",
+                "exit_time": timezone.localtime(att.exit_time).strftime("%H:%M") if att.exit_time else "-",
+                "last_seen": timezone.localtime(att.last_seen).strftime("%H:%M:%S") if att.last_seen else "-",
+                "duration": att.duration_minutes or 0,
+
+                "psychology": psychology,
+            })
+        else:
+            total_absent += 1
+            calendar_days.append({
+                "date": d,
+                "status": "absent",
+                "entry_time": "-",
+                "exit_time": "-",
+                "last_seen": "-",
+                "duration": 0,
+                "psychology": None,
+            })
+
     breadcrumbs = [
-        {'name': 'Bosh sahifa', 'url': '/'},  # agar sizda home url mavjud bo‘lsa
-        {'name': 'Profil', 'url': None},  # oxirgi element faqat matn, link bo‘lmaydi
+        {"name": "Bosh sahifa", "url": "/"},
+        {"name": "Foydalanuvchilar", "url": "/users/"},
+        {"name": "Profil", "url": None},
     ]
 
     context = {
-        'user': user,
-        'breadcrumbs': breadcrumbs,  # shu yerda qo‘shildi
+        "user_obj": user,
+        "telegram_profile": telegram_profile,
+        "calendar_days": calendar_days,
+        "total_present": total_present,
+        "total_absent": total_absent,
+        "month_label": today.strftime("%B %Y"),  # December 2025 kabi chiqadi
+        "breadcrumbs": breadcrumbs,
+        "recent_attendances": recent_attendances
     }
-    return render(request, 'users/my_profile.html', context)
+
+    return render(request, "users/profile.html", context)
 
 
 
@@ -132,38 +206,31 @@ def face_encoding_list_view(request):
 
 
 
-@login_required(login_url='login')
-def users_list_view(request):
-    """
-    Users list:
-      - qidiruv: ?q=
-      - role filter: ?role=student|employee|superadmin (superadmin=role bo'yicha emas, is_superuser bo'yicha)
-      - pagination: ?page=
-      - top cards: student/employee/norole + face encoding bor/yo'q
-    """
 
+@login_required(login_url="login")
+def users_list_view(request):
     search_query = (request.GET.get("q") or "").strip()
     current_role = (request.GET.get("role") or "").strip()
     page_number = request.GET.get("page") or 1
 
-    # --- Base queryset ---
     qs = CustomUser.objects.all()
 
-    # --- Qidiruv ---
+    # ✅ Qidiruv (ID raqam + telegram username + position ham qo‘shildi)
     if search_query:
         qs = qs.filter(
             Q(full_name__icontains=search_query)
             | Q(short_name__icontains=search_query)
             | Q(username__icontains=search_query)
             | Q(email__icontains=search_query)
-            | Q(contact_phone__icontains=search_query)
             | Q(student_id_number__icontains=search_query)
             | Q(employee_id_number__icontains=search_query)
+            | Q(group_name__icontains=search_query)
+            | Q(position__icontains=search_query)
+            | Q(department_name__icontains=search_query)
+            | Q(specialty__icontains=search_query)
         )
 
-    # --- Role filter ---
-    # Eslatma: modelda faqat student/employee bor, ammo siz template’da superadmin ham qo‘yibsiz.
-    # Shuning uchun superadmin’ni is_superuser orqali filter qilamiz.
+    # ✅ Role filter
     if current_role == "student":
         qs = qs.filter(role=CustomUser.Role.STUDENT, is_superuser=False)
     elif current_role == "employee":
@@ -171,39 +238,41 @@ def users_list_view(request):
     elif current_role == "superadmin":
         qs = qs.filter(is_superuser=True)
 
-    # --- has_face_encoding (tez, N+1 yo'q) ---
+    # ✅ Face encoding bor/yo‘qligi
     face_exists_qs = FaceEncoding.objects.filter(user_id=OuterRef("pk"))
     qs = qs.annotate(has_face_encoding=Exists(face_exists_qs))
 
-    # --- Top stats cards (FILTERLANGAN queryset bo‘yicha) ---
-    total_count = qs.count()
+    # ✅ Telegram profile bor/yo‘qligi
+    tg_exists_qs = TelegramProfile.objects.filter(user_id=OuterRef("pk"))
+    qs = qs.annotate(has_telegram=Exists(tg_exists_qs))
 
-    # student / employee (superuserlarni alohida ko‘rsatish uchun is_superuser=False deb ham qo‘shdik)
+    # ✅ Top stats cards
+    total_count = qs.count()
     student_count = qs.filter(role=CustomUser.Role.STUDENT, is_superuser=False).count()
     employee_count = qs.filter(role=CustomUser.Role.EMPLOYEE, is_superuser=False).count()
-
-    # "role yo‘q" — role bo‘sh/null bo‘lsa (data quality)
     norole_count = qs.filter(Q(role__isnull=True) | Q(role="")).count()
 
-    # face encoding bor/yo‘q
     users_with_face = qs.filter(has_face_encoding=True).count()
     users_without_face = max(0, total_count - users_with_face)
 
-    # --- Ordering (xohlasangiz) ---
+    users_with_tg = qs.filter(has_telegram=True).count()
+    users_without_tg = max(0, total_count - users_with_tg)
+
+    # ✅ Sorting
     qs = qs.order_by("-created_at")
 
-    # --- Pagination ---
-    paginator = Paginator(qs, 50)  # sahifada 20 ta user
+    # ✅ Pagination
+    paginator = Paginator(qs, 50)
     page_obj = paginator.get_page(page_number)
 
-    # Pagination linklarida q va role saqlanib qolishi uchun (template’ga beramiz)
+    # ✅ URL params preserve
     keep_params = {}
     if search_query:
         keep_params["q"] = search_query
     if current_role:
         keep_params["role"] = current_role
+
     base_qs = urlencode(keep_params)
-    # template’da ishlatish: ?{{ base_qs }}&page=2 yoki faqat page
 
     context = {
         "users": page_obj.object_list,
@@ -213,7 +282,7 @@ def users_list_view(request):
         "current_role": current_role,
         "base_qs": base_qs,
 
-        # top cards
+        # stats
         "total_count": total_count,
         "student_count": student_count,
         "employee_count": employee_count,
@@ -221,8 +290,95 @@ def users_list_view(request):
         "users_with_face": users_with_face,
         "users_without_face": users_without_face,
 
-        # breadcrumbs bo‘lsa:
-        # "breadcrumbs": [...],
+        "users_with_tg": users_with_tg,
+        "users_without_tg": users_without_tg,
+    }
+
+    return render(request, "users/users_list.html", context)@login_required(login_url="login")
+def users_list_view(request):
+    search_query = (request.GET.get("q") or "").strip()
+    current_role = (request.GET.get("role") or "").strip()
+    page_number = request.GET.get("page") or 1
+
+    qs = CustomUser.objects.all()
+
+    # ✅ Qidiruv (ID raqam + telegram username + position ham qo‘shildi)
+    if search_query:
+        qs = qs.filter(
+            Q(full_name__icontains=search_query)
+            | Q(short_name__icontains=search_query)
+            | Q(username__icontains=search_query)
+            | Q(email__icontains=search_query)
+            | Q(student_id_number__icontains=search_query)
+            | Q(employee_id_number__icontains=search_query)
+            | Q(group_name__icontains=search_query)
+            | Q(position__icontains=search_query)
+            | Q(department_name__icontains=search_query)
+            | Q(specialty__icontains=search_query)
+        )
+
+    # ✅ Role filter
+    if current_role == "student":
+        qs = qs.filter(role=CustomUser.Role.STUDENT, is_superuser=False)
+    elif current_role == "employee":
+        qs = qs.filter(role=CustomUser.Role.EMPLOYEE, is_superuser=False)
+    elif current_role == "superadmin":
+        qs = qs.filter(is_superuser=True)
+
+    # ✅ Face encoding bor/yo‘qligi
+    face_exists_qs = FaceEncoding.objects.filter(user_id=OuterRef("pk"))
+    qs = qs.annotate(has_face_encoding=Exists(face_exists_qs))
+
+    # ✅ Telegram profile bor/yo‘qligi
+    tg_exists_qs = TelegramProfile.objects.filter(user_id=OuterRef("pk"))
+    qs = qs.annotate(has_telegram=Exists(tg_exists_qs))
+
+    # ✅ Top stats cards
+    total_count = qs.count()
+    student_count = qs.filter(role=CustomUser.Role.STUDENT, is_superuser=False).count()
+    employee_count = qs.filter(role=CustomUser.Role.EMPLOYEE, is_superuser=False).count()
+    norole_count = qs.filter(Q(role__isnull=True) | Q(role="")).count()
+
+    users_with_face = qs.filter(has_face_encoding=True).count()
+    users_without_face = max(0, total_count - users_with_face)
+
+    users_with_tg = qs.filter(has_telegram=True).count()
+    users_without_tg = max(0, total_count - users_with_tg)
+
+    # ✅ Sorting
+    qs = qs.order_by("-created_at")
+
+    # ✅ Pagination
+    paginator = Paginator(qs, 50)
+    page_obj = paginator.get_page(page_number)
+
+    # ✅ URL params preserve
+    keep_params = {}
+    if search_query:
+        keep_params["q"] = search_query
+    if current_role:
+        keep_params["role"] = current_role
+
+    base_qs = urlencode(keep_params)
+
+    context = {
+        "users": page_obj.object_list,
+        "page_obj": page_obj,
+
+        "search_query": search_query,
+        "current_role": current_role,
+        "base_qs": base_qs,
+
+        # stats
+        "total_count": total_count,
+        "student_count": student_count,
+        "employee_count": employee_count,
+        "norole_count": norole_count,
+        "users_with_face": users_with_face,
+        "users_without_face": users_without_face,
+
+        "users_with_tg": users_with_tg,
+        "users_without_tg": users_without_tg,
     }
 
     return render(request, "users/users_list.html", context)

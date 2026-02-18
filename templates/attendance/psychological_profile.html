@@ -5,18 +5,40 @@
 
 {% block content %}
 <style>
-  .page-hero{
-    border: 1px solid rgba(0,0,0,.08);
-    border-radius: 1rem;
-    background:
-      radial-gradient(900px 260px at 15% 0%, rgba(13,110,253,.12), transparent 55%),
-      radial-gradient(900px 260px at 85% 0%, rgba(220,53,69,.12), transparent 55%),
-      linear-gradient(180deg, rgba(248,249,250,1), rgba(255,255,255,1));
+  /* ===== Minimal UI ===== */
+  .page-wrap{ padding-top: 1.25rem; padding-bottom: 1.25rem; }
+  .panel{
+    background:#fff;
+    border:1px solid rgba(0,0,0,.08);
+    border-radius: 14px;
+    box-shadow: 0 8px 20px rgba(0,0,0,.04);
   }
-  .avatar{ width:40px; height:40px; object-fit:cover; }
-  .chip{
+  .panel-header{
+    border-bottom:1px solid rgba(0,0,0,.06);
+    padding: 14px 16px;
+  }
+  .panel-body{ padding: 14px 16px; }
+
+  .title{
+    font-size: 15px;
+    font-weight: 800;
+    margin:0;
+    letter-spacing: .2px;
+  }
+  .sub{
+    color: rgba(33,37,41,.65);
+    font-size: 12.5px;
+    margin:2px 0 0 0;
+  }
+
+  .avatar{ width:40px; height:40px; object-fit:cover; border-radius:999px; }
+  .muted{ color: rgba(33,37,41,.65); }
+  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+  /* chips / pills minimal */
+  .pill{
     display:inline-flex; align-items:center; gap:.35rem;
-    padding:.25rem .55rem;
+    padding:.28rem .6rem;
     border-radius: 999px;
     border: 1px solid rgba(0,0,0,.08);
     background: #fff;
@@ -24,63 +46,150 @@
     line-height: 1;
     white-space: nowrap;
   }
-  .chip b{ font-weight: 700; }
-  .muted{ color: rgba(33,37,41,.65); }
-  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-  .table thead th{ white-space: nowrap; }
-  .row-soft-critical{ background: rgba(220,53,69,.06); }
-  .row-soft-warning{ background: rgba(255,193,7,.09); }
+  .pill b{ font-weight: 800; }
+
+  /* table */
+  .table thead th{
+    font-size: 12px;
+    color: rgba(33,37,41,.65);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .table tbody td{
+    vertical-align: middle;
+  }
+  .row-soft-critical{ background: rgba(220,53,69,.05); }
+  .row-soft-warning{ background: rgba(255,193,7,.08); }
+
+  /* status badges: minimal */
+  .status-badge{
+    border-radius: 999px;
+    padding: .35rem .7rem;
+    font-weight: 800;
+    font-size: 12px;
+  }
+
+  /* filter inputs */
+  .form-control, .form-select{
+    border-radius: 12px;
+  }
+
+  /* loader */
+  .loader-card{
+    border: 1px solid rgba(0,0,0,.08);
+    border-radius: 14px;
+    background: #fff;
+  }
+
+  /* modal */
+  .modal-content{ border-radius: 14px; }
+  .kpi-box{
+    border:1px solid rgba(0,0,0,.08);
+    border-radius: 12px;
+    padding: 12px;
+    height: 100%;
+    background:#fff;
+  }
+
+  /* Mobile: turn table into cards */
+  @media (max-width: 768px){
+    .table thead{ display:none; }
+    .table tbody tr{
+      display:block;
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 14px;
+      margin: 10px 10px 14px 10px;
+      padding: 12px;
+      background:#fff;
+    }
+    .table tbody td{
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      border:none;
+      padding: 8px 0;
+    }
+    .table tbody td::before{
+      content: attr(data-label);
+      font-size: 12px;
+      color: rgba(33,37,41,.65);
+      font-weight: 700;
+      padding-right: 12px;
+    }
+    .td-user{ justify-content:flex-start !important; gap: 10px; }
+    .td-user::before{ display:none; }
+    .td-actions{ justify-content:flex-end !important; }
+    .td-actions::before{ display:none; }
+  }
 </style>
 
-<div class="container-fluid py-4">
+<div class="container-fluid page-wrap">
   {% include 'includes/breadcrumbs.html' with breadcrumbs=breadcrumbs %}
 
-  <!-- HERO / TOP CONTROLS -->
-  <div class="page-hero p-3 p-md-4 mb-3">
-    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+  <!-- TOP PANEL (minimal, no gradients) -->
+  <div class="panel mb-3">
+    <div class="panel-header d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
       <div>
-        <h1 class="h5 mb-1">Psixologik portretlar</h1>
-        <div class="small muted">Ixcham jadval · Smart badge · Batafsil modal ichida</div>
+        <h1 class="title">Psixologik portretlar</h1>
+        <p class="sub mb-0">Minimal jadval · ko‘rsatkichlar · batafsil modal</p>
       </div>
 
       <div class="d-flex flex-wrap align-items-center gap-2">
-        <input type="date" id="analyzeDate" class="form-control form-control-sm"
-               value="{{ today|date:'Y-m-d' }}" style="max-width: 180px;">
-        <button id="analyzeBtn" class="btn btn-primary btn-sm px-4">
+        <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+          <input type="date" name="date" id="analyzeDate" class="form-control form-control-sm"
+                 value="{{ date }}" style="max-width: 180px;">
+
+          <select name="role" class="form-select form-select-sm" style="max-width: 150px;">
+            <option value="">Hammasi</option>
+            <option value="employee" {% if request.GET.role == "employee" %}selected{% endif %}>Xodim</option>
+            <option value="student" {% if request.GET.role == "student" %}selected{% endif %}>Talaba</option>
+          </select>
+
+          <input type="text" name="q" value="{{ request.GET.q }}"
+                 class="form-control form-control-sm"
+                 placeholder="Ism/ID bo‘yicha qidirish..."
+                 style="max-width: 260px;">
+
+          <button type="submit" class="btn btn-outline-dark btn-sm">
+            Qidirish
+          </button>
+        </form>
+
+        <button id="analyzeBtn" class="btn btn-dark btn-sm px-4">
           Tahlil yangilash
         </button>
       </div>
     </div>
 
-    <div class="d-flex flex-wrap gap-2 mt-3">
-      <span class="badge text-bg-dark rounded-pill px-3 py-2">Jami: <b class="ms-1">{{ total_employees }}</b></span>
-      <span class="badge text-bg-danger rounded-pill px-3 py-2">Jiddiy: <b class="ms-1">{{ critical_count }}</b></span>
-      <span class="badge text-bg-warning rounded-pill px-3 py-2 text-dark">Ehtiyot: <b class="ms-1">{{ warning_count }}</b></span>
-
-      <span class="badge text-bg-light border rounded-pill px-3 py-2 text-dark">
-        <span class="muted">Conf</span> – ishonchlilik · <span class="muted">Stab</span> – barqarorlik
-      </span>
+    <div class="panel-body pt-0">
+      <div class="d-flex flex-wrap gap-2">
+        <span class="pill">Jami <b>{{ total_employees }}</b></span>
+        <span class="pill">Jiddiy <b class="text-danger">{{ critical_count }}</b></span>
+        <span class="pill">Ehtiyot <b class="text-warning">{{ warning_count }}</b></span>
+        <span class="pill"><span class="muted">Conf</span> · ishonchlilik</span>
+        <span class="pill"><span class="muted">Stab</span> · barqarorlik</span>
+      </div>
     </div>
   </div>
 
   <!-- LOADER -->
   <div id="analyzeLoader" class="mb-3 d-none">
-    <div class="card border-0 shadow-sm" style="border-radius:1rem;">
-      <div class="card-body p-3">
+    <div class="loader-card shadow-sm">
+      <div class="p-3">
         <div class="d-flex align-items-center justify-content-between mb-2">
-          <div class="fw-semibold">AI tahlil jarayoni</div>
+          <div class="fw-bold">AI tahlil jarayoni</div>
           <div class="small muted" id="loaderText">Boshlanmoqda…</div>
         </div>
-        <div class="progress" style="height: 12px;">
+        <div class="progress" style="height: 12px; border-radius: 999px;">
           <div id="analyzeProgress" class="progress-bar progress-bar-striped progress-bar-animated"
-               style="width: 0%">0%</div>
+               style="width: 0%; border-radius: 999px;">0%</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- COMPACT TABLE -->
-  <div class="card border-0 shadow" style="border-radius:1rem;">
+  <!-- TABLE PANEL -->
+  <div class="panel">
     <div class="table-responsive">
       <table class="table align-middle mb-0">
         <thead class="table-light">
@@ -89,7 +198,7 @@
             <th style="min-width:260px;">Xodim</th>
             <th style="width:140px;">Holat</th>
             <th style="min-width:320px;">Ko‘rsatkichlar</th>
-            <th style="width:120px;">Conf/Stab</th>
+            <th style="width:140px;">Conf / Stab</th>
             <th class="text-center" style="width:90px;">Photos</th>
             <th class="text-end" style="width:110px;"></th>
           </tr>
@@ -97,25 +206,23 @@
 
         <tbody>
         {% for p in profiles %}
-          <tr class="
-            {% if p.state == 'critical' %}row-soft-critical{% elif p.state == 'warning' %}row-soft-warning{% endif %}
-          ">
-            <!-- ✅ global index (pagination bo'lsa ham to'g'ri sanaydi) -->
-            <td class="text-center small muted">{{ forloop.counter0|add:page_obj.start_index }}</td>
+          <tr class="{% if p.state == 'critical' %}row-soft-critical{% elif p.state == 'warning' %}row-soft-warning{% endif %}">
+            <td class="text-center small muted" data-label="#">
+              {{ forloop.counter0|add:page_obj.start_index|add:"-1" }}
+            </td>
 
-            <!-- Employee -->
-            <td>
+            <!-- USER -->
+            <td data-label="Xodim" class="td-user">
               <div class="d-flex align-items-center gap-2">
                 {% if p.user.image %}
-                  <img src="{{ p.user.image.url }}" class="rounded-circle avatar">
+                  <img src="{{ p.user.image.url }}" class="avatar">
                 {% else %}
-                  <div class="rounded-circle bg-light d-flex align-items-center justify-content-center avatar">
+                  <div class="avatar bg-light d-flex align-items-center justify-content-center">
                     <i class="fas fa-user muted"></i>
                   </div>
                 {% endif %}
-
                 <div class="min-w-0">
-                  <div class="fw-semibold text-truncate">{{ p.user.full_name }}</div>
+                  <div class="fw-bold text-truncate">{{ p.user.full_name }}</div>
                   <div class="small muted text-truncate">
                     Dominant: <b class="text-dark">{{ p.dominant_emotion }}</b>
                     {% if p.top_emotions %}<span class="ms-1">· {{ p.top_emotions }}</span>{% endif %}
@@ -124,72 +231,63 @@
               </div>
             </td>
 
-            <!-- Status -->
-            <td>
-              <span class="badge rounded-pill px-3 py-2
-                {% if p.state == 'excellent' %}text-bg-success
-                {% elif p.state == 'good' %}text-bg-primary
-                {% elif p.state == 'normal' %}text-bg-secondary
-                {% elif p.state == 'warning' %}text-bg-warning text-dark
-                {% else %}text-bg-danger{% endif %}">
+            <!-- STATUS -->
+            <td data-label="Holat">
+              <span class="status-badge
+                {% if p.state == 'excellent' %}bg-success text-white
+                {% elif p.state == 'good' %}bg-dark text-white
+                {% elif p.state == 'normal' %}bg-secondary text-white
+                {% elif p.state == 'warning' %}bg-warning text-dark
+                {% else %}bg-danger text-white{% endif %}">
                 {{ p.state_display }}
               </span>
             </td>
 
-            <!-- Metrics as smart chips -->
-            <td>
+            <!-- METRICS -->
+            <td data-label="Ko‘rsatkichlar">
               <div class="d-flex flex-wrap gap-2">
-                <span class="chip">
-                  <span class="muted">Stress</span> <b class="text-danger">{{ p.stress }}%</b>
-                </span>
-                <span class="chip">
-                  <span class="muted">Mood</span> <b class="text-primary">{{ p.mood }}</b>
-                </span>
-                <span class="chip">
-                  <span class="muted">Energy</span> <b class="text-success">{{ p.energy }}%</b>
-                </span>
-
-                <span class="chip" title="{{ p.psychology|default:'—' }}">
+                <span class="pill"><span class="muted">Stress</span> <b class="text-danger">{{ p.stress }}%</b></span>
+                <span class="pill"><span class="muted">Mood</span> <b class="text-dark">{{ p.mood }}</b></span>
+                <span class="pill"><span class="muted">Energy</span> <b class="text-success">{{ p.energy }}%</b></span>
+                <span class="pill" title="{{ p.psychology|default:'—'|escape }}">
                   <span class="muted">Izoh</span>
-                  <b class="text-dark">{{ p.psychology|default:"—"|truncatechars:22 }}</b>
+                  <b class="text-dark">{{ p.psychology|default:"—"|truncatechars:26 }}</b>
                 </span>
               </div>
             </td>
 
-            <!-- Conf/Stab compact -->
-            <td class="small">
-              {% with conf=p.confidence|default:0 st=p.stability|default:0 %}
-                <div class="d-flex flex-column gap-1">
-                  <div class="d-flex justify-content-between">
-                    <span class="muted">Conf</span>
-                    <span class="mono fw-semibold">{{ conf }}</span>
-                  </div>
-                  <div class="d-flex justify-content-between">
-                    <span class="muted">Stab</span>
-                    <span class="mono fw-semibold">{{ st }}</span>
-                  </div>
+            <!-- CONF/STAB -->
+            <td class="small" data-label="Conf/Stab">
+              <div class="d-flex flex-column gap-1">
+                <div class="d-flex justify-content-between">
+                  <span class="muted">Conf</span>
+                  <span class="mono fw-bold">{{ p.confidence|default:"0" }}</span>
                 </div>
-              {% endwith %}
+                <div class="d-flex justify-content-between">
+                  <span class="muted">Stab</span>
+                  <span class="mono fw-bold">{{ p.stability|default:"0" }}</span>
+                </div>
+              </div>
             </td>
 
-            <!-- Photos -->
-            <td class="text-center">
-              <span class="badge text-bg-dark rounded-pill px-3">{{ p.photo_count|default:0 }}</span>
+            <!-- PHOTOS -->
+            <td class="text-center" data-label="Photos">
+              <span class="pill"><b>{{ p.photo_count|default:0 }}</b></span>
             </td>
 
-            <!-- Details -->
-            <td class="text-end">
+            <!-- ACTION -->
+            <td class="text-end td-actions">
               <button class="btn btn-outline-dark btn-sm rounded-pill"
-                      data-bs-toggle="modal" data-bs-target="#psychModal{{ forloop.counter }}">
+                      data-bs-toggle="modal" data-bs-target="#psychModal{{ p.user.id }}">
                 Batafsil
               </button>
             </td>
           </tr>
 
           <!-- DETAIL MODAL -->
-          <div class="modal fade" id="psychModal{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
+          <div class="modal fade" id="psychModal{{ p.user.id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
-              <div class="modal-content" style="border-radius:1rem;">
+              <div class="modal-content">
                 <div class="modal-header">
                   <div class="d-flex align-items-center gap-2">
                     {% if p.user.image %}
@@ -204,31 +302,25 @@
                 </div>
 
                 <div class="modal-body">
+                  <div class="d-flex flex-wrap gap-2 mb-3">
+                    <span class="pill">Stress <b class="text-danger">{{ p.stress }}%</b></span>
+                    <span class="pill">Mood <b class="text-dark">{{ p.mood }}</b></span>
+                    <span class="pill">Energy <b class="text-success">{{ p.energy }}%</b></span>
+                    <span class="pill">Conf <b class="mono">{{ p.confidence|default:"0" }}</b></span>
+                    <span class="pill">Stab <b class="mono">{{ p.stability|default:"0" }}</b></span>
+                    <span class="pill">Photos <b>{{ p.photo_count|default:0 }}</b></span>
+                  </div>
+
                   <div class="row g-3">
-                    <div class="col-12">
-                      <div class="d-flex flex-wrap gap-2">
-                        <span class="badge rounded-pill text-bg-danger px-3 py-2">Stress: <b class="ms-1">{{ p.stress }}%</b></span>
-                        <span class="badge rounded-pill text-bg-primary px-3 py-2">Mood: <b class="ms-1">{{ p.mood }}</b></span>
-                        <span class="badge rounded-pill text-bg-success px-3 py-2">Energy: <b class="ms-1">{{ p.energy }}%</b></span>
-
-                        <span class="badge rounded-pill text-bg-light border px-3 py-2 text-dark">
-                          Conf: <b class="mono">{{ p.confidence|default:"0" }}</b> ·
-                          Stab: <b class="mono">{{ p.stability|default:"0" }}</b>
-                        </span>
-
-                        <span class="badge rounded-pill text-bg-dark px-3 py-2">Photos: <b class="ms-1">{{ p.photo_count|default:0 }}</b></span>
-                      </div>
-                    </div>
-
                     <div class="col-12 col-md-6">
-                      <div class="border rounded-3 p-3 h-100">
+                      <div class="kpi-box">
                         <div class="small muted mb-2">Emotsiya ulushi</div>
                         <div class="d-flex flex-wrap gap-2">
-                          <span class="badge text-bg-danger">Neg: {{ p.negative_ratio|default:"0" }}</span>
-                          <span class="badge text-bg-success">Pos: {{ p.positive_ratio|default:"0" }}</span>
-                          <span class="badge text-bg-secondary">Neu: {{ p.neutral_ratio|default:"0" }}</span>
+                          <span class="pill">Neg <b class="text-danger">{{ p.negative_ratio|default:"0" }}</b></span>
+                          <span class="pill">Pos <b class="text-success">{{ p.positive_ratio|default:"0" }}</b></span>
+                          <span class="pill">Neu <b class="text-secondary">{{ p.neutral_ratio|default:"0" }}</b></span>
                           {% if p.face_quality is not None %}
-                            <span class="badge text-bg-light border text-dark">Quality: {{ p.face_quality }}</span>
+                            <span class="pill">Quality <b class="text-dark">{{ p.face_quality }}</b></span>
                           {% endif %}
                         </div>
                         <div class="small muted mt-2">
@@ -242,7 +334,7 @@
                     </div>
 
                     <div class="col-12 col-md-6">
-                      <div class="border rounded-3 p-3 h-100">
+                      <div class="kpi-box">
                         <div class="small muted mb-2">Qisqa xulosa</div>
                         <ul class="small mb-0">
                           <li>
@@ -268,7 +360,7 @@
                     </div>
 
                     <div class="col-12">
-                      <div class="border rounded-3 p-3">
+                      <div class="kpi-box">
                         <div class="small muted mb-2">To‘liq izoh</div>
                         <div class="lh-lg" style="white-space:pre-wrap;">{{ p.psychology|default:"—" }}</div>
                       </div>
@@ -277,7 +369,7 @@
                 </div>
 
                 <div class="modal-footer">
-                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Yopish</button>
+                  <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Yopish</button>
                 </div>
               </div>
             </div>
@@ -285,7 +377,7 @@
 
         {% empty %}
           <tr>
-            <td colspan="7" class="text-center py-5 text-muted">
+            <td colspan="7" class="text-center py-5 muted">
               <i class="fas fa-users-slash fa-2x mb-3 opacity-50"></i><br>
               Hozircha ma'lumot mavjud emas
             </td>
@@ -295,44 +387,42 @@
       </table>
     </div>
 
-    <!-- ✅ PAGINATION (Bootstrap) -->
+    <!-- PAGINATION -->
     {% if is_paginated %}
-      <div class="card-footer bg-white border-top py-3">
+      <div class="panel-body border-top">
         <nav aria-label="Psychological profiles pagination">
           <ul class="pagination justify-content-center mb-0">
 
-            <!-- Prev -->
             <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
               {% if page_obj.has_previous %}
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
-                  <span aria-hidden="true">&laquo;</span>
+                <a class="page-link"
+                   href="?page={{ page_obj.previous_page_number }}&role={{ request.GET.role }}&q={{ request.GET.q }}&date={{ request.GET.date }}">
+                  &laquo;
                 </a>
               {% else %}
-                <span class="page-link" aria-hidden="true">&laquo;</span>
+                <span class="page-link">&laquo;</span>
               {% endif %}
             </li>
 
-            <!-- Page numbers (window: -2..+2) -->
             {% for num in paginator.page_range %}
               {% if num == page_obj.number %}
-                <li class="page-item active" aria-current="page">
-                  <span class="page-link">{{ num }}</span>
-                </li>
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
               {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
                 <li class="page-item">
-                  <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                  <a class="page-link"
+                     href="?page={{ num }}&role={{ request.GET.role }}&q={{ request.GET.q }}&date={{ request.GET.date }}">{{ num }}</a>
                 </li>
               {% endif %}
             {% endfor %}
 
-            <!-- Next -->
             <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
               {% if page_obj.has_next %}
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
-                  <span aria-hidden="true">&raquo;</span>
+                <a class="page-link"
+                   href="?page={{ page_obj.next_page_number }}&role={{ request.GET.role }}&q={{ request.GET.q }}&date={{ request.GET.date }}">
+                  &raquo;
                 </a>
               {% else %}
-                <span class="page-link" aria-hidden="true">&raquo;</span>
+                <span class="page-link">&raquo;</span>
               {% endif %}
             </li>
 
@@ -345,7 +435,6 @@
         </div>
       </div>
     {% endif %}
-
   </div>
 </div>
 {% endblock %}
@@ -364,6 +453,8 @@ $(function() {
   const ws = new WebSocket(
     (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/psychology/'
   );
+
+  window.addEventListener("beforeunload", () => ws.close());
 
   ws.onmessage = function(e) {
     const d = JSON.parse(e.data || '{}');
@@ -385,8 +476,7 @@ $(function() {
 
     if (d.completed && d.attendance_id) {
       completed.add(d.attendance_id);
-
-      if (started.size > 0 && completed.size >= started.size) {
+      if (d.progress === 100 || (started.size > 0 && completed.size >= started.size)) {
         bar.css('width','100%').text('100%');
         txt.text('Yakunlandi! Yangilanmoqda…');
         setTimeout(() => location.reload(), 900);

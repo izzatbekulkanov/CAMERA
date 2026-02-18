@@ -3,6 +3,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 from django.utils.dateparse import parse_date
+import asyncio
 
 from .models import Attendance
 from .tasks import analyze_attendance_psychology
@@ -99,3 +100,49 @@ class PsychologyConsumer(AsyncWebsocketConsumer):
             "completed": True
         }
         await self.send(text_data=json.dumps(payload))
+
+
+class ServiceLogConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.service_name = self.scope["url_route"]["kwargs"]["service_name"]
+        await self.accept()
+        self.proc = None
+        self.task = asyncio.create_task(self.stream_logs())
+
+    async def disconnect(self, close_code):
+        if self.task:
+            self.task.cancel()
+
+        if self.proc:
+            try:
+                self.proc.terminate()
+            except:
+                pass
+
+    async def stream_logs(self):
+        """
+        journalctl -u <service> -f --no-pager
+        """
+        try:
+            self.proc = await asyncio.create_subprocess_exec(
+                "journalctl",
+                "-u", self.service_name,
+                "-f",
+                "--no-pager",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            while True:
+                line = await self.proc.stdout.readline()
+                if not line:
+                    break
+
+                text = line.decode(errors="ignore").strip()
+                await self.send(text_data=json.dumps({"line": text}))
+
+        except asyncio.CancelledError:
+            pass
+
+        except Exception as exc:
+            await self.send(text_data=json.dumps({"error": str(exc)}))

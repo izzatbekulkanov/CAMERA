@@ -147,6 +147,7 @@ rich==14.2.0
 scikit-image==0.25.2
 scikit-learn==1.7.2
 scipy==1.16.3
+sdnotify==0.3.2
 service-identity==24.2.0
 simsimd==6.5.3
 six==1.17.0

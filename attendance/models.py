@@ -49,6 +49,13 @@ class SiteSettings(models.Model):
         help_text="Agar yoqilgan bo‘lsa, foydalanuvchi rasm yuklaganda avtomatik face encoding yaratiladi"
     )
 
+    bot_token = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Bot token (masalan: Telegram bot token)"
+    )
+
     # HEMIS sozlamalari
     hemis_url = models.URLField(max_length=255, blank=True, help_text='HEMIS API URL')
     hemis_api_token = models.CharField(max_length=255, blank=True, help_text='HEMIS API token')

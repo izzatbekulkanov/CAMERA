@@ -2,219 +2,262 @@
 {% load static %}
 
 {% block styles %}
-    <link href="{% static 'assets/libs/select2/css/select2.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/select2/css/select2.min.css' %}" rel="stylesheet" type="text/css"/>
     <link href="{% static 'assets/libs/sweetalert2/sweetalert2.min.css' %}" rel="stylesheet">
-    <link href="{% static 'assets/libs/dropzone/min/dropzone.min.css' %}" rel="stylesheet" type="text/css" />
-    <link href="{% static 'assets/libs/quill/quill.core.css' %}" rel="stylesheet" type="text/css" />
-    <link href="{% static 'assets/libs/quill/quill.snow.css' %}" rel="stylesheet" type="text/css" />
-    <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css"/>
 
     <style>
         /* ====== TOP STATS (1 qatorda, scroll) ====== */
-        .stats-row{
-            display:flex;
-            gap:.75rem;
-            overflow-x:auto;
-            padding-bottom:.25rem;
-            scroll-snap-type:x mandatory;
+        .stats-row {
+            display: flex;
+            gap: .75rem;
+            overflow-x: auto;
+            padding-bottom: .25rem;
+            scroll-snap-type: x mandatory;
         }
-        .stats-row::-webkit-scrollbar{ height:6px; }
-        .stats-row::-webkit-scrollbar-thumb{ background: rgba(0,0,0,.15); border-radius:8px; }
-        .stat-card{
+
+        .stats-row::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .stats-row::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, .15);
+            border-radius: 8px;
+        }
+
+        .stat-card {
             min-width: 210px;
             flex: 0 0 auto;
             scroll-snap-align: start;
         }
-        .stat-icon{
-            width:42px;height:42px;
+
+        .stat-icon {
+            width: 42px;
+            height: 42px;
         }
     </style>
 {% endblock styles %}
 
 {% block title %}
-Foydalanuvchilar ro'yxati
+    Foydalanuvchilar ro'yxati
 {% endblock title %}
 
 {% block content %}
-<div class="container-fluid">
+    <div class="container-fluid">
 
-    <!-- start page title -->
-    {% include 'includes/breadcrumbs.html' %}
-    <!-- end page title -->
+        {% include 'includes/breadcrumbs.html' %}
 
-    <!-- ====== TOP STATS (1 qatorda) ====== -->
-    <div class="mb-3">
-        <div class="stats-row">
+        <!-- ====== TOP STATS ====== -->
+        <div class="mb-3">
+            <div class="stats-row">
 
-            <div class="card shadow-sm border-0 stat-card">
-                <div class="card-body py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="text-muted small">Jami</div>
-                            <div class="h4 mb-0 fw-bold">{{ total_count }}</div>
-                        </div>
-                        <div class="stat-icon rounded bg-light d-flex align-items-center justify-content-center">
-                            <i class="mdi mdi-account-group text-primary fs-3"></i>
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Jami</div>
+                                <div class="h4 mb-0 fw-bold">{{ total_count }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-light d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-account-group text-primary fs-3"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="card shadow-sm border-0 stat-card">
-                <div class="card-body py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="text-muted small">Talaba</div>
-                            <div class="h4 mb-0 fw-bold text-primary">{{ student_count }}</div>
-                        </div>
-                        <div class="stat-icon rounded bg-soft-info d-flex align-items-center justify-content-center">
-                            <i class="mdi mdi-school text-info fs-3"></i>
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Talaba</div>
+                                <div class="h4 mb-0 fw-bold text-primary">{{ student_count }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-info d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-school text-info fs-3"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="card shadow-sm border-0 stat-card">
-                <div class="card-body py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="text-muted small">Xodim</div>
-                            <div class="h4 mb-0 fw-bold text-success">{{ employee_count }}</div>
-                        </div>
-                        <div class="stat-icon rounded bg-soft-success d-flex align-items-center justify-content-center">
-                            <i class="mdi mdi-briefcase-account text-success fs-3"></i>
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Xodim</div>
+                                <div class="h4 mb-0 fw-bold text-success">{{ employee_count }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-success d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-briefcase-account text-success fs-3"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="card shadow-sm border-0 stat-card">
-                <div class="card-body py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="text-muted small">Rol yo‘q</div>
-                            <div class="h4 mb-0 fw-bold text-warning">{{ norole_count }}</div>
-                        </div>
-                        <div class="stat-icon rounded bg-soft-warning d-flex align-items-center justify-content-center">
-                            <i class="mdi mdi-account-question text-warning fs-3"></i>
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Rol yo‘q</div>
+                                <div class="h4 mb-0 fw-bold text-warning">{{ norole_count }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-warning d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-account-question text-warning fs-3"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="card shadow-sm border-0 stat-card">
-                <div class="card-body py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="text-muted small">Face ✅</div>
-                            <div class="h4 mb-0 fw-bold text-success">{{ users_with_face }}</div>
-                        </div>
-                        <div class="stat-icon rounded bg-soft-success d-flex align-items-center justify-content-center">
-                            <i class="mdi mdi-face-recognition text-success fs-3"></i>
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Face ✅</div>
+                                <div class="h4 mb-0 fw-bold text-success">{{ users_with_face }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-success d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-face-recognition text-success fs-3"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="card shadow-sm border-0 stat-card">
-                <div class="card-body py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="text-muted small">Face ❌</div>
-                            <div class="h4 mb-0 fw-bold text-danger">{{ users_without_face }}</div>
-                        </div>
-                        <div class="stat-icon rounded bg-soft-danger d-flex align-items-center justify-content-center">
-                            <i class="mdi mdi-face-recognition text-danger fs-3"></i>
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Face ❌</div>
+                                <div class="h4 mb-0 fw-bold text-danger">{{ users_without_face }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-danger d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-face-recognition text-danger fs-3"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Telegram ✅</div>
+                                <div class="h4 mb-0 fw-bold text-success">{{ users_with_tg }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-success d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-telegram text-success fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Telegram ❌</div>
+                                <div class="h4 mb-0 fw-bold text-danger">{{ users_without_tg }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-danger d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-telegram text-danger fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
+            <div class="small text-muted mt-1">
+                <i class="mdi mdi-swap-horizontal me-1"></i> Kartalarni yon tomonga surib ko‘ring
+            </div>
         </div>
-
-        <div class="small text-muted mt-1">
-            <i class="mdi mdi-swap-horizontal me-1"></i> Kartalarni yon tomonga surib ko‘ring
-        </div>
-    </div>
-    <!-- ====== END TOP STATS ====== -->
-
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-
-                <!-- === Qidiruv + Filter + Tugmalar === -->
-                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
-                    <!-- Chap: Qidiruv + Rol filteri + Tozalash -->
-                    <div class="d-flex align-items-center flex-wrap gap-2">
-                        <!-- Qidiruv -->
-                        <form method="get" class="d-flex">
-                            <input type="text" name="q" class="form-control form-control-sm me-2"
-                                   placeholder="Qidirish..." value="{{ search_query }}">
-                            <button type="submit" class="btn btn-primary btn-sm">
-                                <i class="mdi mdi-magnify"></i>
-                            </button>
-                        </form>
-
-                        <!-- Rol filteri -->
-                        <form method="get" class="d-flex">
-                            <select name="role" class="form-select form-select-sm" onchange="this.form.submit()">
-                                <option value="">Barchasi</option>
-                                <option value="student" {% if current_role == 'student' %}selected{% endif %}>Talabalar</option>
-                                <option value="employee" {% if current_role == 'employee' %}selected{% endif %}>Hodimlar</option>
-                                <option value="superadmin" {% if current_role == 'superadmin' %}selected{% endif %}>Superadmin</option>
-                            </select>
-                            {% if search_query %}
-                                <input type="hidden" name="q" value="{{ search_query }}">
-                            {% endif %}
-                        </form>
-
-                        <!-- Tozalash tugmasi -->
-                        {% if search_query or current_role %}
-                        <a href="{% url 'users_list' %}" class="btn btn-outline-secondary btn-sm">
-                            <i class="mdi mdi-restore"></i>
-                        </a>
-                        {% endif %}
-                    </div>
-
-                    <!-- O'ng: Yangi qo‘shish + Sozlamalar + Yuklash -->
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <button type="button" class="btn btn-danger btn-sm waves-effect waves-light"
-                                data-bs-toggle="modal" data-bs-target="#custom-modal">
-                            <i class="mdi mdi-plus-circle me-1"></i> Yangi qo‘shish
-                        </button>
-
-                        <button type="button" class="btn btn-success btn-sm">
-                            <i class="mdi mdi-cog"></i>
-                        </button>
-
-                        <a href="{% url 'import_users' %}" class="btn btn-light btn-sm">
-                            Yuklash
-                        </a>
-                    </div>
-                </div>
-                <!-- end qidiruv/filter/tugmalar row -->
+        <!-- ====== END TOP STATS ====== -->
 
 
-                    <!-- === Jadval === -->
-                    <div class="table-responsive">
-                        <table class="table table-centered table-nowrap table-striped" id="users-datatable">
-                            <thead class="table-light">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+
+                        <!-- ✅ FILTER BAR -->
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+
+                            <!-- ✅ Yagona Form: q + role -->
+                            <form method="get" class="d-flex align-items-center flex-wrap gap-2">
+
+                                <input type="text"
+                                       name="q"
+                                       class="form-control form-control-sm"
+                                       style="width:240px;"
+                                       placeholder="Qidirish..."
+                                       value="{{ search_query }}">
+
+                                <select name="role"
+                                        class="form-select form-select-sm"
+                                        style="width:160px;"
+                                        onchange="this.form.submit()">
+                                    <option value="">Barchasi</option>
+                                    <option value="student" {% if current_role == 'student' %}selected{% endif %}>
+                                        Talabalar
+                                    </option>
+                                    <option value="employee" {% if current_role == 'employee' %}selected{% endif %}>
+                                        Hodimlar
+                                    </option>
+                                    <option value="superadmin" {% if current_role == 'superadmin' %}selected{% endif %}>
+                                        Superadmin
+                                    </option>
+                                </select>
+
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="mdi mdi-magnify"></i>
+                                </button>
+
+                                {% if search_query or current_role %}
+                                    <a href="{% url 'users_list' %}" class="btn btn-outline-secondary btn-sm">
+                                        <i class="mdi mdi-restore"></i>
+                                    </a>
+                                {% endif %}
+                            </form>
+
+                            <!-- ✅ Tugmalar -->
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <button type="button" class="btn btn-danger btn-sm"
+                                        data-bs-toggle="modal" data-bs-target="#custom-modal">
+                                    <i class="mdi mdi-plus-circle me-1"></i> Yangi qo‘shish
+                                </button>
+
+                                <button type="button" class="btn btn-success btn-sm">
+                                    <i class="mdi mdi-cog"></i>
+                                </button>
+
+                                <a href="{% url 'import_users' %}" class="btn btn-light btn-sm">
+                                    Yuklash
+                                </a>
+                            </div>
+
+                        </div>
+                        <!-- ✅ END FILTER BAR -->
+
+
+                        <!-- ✅ USERS TABLE -->
+                        <div class="table-responsive">
+                            <table class="table table-centered table-nowrap table-striped">
+                                <thead class="table-light">
                                 <tr>
-                                    <th style="width:50px;">#</th>
+                                    <th style="width:60px;">#</th>
                                     <th>Foydalanuvchi</th>
-                                    <th>Telefon</th>
-                                    <th>Email</th>
-                                    <th>Bo‘lim / Mutaxassislik</th>
+                                    <th>Role / ID</th>
+                                    <th>Bo‘lim / Guruh</th>
+                                    <th>Telegram</th>
                                     <th>Yuz ma’lumoti</th>
-                                    <th>Yaratilgan sana</th>
+                                    <th>Yaratilgan</th>
                                     <th>Holat</th>
-                                    <th style="width:85px;">Amallar</th>
+                                    <th style="width:90px;">Amallar</th>
                                 </tr>
-                            </thead>
-                            <tbody>
+                                </thead>
+
+                                <tbody>
                                 {% for user in users %}
                                     <tr>
+
                                         <td>
                                             {% if page_obj %}
                                                 {{ forloop.counter0|add:page_obj.start_index }}
@@ -223,33 +266,66 @@ Foydalanuvchilar ro'yxati
                                             {% endif %}
                                         </td>
 
+                                        <!-- ✅ User main info -->
                                         <td class="table-user">
                                             {% if user.image %}
-                                                <img src="{{ user.image.url }}" alt="user-image" class="me-2 rounded-circle" width="40" height="40">
+                                                <img src="{{ user.image.url }}" class="me-2 rounded-circle" width="40"
+                                                     height="40" alt="user">
                                             {% else %}
-                                                <img src="{% static 'assets/images/users/default-avatar.png' %}" alt="user-image" class="me-2 rounded-circle" width="40" height="40">
+                                                <img src="{% static 'assets/images/users/default-avatar.png' %}"
+                                                     class="me-2 rounded-circle" width="40" height="40" alt="user">
                                             {% endif %}
-                                            <a href="#" class="text-body fw-semibold">{{ user.full_name|default:user.username }}</a><br>
-                                            <small class="text-muted">{{ user.get_role_display }}</small>
+                                            <span class="text-body fw-semibold">{{ user.full_name|default:user.username }}</span><br>
+                                            <small class="text-muted">{{ user.email|default:"—" }}</small>
                                         </td>
 
-                                        <td>{{ user.contact_phone|default:"—" }}</td>
-                                        <td>{{ user.email|default:"—" }}</td>
+                                        <!-- ✅ Role + ID -->
+                                        <td>
+        <span class="badge bg-soft-primary text-primary">
+            {{ user.get_role_display }}
+        </span>
+                                            <br>
+                                            <small class="text-muted">
+                                                {% if user.role == "employee" %}
+                                                    ID: {{ user.employee_id_number|default:"—" }}
+                                                {% else %}
+                                                    ID: {{ user.student_id_number|default:"—" }}
+                                                {% endif %}
+                                            </small>
+                                        </td>
+
+                                        <!-- ✅ Bo‘lim / Guruh -->
                                         <td>
                                             {% if user.department_name %}
-                                                {{ user.department_name }}
-                                            {% elif user.specialty %}
-                                                {{ user.specialty }}
-                                            {% else %}
+                                                <div>{{ user.department_name }}</div>
+                                            {% endif %}
+                                            {% if user.group_name %}
+                                                <small class="text-muted">Guruh: {{ user.group_name }}</small>
+                                            {% endif %}
+                                            {% if not user.department_name and not user.group_name %}
                                                 <span class="text-muted">—</span>
                                             {% endif %}
                                         </td>
 
+                                        <!-- ✅ Telegram status -->
+                                        <td>
+                                            {% if user.has_telegram %}
+                                                <span class="badge bg-soft-success text-success">
+                ✅ Bog‘langan
+            </span>
+                                            {% else %}
+                                                <span class="badge bg-soft-danger text-danger">
+                ❌ Yo‘q
+            </span>
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- ✅ Face status -->
                                         <td>
                                             {% if user.has_face_encoding %}
-                                                <span class="badge bg-soft-success text-success">Bor</span>
+                                                <span class="badge bg-soft-success text-success">✅ Bor</span>
                                             {% else %}
-                                                <span class="badge bg-soft-danger text-danger">Yo‘q</span>
+                                                <span class="badge bg-soft-danger text-danger">❌ Yo‘q</span>
                                             {% endif %}
                                         </td>
 
@@ -264,20 +340,19 @@ Foydalanuvchilar ro'yxati
                                         </td>
 
                                         <td>
-                                            <a href="{% url 'my_profile' %}?id={{ user.id }}"
-                                               class="action-icon text-primary" title="Tahrirlash">
+                                            <a href="{% url 'profile' %}?id={{ user.id }}"
+                                               class="action-icon text-primary">
                                                 <i class="mdi mdi-square-edit-outline"></i>
                                             </a>
 
                                             <a href="javascript:void(0)"
                                                class="action-icon text-danger delete-user-btn"
-                                               data-user-id="{{ user.id|default:'0' }}"
-                                               data-user-name="{{ user.full_name|default:user.username|escapejs }}"
-                                               data-user-debug="{{ user.id }} - {{ user.username }}"
-                                               title="Butunlay o‘chirish">
+                                               data-user-id="{{ user.id }}"
+                                               data-user-name="{{ user.full_name|default:user.username|escapejs }}">
                                                 <i class="mdi mdi-delete-forever"></i>
                                             </a>
                                         </td>
+
                                     </tr>
                                 {% empty %}
                                     <tr>
@@ -286,172 +361,122 @@ Foydalanuvchilar ro'yxati
                                         </td>
                                     </tr>
                                 {% endfor %}
-                            </tbody>
-                        </table>
+                                </tbody>
+                            </table>
+                        </div>
 
-                        <!-- Pagination -->
+                        <!-- ✅ PAGINATION -->
                         {% if page_obj %}
-                        <ul class="pagination pagination-rounded justify-content-end mb-0">
-                            {% if page_obj.has_previous %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">«</a>
-                                </li>
-                            {% else %}
-                                <li class="page-item disabled"><span class="page-link">«</span></li>
-                            {% endif %}
+                            <div class="d-flex justify-content-end mt-3">
+                                <ul class="pagination pagination-rounded mb-0">
 
-                            {% for num in page_obj.paginator.page_range %}
-                                {% if num == page_obj.number %}
-                                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
-                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
-                                {% endif %}
-                            {% endfor %}
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?{{ base_qs }}&page={{ page_obj.previous_page_number }}">«</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled"><span class="page-link">«</span></li>
+                                    {% endif %}
 
-                            {% if page_obj.has_next %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">»</a>
-                                </li>
-                            {% else %}
-                                <li class="page-item disabled"><span class="page-link">»</span></li>
-                            {% endif %}
-                        </ul>
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if num == page_obj.number %}
+                                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?{{ base_qs }}&page={{ num }}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?{{ base_qs }}&page={{ page_obj.next_page_number }}">»</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled"><span class="page-link">»</span></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
                         {% endif %}
-                    </div> <!-- end table-responsive -->
+                        <!-- ✅ END PAGINATION -->
 
-                </div> <!-- end card-body -->
-            </div> <!-- end card -->
-        </div> <!-- end col -->
-    </div> <!-- end row -->
-</div> <!-- end container-fluid -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock content %}
 
 {% block scripts %}
-    <script src="{% static 'assets/libs/select2/js/select2.min.js' %}"></script>
     <script src="{% static 'assets/libs/sweetalert2/sweetalert2.min.js' %}"></script>
     <script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            console.log('📋 Sahifa yuklandi — o‘chirish tugmalarini qidiramiz...');
 
-            // Barcha tugmalarni topamiz va debug
             const deleteButtons = document.querySelectorAll('.delete-user-btn');
-            console.log(`🔍 Topildi: ${deleteButtons.length} ta o‘chirish tugmasi`);
 
-            deleteButtons.forEach((btn, index) => {
+            deleteButtons.forEach(btn => {
                 const userId = btn.dataset.userId;
                 const userName = btn.dataset.userName;
-                const debugInfo = btn.dataset.userDebug;
-
-                // DEBUG: Har bir tugma uchun ID ni konsolga chiqaramiz
-                console.log(`Tugma ${index + 1}: ID=${userId}, Name="${userName}", Debug="${debugInfo}"`);
-
-                // Agar ID bo‘sh yoki 0 bo‘lsa — xato
-                if (!userId || userId === '0' || userId === 'undefined') {
-                    console.error(`❌ XATO: ${index + 1}-tugma uchun user ID mavjud emas!`);
-                    btn.style.backgroundColor = 'red';
-                    return;
-                }
 
                 btn.addEventListener('click', function () {
-                    console.log(`🗑️ O‘chirish boshlandi: ID=${userId}, Name=${userName}`);
-
                     Swal.fire({
-                        title: 'Diqqat!',
-                        html: `<strong>${userName}</strong> ni <br><span style="color: #d33; font-weight: bold;">BUTUNLAY bazadan o‘chirmoqchimisiz?</span>`,
-                        icon: 'warning',
+                        title: "Diqqat!",
+                        html: `<strong>${userName}</strong> ni butunlay o‘chirmoqchimisiz?`,
+                        icon: "warning",
                         showCancelButton: true,
-                        confirmButtonColor: '#d33',
-                        cancelButtonColor: '#3085d6',
-                        confirmButtonText: 'Ha, o‘chir!',
-                        cancelButtonText: 'Bekor qilish',
+                        confirmButtonColor: "#d33",
+                        cancelButtonColor: "#3085d6",
+                        confirmButtonText: "Ha, o‘chir!",
+                        cancelButtonText: "Bekor qilish",
                         reverseButtons: true
                     }).then((result) => {
-                        if (result.isConfirmed) {
-                            Swal.fire({
-                                title: 'OXIRGI OGOHLANTIRISH!',
-                                html: `
-                                    <div style="background:#f8d7da; color:#721c24; padding:15px; border-radius:8px; border:1px solid #f5c6cb; text-align:left; font-size:14px;">
-                                        <strong>Barcha ma'lumotlar yo‘q bo‘ladi:</strong><br>
-                                        • Kelish-ketish tarixi (Attendance)<br>
-                                        • Yuz rasmlari va encodinglar<br>
-                                        • Psixologik tahlillar<br>
-                                        • Barcha fotosuratlar va loglar
-                                    </div>
-                                    <br><strong style="color:#d33;">Bu amal qaytarib bo‘lmaydi!</strong>
-                                `,
-                                icon: 'error',
-                                showCancelButton: true,
-                                confirmButtonColor: '#c82333',
-                                cancelButtonColor: '#6c757d',
-                                confirmButtonText: 'Ha, baribir o‘chir!',
-                                cancelButtonText: 'Yo‘q, saqlayman',
-                                reverseButtons: true
-                            }).then((finalResult) => {
-                                if (finalResult.isConfirmed) {
-                                    console.log(`🚀 AJAX so‘rov yuborilmoqda → /users/delete-permanently/${userId}/`);
+                        if (!result.isConfirmed) return;
 
-                                    fetch(`/users/delete-permanently/${userId}/`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'X-Requested-With': 'XMLHttpRequest',
-                                            'X-CSRFToken': '{{ csrf_token }}',
-                                        },
-                                    })
-                                        .then(response => {
-                                            console.log(`📡 Javob keldi: Status=${response.status}`);
-                                            return response.json();
-                                        })
-                                        .then(data => {
-                                            console.log('📦 JSON javob:', data);
-
-                                            if (data.success) {
-                                                $.toast({
-                                                    heading: 'Muvaffaqiyatli!',
-                                                    text: `<strong>${userName}</strong> butunlay o‘chirildi!`,
-                                                    icon: 'success',
-                                                    showHideTransition: 'slide',
-                                                    hideAfter: 6000,
-                                                    position: 'top-right',
-                                                    bgColor: '#28a745',
-                                                    textColor: '#fff'
-                                                });
-                                                setTimeout(() => location.reload(), 1800);
-                                            } else {
-                                                $.toast({
-                                                    heading: 'Xato!',
-                                                    text: data.message || 'Foydalanuvchini o‘chirishda xatolik yuz berdi.',
-                                                    icon: 'error',
-                                                    showHideTransition: 'fade',
-                                                    hideAfter: 8000,
-                                                    position: 'top-right',
-                                                    bgColor: '#dc3545'
-                                                });
-                                            }
-                                        })
-                                        .catch(err => {
-                                            console.error('❌ Fetch xatosi:', err);
-                                            $.toast({
-                                                heading: 'Ulanish xatosi',
-                                                text: 'Server bilan aloqa uzildi. Internetni tekshiring.',
-                                                icon: 'error',
-                                                hideAfter: 8000,
-                                                position: 'top-right',
-                                                bgColor: '#dc3545'
-                                            });
-                                        });
+                        fetch(`/users/delete-permanently/${userId}/`, {
+                            method: "POST",
+                            headers: {
+                                "X-Requested-With": "XMLHttpRequest",
+                                "X-CSRFToken": "{{ csrf_token }}"
+                            }
+                        })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data.success) {
+                                    $.toast({
+                                        heading: "Muvaffaqiyatli",
+                                        text: `${userName} o‘chirildi!`,
+                                        icon: "success",
+                                        position: "top-right",
+                                        hideAfter: 4000
+                                    });
+                                    setTimeout(() => location.reload(), 1200);
+                                } else {
+                                    $.toast({
+                                        heading: "Xato",
+                                        text: data.message || "O‘chirishda xatolik.",
+                                        icon: "error",
+                                        position: "top-right",
+                                        hideAfter: 6000
+                                    });
                                 }
+                            })
+                            .catch(() => {
+                                $.toast({
+                                    heading: "Ulanish xatosi",
+                                    text: "Serverga ulanishda xatolik.",
+                                    icon: "error",
+                                    position: "top-right",
+                                    hideAfter: 6000
+                                });
                             });
-                        }
                     });
                 });
             });
 
-            // Agar hech qanday tugma topilmasa
-            if (deleteButtons.length === 0) {
-                console.warn('⚠️ Hech qanday o‘chirish tugmasi topilmadi!');
-            }
         });
     </script>
 {% endblock scripts %}
