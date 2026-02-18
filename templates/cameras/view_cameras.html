@@ -36,15 +36,23 @@
                         <div class="position-relative bg-black">
                             <div class="ratio ratio-16x9">
                                 {# LOADER – birinchi frame kelguncha ko‘rinadi #}
-                                <div id="loader-{{ camera.id }}" class="d-flex w-100 h-100 justify-content-center align-items-center bg-dark">
+                                <div id="loader-{{ camera.id }}" class="d-none d-flex w-100 h-100 justify-content-center align-items-center bg-dark">
                                     <div class="spinner-border text-light" role="status">
                                         <span class="visually-hidden">Yuklanmoqda...</span>
                                     </div>
                                 </div>
+
+                                {# PLAY OVERLAY #}
+                                <div id="play-overlay-{{ camera.id }}" class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50" style="cursor: pointer; z-index: 10;">
+                                    <button class="btn btn-primary btn-lg rounded-circle shadow-lg js-play-btn" data-id="{{ camera.id }}">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                </div>
+
                                 {# IMG – dastlab d-none, keyin JS orqali ko‘rinadi #}
                                 <img id="cam-{{ camera.id }}" class="w-100 h-100 object-fit-cover d-none" alt="Stream">
                             </div>
-                            <div id="status-{{ camera.id }}" class="position-absolute top-50 start-50 translate-middle text-white text-center bg-dark bg-opacity-75 px-3 py-2 rounded-3">
+                            <div id="status-{{ camera.id }}" class="position-absolute top-50 start-50 translate-middle text-white text-center bg-dark bg-opacity-75 px-3 py-2 rounded-3 d-none">
                                 <div class="spinner-border spinner-border-sm mb-2"></div>
                                 <div>Ulanmoqda...</div>
                             </div>
@@ -58,12 +66,20 @@
                                     <small class="text-muted">{{ camera.ip }}:{{ camera.port }}</small>
                                 </div>
                             </div>
-                            <button class="btn btn-sm btn-outline-secondary js-fullscreen-cam"
-                                    data-id="{{ camera.id }}"
-                                    data-name="{{ camera.name|default:camera.ip }}"
-                                    title="To‘liq ekran">
-                                <i class="fas fa-expand"></i>
-                            </button>
+
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-danger d-none js-stop-btn"
+                                        data-id="{{ camera.id }}"
+                                        title="To‘xtatish">
+                                    <i class="fas fa-stop"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary js-fullscreen-cam"
+                                        data-id="{{ camera.id }}"
+                                        data-name="{{ camera.name|default:camera.ip }}"
+                                        title="To‘liq ekran">
+                                    <i class="fas fa-expand"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -111,6 +127,12 @@
 {% block scripts %}
 <script>
 (() => {
+    // ?ai=0 parametrisiz, yengil rejimda (chunki bu yerda face box shartmas, shunchaki ko'rish)
+    // Lekin user to'liq ekranga chiqarsa AI ko'rishni xohlashi mumkin.
+    // Hozircha default (AI=ON) qoldiramiz, yoki ?ai=0 qilib faqat streamni olamiz.
+    // User "barchasini ustida ko'rish" deganda yengil bo'lishini so'radi.
+    // Shuning uchun bu yerda ?ai=0 (AI OFF) qilib ulaymiz.
+
     const wsBase = `${location.protocol === 'https:' ? 'wss://' : 'ws://'}${location.host}/ws/ipcamera/`;
     const fsOverlay = document.getElementById('fullscreen-cam');
     const fsImg = document.getElementById('fs-img');
@@ -152,25 +174,37 @@
 
     // Kamera oqimi klassi
     class CameraStream {
-        constructor(id, imgEl, statusEl, fpsEl, loaderEl) {
+        constructor(id, imgEl, statusEl, fpsEl, loaderEl, playOverlay, stopBtn) {
             this.id = id.toString();
             this.imgEl = imgEl;
             this.statusEl = statusEl;
             this.fpsMeter = new FpsMeter(fpsEl);
             this.loaderEl = loaderEl;
+            this.playOverlay = playOverlay;
+            this.stopBtn = stopBtn;
 
             this.ws = null;
             this.reconnectDelay = 1000;
             this.maxReconnectDelay = 10000;
             this.shouldRun = true;
-            this.connect();
+            // this.connect(); // Removed auto-connect
         }
 
         connect() {
             if (!this.shouldRun) return;
 
+            // UI update
+            if (this.playOverlay) this.playOverlay.classList.add('d-none');
+            if (this.loaderEl) this.loaderEl.classList.remove('d-none');
+            if (this.statusEl) {
+                this.statusEl.classList.remove('d-none');
+                this.statusEl.innerHTML = '<div class="spinner-border spinner-border-sm mb-2"></div><div>Ulanmoqda...</div>';
+            }
+            if (this.stopBtn) this.stopBtn.classList.remove('d-none');
+
             try {
-                this.ws = new WebSocket(`${wsBase}${this.id}/`);
+                // List viewda AI kerak emas -> ?ai=0
+                this.ws = new WebSocket(`${wsBase}${this.id}/?ai=0`);
             } catch (e) {
                 console.error('[WS][ERROR] New WebSocket failed', e);
                 this.scheduleReconnect();
@@ -183,8 +217,13 @@
                 this.reconnectDelay = 1000;
                 if (this.statusEl) {
                     this.statusEl.innerHTML = '<small class="text-success">● LIVE</small>';
+                    // Birozdan keyin statusni yashiramiz (xalaqit bermasligi uchun)
+                    setTimeout(() => {
+                        if (this.statusEl && this.ws && this.ws.readyState === WebSocket.OPEN) {
+                             this.statusEl.classList.add('d-none');
+                        }
+                    }, 3000);
                 }
-                // Ulanish ochilganda ham loader qoladi – birinchi frame kelganda o'chiramiz
             };
 
             this.ws.onmessage = e => {
@@ -198,11 +237,14 @@
                 lastUrls.set(this.id, url);
 
                 // Birinchi frame kelganda loaderni yashirish va imgni ko'rsatish
-                if (this.loaderEl) {
-                    this.loaderEl.classList.add('d-none');
+                if (this.loaderEl) this.loaderEl.classList.add('d-none');
+                if (this.statusEl) {
+                    // statusni yashirish (agar hali yashirilmagan bo'lsa)
+                     // this.statusEl.classList.add('d-none');
+                     // Yoki tepada setTimeout qildik. Frame kelganda statusni olib tashlash ham mumkin.
                 }
-                this.imgEl.classList.remove('d-none');
 
+                this.imgEl.classList.remove('d-none');
                 this.imgEl.src = url;
                 this.fpsMeter.tick();
 
@@ -215,15 +257,13 @@
             };
 
             this.ws.onclose = () => {
-                if (!this.shouldRun) return;
+                if (!this.shouldRun) return; // Agar qo'lda to'xtatilgan bo'lsa, reconnect qilma
 
                 // Qayta ulanayotganda loaderni yana ko'rsatish
-                if (this.loaderEl) {
-                    this.loaderEl.classList.remove('d-none');
-                }
+                if (this.loaderEl) this.loaderEl.classList.remove('d-none');
                 this.imgEl.classList.add('d-none');
-
                 if (this.statusEl) {
+                    this.statusEl.classList.remove('d-none');
                     this.statusEl.innerHTML = '<small class="text-warning">Qayta ulanmoqda...</small>';
                 }
                 this.scheduleReconnect();
@@ -248,7 +288,8 @@
         stop() {
             this.shouldRun = false;
             if (this.ws) {
-                try { this.ws.close(); } catch (e) {}
+                this.ws.close();
+                this.ws = null;
             }
             this.fpsMeter.destroy();
 
@@ -257,18 +298,62 @@
                 URL.revokeObjectURL(last);
                 lastUrls.delete(this.id);
             }
+
+            // UI Reset
+            if (this.imgEl) {
+                this.imgEl.classList.add('d-none');
+                this.imgEl.src = '';
+            }
+            if (this.loaderEl) this.loaderEl.classList.add('d-none');
+            if (this.playOverlay) this.playOverlay.classList.remove('d-none');
+            if (this.statusEl) this.statusEl.classList.add('d-none');
+            if (this.stopBtn) this.stopBtn.classList.add('d-none');
         }
     }
 
-    // Barcha kameralar uchun WS ishga tushirish
-    document.querySelectorAll('img[id^="cam-"]').forEach(imgEl => {
-        const id = imgEl.id.replace('cam-', '');
-        const statusEl = document.getElementById(`status-${id}`);
-        const fpsEl = document.getElementById(`fps-${id}`);
-        const loaderEl = document.getElementById(`loader-${id}`);
+    // Barcha kameralar uchun WS ishga tushirish - REMOVED, now on play button click
+    // document.querySelectorAll('img[id^="cam-"]').forEach(imgEl => {
+    //     const id = imgEl.id.replace('cam-', '');
+    //     const statusEl = document.getElementById(`status-${id}`);
+    //     const fpsEl = document.getElementById(`fps-${id}`);
+    //     const loaderEl = document.getElementById(`loader-${id}`);
 
-        const stream = new CameraStream(id, imgEl, statusEl, fpsEl, loaderEl);
-        streams.set(id.toString(), stream);
+    //     const stream = new CameraStream(id, imgEl, statusEl, fpsEl, loaderEl);
+    //     streams.set(id.toString(), stream);
+    // });
+
+    // CLICK HANDLERS (Play)
+    document.querySelectorAll('.js-play-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Card click bo'lib ketmasligi uchun
+
+            const id = btn.dataset.id;
+            if (streams.has(id)) return; // Already playing
+
+            const imgEl = document.getElementById(`cam-${id}`);
+            const statusEl = document.getElementById(`status-${id}`);
+            const fpsEl = document.getElementById(`fps-${id}`);
+            const loaderEl = document.getElementById(`loader-${id}`);
+            const playOverlay = document.getElementById(`play-overlay-${id}`);
+            const stopBtn = document.querySelector(`.js-stop-btn[data-id="${id}"]`);
+
+            const stream = new CameraStream(id, imgEl, statusEl, fpsEl, loaderEl, playOverlay, stopBtn);
+            streams.set(id, stream);
+            stream.connect(); // Start connection
+        });
+    });
+
+    // CLICK HANDLERS (Stop)
+    document.querySelectorAll('.js-stop-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const stream = streams.get(id);
+            if (stream) {
+                stream.stop();
+                streams.delete(id);
+            }
+        });
     });
 
     // Fullscreen boshqaruvi

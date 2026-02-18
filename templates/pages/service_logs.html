@@ -3,434 +3,599 @@
 
 {% block styles %}
 <style>
-    /* ===== Layout tweaks ===== */
+    /* ===== Kengaytirilgan Dizayn ===== */
+    :root {
+        --log-bg: #0f172a; /* Slate 900 */
+        --log-text: #f8fafc; /* Slate 50 */
+        --log-success: #22c55e;
+        --log-error: #ef4444;
+        --log-warn: #eab308;
+        --log-info: #3b82f6;
+    }
+
+    /* Yon panel (Service List) */
     .service-box {
-        max-height: 70vh;
+        max-height: calc(100vh - 250px);
         overflow-y: auto;
     }
-    .service-btn.active {
-        background: #0d6efd !important;
-        color: white !important;
-        font-weight: 600;
+    .service-box::-webkit-scrollbar { width: 4px; }
+    .service-box::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    .service-btn {
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+        font-weight: 500;
+        font-size: 0.9rem;
+        margin-bottom: 4px;
+        padding: 10px 14px;
     }
     .service-btn:hover {
-        background: rgba(13,110,253,0.1);
+        background-color: #f1f5f9;
+        transform: translateX(2px);
     }
+    .service-btn.active {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white !important;
+        border-color: #2563eb;
+        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+    }
+    .service-btn.active i { color: rgba(255,255,255,0.8) !important; }
 
-    /* ===== Log viewer ===== */
-    #log-box {
-        background: #0b0f14;
-        color: #c5f7c5;
+    /* Log oynasi (Terminal style) */
+    #log-wrapper {
+        position: relative;
         border-radius: 12px;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 13px;
-        line-height: 1.55;
-        padding: 12px;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
-    }
-    #log-box div {
-        white-space: pre-wrap;
-        word-break: break-word;
+        overflow: hidden;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
     }
 
-    /* ===== Action buttons ===== */
-    .action-btn {
-        border-radius: 10px;
-        font-weight: 600;
-        padding: 6px 12px;
+    .log-toolbar {
+        background: #1e293b;
+        padding: 8px 16px;
+        border-bottom: 1px solid #334155;
         display: flex;
-        align-items: center;
-        gap: 6px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
-        transition: 0.2s ease;
-        border: none;
-    }
-    .action-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 8px 18px rgba(0,0,0,0.08);
-    }
-
-    .btn-soft-success {
-        background: rgba(25,135,84,0.12);
-        color: #198754;
-        border: 1px solid rgba(25,135,84,0.2);
-    }
-    .btn-soft-danger {
-        background: rgba(220,53,69,0.12);
-        color: #dc3545;
-        border: 1px solid rgba(220,53,69,0.2);
-    }
-    .btn-soft-warning {
-        background: rgba(255,193,7,0.15);
-        color: #d39e00;
-        border: 1px solid rgba(255,193,7,0.25);
-    }
-    .btn-soft-primary {
-        background: rgba(13,110,253,0.12);
-        color: #0d6efd;
-        border: 1px solid rgba(13,110,253,0.2);
-    }
-    .btn-soft-gray {
-        background: rgba(108,117,125,0.12);
-        color: #6c757d;
-        border: 1px solid rgba(108,117,125,0.2);
-    }
-
-    /* ===== Header row ===== */
-    .log-header {
-        display: flex;
-        flex-wrap: wrap;
         justify-content: space-between;
         align-items: center;
-        gap: 10px;
-    }
-    .log-header-title {
-        font-size: 15px;
-        font-weight: 700;
-        color: #1f2937;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        color: #94a3b8;
+        font-size: 0.85rem;
     }
 
-    /* Service search */
-    #service-search {
-        border-radius: 12px;
+    #log-box {
+        background: var(--log-bg);
+        color: var(--log-text);
+        font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
         font-size: 13px;
-        padding: 8px 12px;
+        line-height: 1.6;
+        padding: 16px;
+        height: 65vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scroll-behavior: smooth;
     }
+
+    /* Log qatorlari */
+    .log-line {
+        margin-bottom: 2px;
+        word-wrap: break-word;
+        border-left: 2px solid transparent;
+        padding-left: 8px;
+        opacity: 0.9;
+    }
+    .log-line:hover {
+        background: rgba(255,255,255,0.03);
+        border-left-color: #475569;
+        opacity: 1;
+    }
+
+    /* Scrollbar */
+    #log-box::-webkit-scrollbar { width: 8px; height: 8px; }
+    #log-box::-webkit-scrollbar-track { background: #0f172a; }
+    #log-box::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; border: 2px solid #0f172a; }
+    #log-box::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Boshqaruv tugmalari */
+    .action-bar {
+        background: #fff;
+        padding: 12px 16px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        margin-bottom: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .status-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 6px;
+        background-color: #cbd5e1;
+        box-shadow: 0 0 0 2px rgba(203, 213, 225, 0.3);
+        transition: all 0.3s ease;
+    }
+    .status-indicator.connected { background-color: #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.3); }
+    .status-indicator.disconnected { background-color: #ef4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3); }
+
+    /* Tugmalar dizayni */
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 500;
+        padding: 8px 16px;
+        border-radius: 8px;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+    }
+
+    .btn-action:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-start { background-color: #dcfce7; color: #166534; border-color: #bbf7d0; }
+    .btn-start:hover:not(:disabled) { background-color: #bbf7d0; }
+
+    .btn-stop { background-color: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .btn-stop:hover:not(:disabled) { background-color: #fecaca; }
+
+    .btn-restart { background-color: #fef9c3; color: #854d0e; border-color: #fde047; }
+    .btn-restart:hover:not(:disabled) { background-color: #fde047; }
+
+    .btn-edit { background-color: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+    .btn-edit:hover:not(:disabled) { background-color: #e2e8f0; color: #1e293b; }
 
     /* Modal textarea */
     #unit-file-textarea {
         font-family: "JetBrains Mono", monospace;
         font-size: 13px;
-        background: #0b0f14;
-        color: #d1e7dd;
-        border-radius: 10px;
-        padding: 10px;
-        border: 1px solid rgba(255,255,255,0.08);
+        background: #1e293b;
+        color: #e2e8f0;
+        border-radius: 8px;
+        padding: 16px;
+        border: 1px solid #334155;
         width: 100%;
-        height: 55vh;
-        resize: vertical;
+        height: 60vh;
+        resize: none;
+        outline: none;
     }
+    #unit-file-textarea:focus { border-color: #3b82f6; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid py-3">
     {% include 'includes/breadcrumbs.html' %}
 
-    <div class="row g-3">
-
-        <!-- LEFT SIDE -->
-        <div class="col-md-3">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-white border-0 fw-bold d-flex justify-content-between align-items-center">
-                    <span><i class="mdi mdi-server-network me-1"></i> Servislar</span>
-                    <span class="badge bg-primary">{{ services|length }}</span>
+    <div class="row g-4">
+        <!-- LEFT SIDE: Service List -->
+        <div class="col-lg-3 col-md-4">
+            <div class="card shadow-sm border-0 rounded-4 h-100">
+                <div class="card-header bg-white border-bottom-0 pt-3 px-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold m-0 text-dark"><i class="mdi mdi-server-network me-2 text-primary"></i>Mavjud Servislar</h6>
+                        <span class="badge bg-soft-primary text-primary rounded-pill">{{ services|length }}</span>
+                    </div>
+                    <div class="position-relative">
+                        <input type="text" id="service-search" class="form-control form-control-sm ps-5 bg-light border-0" placeholder="Qidirish...">
+                        <i class="mdi mdi-magnify position-absolute top-50 start-0 translate-middle-y ms-2 text-muted px-1"></i>
+                    </div>
                 </div>
 
-                <div class="card-body pt-0">
-                    <input type="text" id="service-search" class="form-control form-control-sm mb-3"
-                           placeholder="Service qidirish...">
-                </div>
-
-                <div class="list-group list-group-flush service-box" id="service-list">
+                <div class="card-body p-2 service-box" id="service-list">
                     {% for s in services %}
-                        <button class="list-group-item list-group-item-action service-btn text-start"
+                        <button class="list-group-item list-group-item-action service-btn text-start d-flex align-items-center"
                                 data-service="{{ s }}">
-                            <i class="mdi mdi-cog-outline me-1 text-muted"></i> {{ s }}
+                            <div class="flex-shrink-0 me-2">
+                                <i class="mdi mdi-cube-outline text-muted fs-5"></i>
+                            </div>
+                            <div class="flex-grow-1 text-truncate">
+                                {{ s }}
+                            </div>
+                            <i class="mdi mdi-chevron-right text-muted opacity-50 ms-auto"></i>
                         </button>
                     {% endfor %}
                 </div>
             </div>
         </div>
 
-        <!-- RIGHT SIDE -->
-        <div class="col-md-9">
-            <div class="card shadow-sm border-0 rounded-4">
+        <!-- RIGHT SIDE: Log Viewer & Controls -->
+        <div class="col-lg-9 col-md-8">
+            <!-- HEADER / TOOLBAR -->
+            <div class="action-bar header-section">
+                <div class="d-flex align-items-center mb-2 mb-md-0">
+                    <div class="me-3">
+                        <div class="text-uppercase text-muted fs-11 fw-bold ls-1">Tanlangan servis</div>
+                        <div class="d-flex align-items-center mt-1">
+                            <span class="status-indicator" id="connection-status"></span>
+                            <h5 class="mb-0 fw-bold text-dark" id="active-service">Servis tanlanmagan</h5>
+                        </div>
+                    </div>
+                </div>
 
-                <!-- HEADER -->
-                <div class="card-header bg-white border-0 log-header">
-                    <div class="log-header-title">
-                        <i class="mdi mdi-console"></i>
-                        <span id="active-service">Servis tanlang...</span>
+                <div class="d-flex gap-2 flex-wrap justify-content-end">
+                    <button class="btn-action btn-start" onclick="runAction('start')" disabled id="btn-start" title="Ishga tushirish">
+                        <i class="mdi mdi-play"></i> Start
+                    </button>
+                    <button class="btn-action btn-restart" onclick="runAction('restart')" disabled id="btn-restart" title="Qayta ishga tushirish">
+                        <i class="mdi mdi-refresh"></i> Restart
+                    </button>
+                    <button class="btn-action btn-stop" onclick="runAction('stop')" disabled id="btn-stop" title="To'xtatish">
+                        <i class="mdi mdi-stop"></i> Stop
+                    </button>
+                    <div class="vr mx-1 opacity-25"></div>
+                    <button class="btn-action btn-edit" id="btn-edit-unit" disabled title="Faylni tahrirlash">
+                        <i class="mdi mdi-file-document-edit-outline"></i> Config
+                    </button>
+                </div>
+            </div>
+
+            <!-- LOG VIEWER -->
+            <div id="log-wrapper">
+                <div class="log-toolbar">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="d-flex align-items-center gap-1">
+                            <i class="mdi mdi-console-line"></i> Terminal Output
+                        </span>
+                        <span class="badge bg-secondary bg-opacity-25 text-light font-monospace py-0">journalctl -f</span>
                     </div>
 
-                    <div class="d-flex gap-2 flex-wrap">
-
-                        <button class="action-btn btn-soft-gray" id="btn-edit-unit" disabled>
-                            <i class="mdi mdi-pencil-outline"></i> Edit
-                        </button>
-
-                        <button class="action-btn btn-soft-success" onclick="runAction('start')" disabled id="btn-start">
-                            <i class="mdi mdi-play-circle-outline"></i> Start
-                        </button>
-
-                        <button class="action-btn btn-soft-warning" onclick="runAction('restart')" disabled id="btn-restart">
-                            <i class="mdi mdi-restart"></i> Restart
-                        </button>
-
-                        <button class="action-btn btn-soft-danger" onclick="runAction('stop')" disabled id="btn-stop">
-                            <i class="mdi mdi-stop-circle-outline"></i> Stop
-                        </button>
-
-                        <button class="action-btn btn-soft-primary" onclick="runAction('enable')" disabled id="btn-enable">
-                            <i class="mdi mdi-check-circle-outline"></i> Enable
-                        </button>
-
-                        <button class="action-btn btn-soft-gray" onclick="runAction('disable')" disabled id="btn-disable">
-                            <i class="mdi mdi-close-circle-outline"></i> Disable
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="form-check form-switch m-0 d-flex align-items-center gap-2" title="Yangi loglar kelganda avtomatik pastga tushish">
+                            <input class="form-check-input" type="checkbox" role="switch" id="auto-scroll" checked>
+                            <label class="form-check-label small cursor-pointer" for="auto-scroll">Auto-scroll</label>
+                        </div>
+                        <div class="vr mx-2 bg-secondary opacity-25"></div>
+                        <button class="btn btn-sm btn-link text-secondary p-0 text-decoration-none hover-white" onclick="clearLogs()" title="Loglarni tozalash">
+                            <i class="mdi mdi-delete-sweep-outline fs-5"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- LOG BOX -->
-                <div class="card-body">
-                    <div id="log-box" style="height:70vh; overflow:auto;">
-                        <div class="text-muted">Loglar shu yerda chiqadi...</div>
+                <div id="log-box">
+                    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted opacity-50">
+                        <i class="mdi mdi-text-box-search-outline fs-1 mb-2"></i>
+                        <p>Loglarni ko'rish uchun chap tomondan servis tanlang</p>
                     </div>
                 </div>
+            </div>
 
+            <div class="mt-2 text-end">
+                 <small class="text-muted"><i class="mdi mdi-information-outline me-1"></i> Loglar real vaqt rejimida yangilanadi (WebSocket)</small>
             </div>
         </div>
     </div>
 </div>
 
 <!-- =================== EDIT MODAL =================== -->
-<div class="modal fade" id="unitModal" tabindex="-1">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content border-0 rounded-4">
-      <div class="modal-header bg-light">
-        <h5 class="modal-title fw-bold">
-            <i class="mdi mdi-file-document-edit-outline me-1"></i>
-            <span id="unitModalTitle">Service Unit</span>
+<div class="modal fade" id="unitModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4 shadow-lg">
+      <div class="modal-header bg-white border-bottom-0 pb-0">
+        <h5 class="modal-title fw-bold text-dark d-flex align-items-center">
+            <i class="mdi mdi-cog-box me-2 text-primary"></i>
+            <span id="unitModalTitle">Service Configuration</span>
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
-      <div class="modal-body">
-          <textarea id="unit-file-textarea"></textarea>
+      <div class="modal-body pt-3">
+          <p class="text-muted small mb-2"><i class="mdi mdi-alert-circle-outline me-1"></i> Ehtiyot bo'ling! Noto'g'ri konfiguratsiya servisni buzishi mumkin.</p>
+          <div class="position-relative">
+              <textarea id="unit-file-textarea" spellcheck="false"></textarea>
+              <div class="position-absolute bottom-0 end-0 p-3 opacity-50 pe-none">
+                  <i class="mdi mdi-code-braces fs-3 text-white"></i>
+              </div>
+          </div>
       </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-            <i class="mdi mdi-close"></i> Bekor qilish
-        </button>
-
-        <button type="button" class="btn btn-success" id="btn-save-unit">
-            <i class="mdi mdi-content-save-outline"></i> Saqlash
+      <div class="modal-footer border-top-0 pt-0 pb-3">
+        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Bekor qilish</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" id="btn-save-unit">
+            <i class="mdi mdi-content-save-outline"></i> Saqlash va Restart
         </button>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
 
-<script src="{% static 'assets/js/vendor.min.js' %}"></script>
-<script src="{% static 'assets/js/app.min.js' %}"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- ✅ SWEETALERT2 -->
+{% block scripts %}
+<!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-let ws = null;
-let currentService = null;
+(() => {
+    // Global o'zgaruvchilar
+    let ws = null;
+    let currentService = null;
+    let reconnectTimer = null;
 
-const btnStart   = document.getElementById("btn-start");
-const btnStop    = document.getElementById("btn-stop");
-const btnRestart = document.getElementById("btn-restart");
-const btnEnable  = document.getElementById("btn-enable");
-const btnDisable = document.getElementById("btn-disable");
-const btnEdit    = document.getElementById("btn-edit-unit");
+    // Elementlar
+    const els = {
+        btnStart: document.getElementById("btn-start"),
+        btnStop: document.getElementById("btn-stop"),
+        btnRestart: document.getElementById("btn-restart"),
+        btnEdit: document.getElementById("btn-edit-unit"),
+        logBox: document.getElementById("log-box"),
+        activeService: document.getElementById("active-service"),
+        statusIndicator: document.getElementById("connection-status"),
+        searchInput: document.getElementById("service-search"),
+        autoScroll: document.getElementById("auto-scroll"),
 
-const unitModal = new bootstrap.Modal(document.getElementById("unitModal"));
-const unitModalTitle = document.getElementById("unitModalTitle");
-const unitTextarea = document.getElementById("unit-file-textarea");
-const btnSaveUnit = document.getElementById("btn-save-unit");
+        // Modal
+        unitModal: new bootstrap.Modal(document.getElementById("unitModal")),
+        unitModalTitle: document.getElementById("unitModalTitle"),
+        unitTextarea: document.getElementById("unit-file-textarea"),
+        btnSaveUnit: document.getElementById("btn-save-unit")
+    };
 
-// ✅ Swal toast helper
-function showToast(success, message) {
-    Swal.fire({
-        icon: success ? "success" : "error",
-        title: success ? "Bajarildi" : "Xatolik",
-        text: message,
-        timer: 2500,
-        showConfirmButton: false,
-        toast: true,
-        position: "top-end"
-    });
-}
+    // ================= Yordamchi Funksiyalar =================
 
-// ✅ Confirmation modal
-function confirmAction(action, serviceName) {
-    return Swal.fire({
-        icon: "question",
-        title: "Tasdiqlaysizmi?",
-        text: `${serviceName} uchun "${action.toUpperCase()}" amalini bajarish?`,
-        showCancelButton: true,
-        confirmButtonText: "Ha, bajar!",
-        cancelButtonText: "Bekor qilish",
-        confirmButtonColor: "#0d6efd"
-    });
-}
+    // Toast xabar chiqarish
+    const showToast = (type, message) => {
+        const icon = type === 'success' ? 'success' : (type === 'error' ? 'error' : 'info');
+        Swal.fire({
+            icon: icon,
+            title: message,
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.onmouseenter = Swal.stopTimer;
+                toast.onmouseleave = Swal.resumeTimer;
+            }
+        });
+    };
 
-// ================= SEARCH FILTER =================
-document.getElementById("service-search").addEventListener("input", function () {
-    const query = this.value.toLowerCase();
-    document.querySelectorAll(".service-btn").forEach(btn => {
-        const name = btn.dataset.service.toLowerCase();
-        btn.style.display = name.includes(query) ? "" : "none";
-    });
-});
+    // Log oynasini tozalash
+    window.clearLogs = () => {
+        els.logBox.innerHTML = '<div class="text-muted small p-2 fst-italic">Loglar tozalandi...</div>';
+    };
 
-// ================= CONNECT LOGS =================
-function connectLogs(serviceName) {
-    currentService = serviceName;
-    document.getElementById("active-service").textContent = serviceName;
-
-    [btnStart, btnStop, btnRestart, btnEnable, btnDisable, btnEdit].forEach(b => b.disabled = false);
-
-    const logBox = document.getElementById("log-box");
-    logBox.innerHTML = "";
-
-    document.querySelectorAll(".service-btn").forEach(b => b.classList.remove("active"));
-    const activeBtn = document.querySelector(`.service-btn[data-service="${serviceName}"]`);
-    if (activeBtn) activeBtn.classList.add("active");
-
-    if (ws) {
-        ws.close();
-        ws = null;
-    }
-
-    const wsUrl = `${location.protocol === "https:" ? "wss://" : "ws://"}${location.host}/ws/logs/${serviceName}/`;
-    ws = new WebSocket(wsUrl);
-
-    ws.onmessage = function (event) {
-        const data = JSON.parse(event.data);
-        if (data.line) {
-            const div = document.createElement("div");
-            div.textContent = data.line;
-            logBox.appendChild(div);
-            logBox.scrollTop = logBox.scrollHeight;
+    // UI holatini yangilash (Connected/Disconnected)
+    const setConnectionStatus = (status) => {
+        if (status === 'connected') {
+            els.statusIndicator.classList.add('connected');
+            els.statusIndicator.classList.remove('disconnected');
+            [els.btnStart, els.btnStop, els.btnRestart, els.btnEdit].forEach(b => b.disabled = false);
+        } else {
+            els.statusIndicator.classList.remove('connected');
+            els.statusIndicator.classList.add('disconnected');
+            // Tugmalarni disable qilmay turamiz, chunki baribir serverga so'rov yuborsa bo'ladi
         }
     };
 
-    ws.onerror = function () {
-        const div = document.createElement("div");
-        div.textContent = "WS error";
-        div.style.color = "#ff6666";
-        logBox.appendChild(div);
+    // ================= WebSocket Log Ulanish =================
+    const connectLogs = (serviceName) => {
+        if (currentService === serviceName && ws && ws.readyState === WebSocket.OPEN) return;
+
+        currentService = serviceName;
+        els.activeService.textContent = serviceName;
+        els.logBox.innerHTML = ''; // Yangi servis uchun tozalash
+
+        // Sidebar active class
+        document.querySelectorAll(".service-btn").forEach(b => {
+             b.classList.toggle("active", b.dataset.service === serviceName);
+        });
+
+        if (ws) {
+            ws.close();
+            clearTimeout(reconnectTimer);
+        }
+
+        const protocol = location.protocol === "https:" ? "wss://" : "ws://";
+        const wsUrl = `${protocol}${location.host}/ws/logs/${serviceName}/`;
+
+        // Loader ko'rsatish
+        els.logBox.innerHTML = '<div class="d-flex align-items-center justify-content-center h-100 text-info"><div class="spinner-border spinner-border-sm me-2"></div> Ulanmoqda...</div>';
+        setConnectionStatus('connecting');
+
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            els.logBox.innerHTML = ''; // Loader o'chirish
+            const div = document.createElement("div");
+            div.className = "log-line text-info fw-bold";
+            div.textContent = `>>> ${serviceName} loglari kuzatilmoqda...`;
+            els.logBox.appendChild(div);
+            setConnectionStatus('connected');
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.line) {
+                const div = document.createElement("div");
+                div.className = "log-line";
+                div.textContent = data.line;
+
+                // Colorize logs slightly based on keywords
+                if (data.line.includes("ERROR") || data.line.includes("Error") || data.line.includes("Failed")) {
+                    div.style.color = "var(--log-error)";
+                } else if (data.line.includes("WARNING") || data.line.includes("Warn")) {
+                     div.style.color = "var(--log-warn)";
+                }
+
+                els.logBox.appendChild(div);
+
+                // Max log lines limit (memory protection)
+                if (els.logBox.childElementCount > 1000) {
+                     els.logBox.removeChild(els.logBox.firstChild);
+                }
+
+                // Auto scroll
+                if (els.autoScroll.checked) {
+                    els.logBox.scrollTop = els.logBox.scrollHeight;
+                }
+            }
+        };
+
+        ws.onclose = () => {
+            setConnectionStatus('disconnected');
+            const div = document.createElement("div");
+            div.className = "log-line text-warning fst-italic";
+            div.textContent = ">>> Ulanish uzildi. Qayta ulanishga harakat qilinmoqda...";
+            els.logBox.appendChild(div);
+
+            // Auto reconnect logic
+            reconnectTimer = setTimeout(() => {
+                if(currentService === serviceName) connectLogs(serviceName);
+            }, 3000);
+        };
+
+        ws.onerror = () => {
+            console.error("WebSocket xatosi");
+            ws.close();
+        };
     };
 
-    ws.onclose = function () {
-        const div = document.createElement("div");
-        div.textContent = "Ulanish yopildi (reconnect mumkin)";
-        div.style.color = "#ffc107";
-        logBox.appendChild(div);
-    };
-}
+    // ================= Action Buttons (Start/Stop/Restart) =================
+    window.runAction = (action) => {
+        if (!currentService) {
+            showToast('warning', "Iltimos, avval ro'yxatdan servisni tanlang!");
+            return;
+        }
 
-document.querySelectorAll(".service-btn").forEach(btn => {
-    btn.addEventListener("click", () => connectLogs(btn.dataset.service));
-});
-
-// ================= RUN ACTION =================
-function runAction(action) {
-    if (!currentService) {
-        showToast(false, "Avval servis tanlang!");
-        return;
-    }
-
-    confirmAction(action, currentService).then(result => {
-        if (!result.isConfirmed) return;
+        const actionText = {
+            'start': 'Ishga tushirish',
+            'stop': "To'xtatish",
+            'restart': 'Qayta ishga tushirish'
+        };
 
         Swal.fire({
-            title: "Bajarilmoqda...",
-            text: "Iltimos kuting",
-            allowOutsideClick: false,
+            title: 'Tasdiqlaysizmi?',
+            text: `${currentService} servisini ${actionText[action].toLowerCase()}ni xohlaysizmi?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Ha, bajarilsin!',
+            cancelButtonText: 'Bekor qilish'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Loading holati
+                Swal.fire({
+                    title: 'Bajarilmoqda...',
+                    text: 'Iltimos kuting',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+
+                fetch("{% url 'service_action' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify({ service: currentService, action: action })
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        showToast('success', res.message || "Muvaffaqiyatli bajarildi!");
+                    } else {
+                        showToast('error', res.message || "Xatolik yuz berdi!");
+                    }
+                })
+                .catch(err => {
+                    showToast('error', "Server bilan ulanishda xatolik!");
+                    console.error(err);
+                })
+                .finally(() => {
+                    // Loadingni yopish (agar toast chiqmagan bo'lsa)
+                     if (Swal.isLoading()) Swal.close();
+                });
+            }
+        });
+    };
+
+    // ================= Config Edit Logic =================
+    els.btnEdit.addEventListener("click", () => {
+        if (!currentService) return;
+
+        els.unitModalTitle.textContent = `${currentService} konfiguratsiyasi`;
+        els.unitTextarea.value = "Yuklanmoqda...";
+        els.unitModal.show();
+
+        fetch("{% url 'service_unit_load' %}?service=" + encodeURIComponent(currentService))
+            .then(r => r.json())
+            .then(res => {
+                if(res.success){
+                    els.unitTextarea.value = res.content;
+                } else {
+                    els.unitTextarea.value = "Xatolik: Faylni o'qib bo'lmadi.\n" + res.message;
+                    showToast('error', res.message);
+                }
+            })
+            .catch(err => {
+                els.unitTextarea.value = "Tarmoq xatosi!";
+                showToast('error', "Faylni yuklashda xatolik!");
+            });
+    });
+
+    els.btnSaveUnit.addEventListener("click", () => {
+        if (!currentService) return;
+
+        Swal.fire({
+            title: 'Saqlanmoqda...',
             didOpen: () => Swal.showLoading()
         });
 
-        fetch("{% url 'service_action' %}", {
+        fetch("{% url 'service_unit_save' %}", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "X-CSRFToken": "{{ csrf_token }}"
             },
-            body: JSON.stringify({service: currentService, action: action})
+            body: JSON.stringify({
+                service: currentService,
+                content: els.unitTextarea.value
+            })
         })
-        .then(r => r.json())
-        .then(res => {
-            Swal.close();
-            showToast(res.success, res.message);
-        })
-        .catch(err => {
-            Swal.close();
-            showToast(false, "Ulanish xatosi!");
-            console.error(err);
-        });
-    });
-}
-
-// ================= EDIT UNIT FILE =================
-btnEdit.addEventListener("click", () => {
-    if (!currentService) return;
-
-    unitModalTitle.textContent = currentService + " unit file";
-    unitTextarea.value = "Yuklanmoqda...";
-
-    fetch("{% url 'service_unit_load' %}?service=" + encodeURIComponent(currentService))
         .then(r => r.json())
         .then(res => {
             if(res.success){
-                unitTextarea.value = res.content;
-                unitModal.show();
-            }else{
-                showToast(false, res.message);
+                els.unitModal.hide();
+                showToast('success', "Saqlandi! Servis qayta ishga tushirilmoqda...");
+            } else {
+                showToast('error', res.message);
             }
         })
         .catch(err => {
-            showToast(false, "Unit file yuklashda xatolik!");
-            console.error(err);
-        });
-});
-
-// ================= SAVE UNIT FILE =================
-btnSaveUnit.addEventListener("click", () => {
-    if (!currentService) return;
-
-    Swal.fire({
-        title: "Saqlanmoqda...",
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
-
-    fetch("{% url 'service_unit_save' %}", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": "{{ csrf_token }}"
-        },
-        body: JSON.stringify({
-            service: currentService,
-            content: unitTextarea.value
+            showToast('error', "Saqlashda xatolik!");
         })
-    })
-    .then(r => r.json())
-    .then(res => {
-        Swal.close();
-        showToast(res.success, res.message);
-        if(res.success){
-            unitModal.hide();
-        }
-    })
-    .catch(err => {
-        Swal.close();
-        showToast(false, "Saqlashda xatolik!");
-        console.error(err);
+        .finally(() => {
+             if (Swal.isLoading()) Swal.close();
+        });
     });
-});
-</script>
 
+    // ================= Qidiruv =================
+    els.searchInput.addEventListener("input", function() {
+        const query = this.value.toLowerCase().trim();
+        document.querySelectorAll(".service-btn").forEach(btn => {
+            const serviceName = btn.dataset.service.toLowerCase();
+            const match = serviceName.includes(query);
+
+            if (match) {
+                btn.classList.remove("d-none");
+                btn.classList.add("d-flex");
+            } else {
+                btn.classList.add("d-none");
+                btn.classList.remove("d-flex"); // Bootstrap !important conflict oldini olish uchun
+            }
+        });
+    });
+
+    // Event Listeners for Service Selection
+    document.querySelectorAll(".service-btn").forEach(btn => {
+        btn.addEventListener("click", () => connectLogs(btn.dataset.service));
+    });
+
+})();
+</script>
 {% endblock %}

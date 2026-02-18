@@ -54,6 +54,7 @@ except Exception as exc:
     logger.error("[INSIGHTFACE] yuklanmadi: %s", exc)
     FACE_APP = None
 
+
 # ================== DB helpers ==================
 
 @database_sync_to_async
@@ -93,9 +94,9 @@ def get_live_attendance_data():
         extra = total_photos - 4 if total_photos > 4 else 0
 
         visible_id = (
-            getattr(user, "student_id_number", None)
-            or getattr(user, "employee_id_number", None)
-            or str(user.id)
+                getattr(user, "student_id_number", None)
+                or getattr(user, "employee_id_number", None)
+                or str(user.id)
         )
 
         role_display = (
@@ -133,6 +134,7 @@ def get_live_attendance_data():
 
     return result
 
+
 # ================== Live attendance WS ==================
 
 class LiveAttendanceConsumer(AsyncWebsocketConsumer):
@@ -156,9 +158,11 @@ class LiveAttendanceConsumer(AsyncWebsocketConsumer):
         except asyncio.CancelledError:
             logger.info("[ATTENDANCE] broadcast bekor qilindi")
 
+
 # ================== IP camera WS ==================
 
 MIN_FACE_SIZE = 40
+
 
 @dataclass
 class CamStats:
@@ -171,7 +175,9 @@ class CamStats:
     faces_boxed: int = 0
     last_faces: int = 0
 
+
 active_ffmpeg_processes: dict[int, asyncio.subprocess.Process] = {}
+
 
 class IpCameraConsumer(AsyncWebsocketConsumer):
     """
@@ -194,6 +200,7 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
 
         self.stats = CamStats(started_at=time.monotonic(), last_report=time.monotonic())
         self._last_face_log = 0.0
+        self.ai_enabled = True  # Default
 
     async def connect(self):
         if FACE_APP is None:
@@ -206,21 +213,30 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
             await self.close(code=4001)
             return
 
+        # Query params: ?ai=1 yoki ?ai=0
+        qs = self.scope.get("query_string", b"").decode("utf-8")
+        params = urllib.parse.parse_qs(qs)
+        if "ai" in params:
+            val = params["ai"][0]
+            self.ai_enabled = (val == "1" or val.lower() == "true")
+
         await self.accept()
 
         self.camera = await get_camera_safe(self.camera_id)
         if not self.camera:
-            await self.send(text_data=json.dumps({"type": "error", "message": "Kamera topilmadi yoki faol emas"}, ensure_ascii=False))
+            await self.send(text_data=json.dumps({"type": "error", "message": "Kamera topilmadi yoki faol emas"},
+                                                 ensure_ascii=False))
             await self.close(code=4003)
             return
 
         logger.info(
-            "[CAM %s] connected name=%s ip=%s DEVICE=%s ffmpeg=%s",
+            "[CAM %s] connected name=%s ip=%s DEVICE=%s ffmpeg=%s AI=%s",
             self.camera_id,
             self.camera.name or "-",
             self.camera.ip,
             DEVICE.type.upper(),
             FFMPEG_BIN,
+            self.ai_enabled,
         )
 
         self._running = True
@@ -467,7 +483,8 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
     # ---------- per-frame processing ----------
 
     def process_frame_with_models(self, jpeg_bytes: bytes) -> Optional[bytes]:
-        if FACE_APP is None:
+        # Agar AI o'chiq bo'lsa yoki FaceApp yo'q bo'lsa -> shunchaki frame qaytaramiz (CPU tejash)
+        if not self.ai_enabled or FACE_APP is None:
             return jpeg_bytes
 
         try:
@@ -532,5 +549,3 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
 
         except Exception:
             return None
-
-
