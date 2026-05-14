@@ -1,11 +1,26 @@
 # users/tasks.py
 import uuid
-
-from celery import shared_task
-from users.models import CustomUser, FaceEncoding
-import numpy as np
-import cv2
 import os
+
+try:
+    from celery import shared_task
+except ImportError:
+    def shared_task(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
+from users.models import CustomUser, FaceEncoding
+
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 from django.conf import settings
 from datetime import datetime
 from typing import Any, Dict, Optional, List, Tuple
@@ -61,12 +76,16 @@ try:
     from insightface.app import FaceAnalysis
 
     print("[INSIGHTFACE] Model yuklanmoqda (buffalo_l, Celery)...")
+    # CPU-only mode: faqat CPUExecutionProvider
+    providers = ['CPUExecutionProvider']
+    ctx_id = -1  # CPU uchun -1 (-1 = CPU, 0 = GPU)
+    
     app = FaceAnalysis(
         name="buffalo_l",
-        providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
+        providers=providers
     )
-    app.prepare(ctx_id=0, det_size=(640, 640))
-    print("[INSIGHTFACE] Model yuklandi! (Celery worker)")
+    app.prepare(ctx_id=ctx_id, det_size=(640, 640))
+    print(f"[INSIGHTFACE] Model yuklandi! (Celery worker, CPU mode)")
 except Exception as e:
     print(f"[INSIGHTFACE XATO][Celery] {e}")
     app = None
@@ -90,6 +109,10 @@ def create_insightface_encoding(self, user_id: int, force: bool = False, run_id:
     if app is None:
         tick(step=1, message="Model yuklanmagan (skip)")
         return f"[ERROR] user {user_id} — InsightFace modeli yuklanmagan"
+
+    if cv2 is None or np is None:
+        tick(step=1, message="Kutubxonalar yo'q (cv2/numpy)")
+        return f"[ERROR] user {user_id} — cv2 yoki numpy o'rnatilmagan"
 
     session = _make_session()
 

@@ -484,6 +484,7 @@
         }
 
         let ws;
+        const enableWs = {{ enable_ws|yesno:"true,false" }};
 
         function connect() {
             ws = new WebSocket(wsUrl("/ws/face-encoding-progress/"));
@@ -507,7 +508,9 @@
             };
         }
 
-        connect();
+        if (enableWs) {
+            connect();
+        }
     })();
 </script>
 

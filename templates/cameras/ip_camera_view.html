@@ -506,10 +506,10 @@
                                     <div class="ai-loader-wave"></div>
                                 </div>
                                 <div class="ai-loader-text-main">
-                                    AI pipeline ishga tushmoqda…
+                                    Kamera oqimi yuklanmoqda…
                                 </div>
                                 <div class="ai-loader-text-sub">
-                                    YOLOv8 • InsightFace • CUDA — model tashxis qilinmoqda
+                                    go2rtc relay orqali live stream
                                 </div>
                                 <div class="ai-loader-metrics">
                                 <span class="d-flex align-items-center gap-1">
@@ -521,9 +521,11 @@
                             </div>
 
                             <!-- VIDEO STREAM -->
-                            <img id="video-stream"
-                                 src=""
-                                 alt="AI camera stream">
+                               <iframe id="video-stream"
+                                   src="{{ go2rtc_mjpeg_url }}"
+                                   title="AI camera stream"
+                                   style="width: 100%; height: 100%; border: none; min-height: 400px;"
+                                   allow="fullscreen"></iframe>
                         </div>
                     </div>
                 </div>
@@ -570,6 +572,12 @@
             const attendanceCountEl = document.getElementById('ai-attendance-count');
             const aiToggle = document.getElementById('ai-toggle');
 
+            const enableWs = {{ enable_ws|yesno:"true,false" }};
+            if (!enableWs && aiToggle) {
+                aiToggle.checked = false;
+                aiToggle.disabled = true;
+            }
+
             // =============== CAMERA WS ===============
             let frameUrl = null;
             let camSocket = null;
@@ -591,6 +599,12 @@
             }
 
             function connectCamera() {
+                if (!enableWs) {
+                    // go2rtc MJPEG mode
+                    setConnectionState('online');
+                    if (loaderEl) loaderEl.style.display = 'none';
+                    return;
+                }
                 if (camSocket) {
                     shouldReconnect = false; // Prevent auto-reconnect from old socket
                     camSocket.close();
@@ -647,34 +661,44 @@
 
             // Toggle listener
             aiToggle.addEventListener('change', () => {
-                 // Restart info toast or log
-                 console.log("AI Toggled:", aiToggle.checked);
-                 // Show loader briefly
-                 loaderEl.style.display = 'flex';
-                 connectCamera();
+                if (!enableWs) return;
+                // Restart info toast or log
+                console.log("AI Toggled:", aiToggle.checked);
+                // Show loader briefly
+                loaderEl.style.display = 'flex';
+                connectCamera();
             });
 
             // =============== LIVE ATTENDANCE WS ===============
-            const attSocket = new WebSocket(`${wsScheme}://${host}/ws/attendance/live/`);
+            if (enableWs) {
+                const attSocket = new WebSocket(`${wsScheme}://${host}/ws/attendance/live/`);
 
-            attSocket.onopen = () => {
-                console.log("✅ LiveAttendance WS ochildi");
-            };
+                attSocket.onopen = () => {
+                    console.log("✅ LiveAttendance WS ochildi");
+                };
 
-            attSocket.onclose = (event) => {
-                console.log("❌ LiveAttendance WS yopildi:", event.code, event.reason);
-            };
+                attSocket.onclose = (event) => {
+                    console.log("❌ LiveAttendance WS yopildi:", event.code, event.reason);
+                };
 
-            attSocket.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data.type === 'live_attendance') {
-                        renderAttendance(data);
+                attSocket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'live_attendance') {
+                            renderAttendance(data);
+                        }
+                    } catch (e) {
+                        console.error('Attendance parse error:', e, event.data);
                     }
-                } catch (e) {
-                    console.error('Attendance parse error:', e, event.data);
-                }
-            };
+                };
+            } else {
+                attendanceListEl.innerHTML = `
+                    <div class="ai-side-empty">
+                        <i class="mdi mdi-alert-circle-outline"></i>
+                        Live Attendance WS o‘chirilgan
+                    </div>
+                `;
+            }
 
             // Oxirgi ko'ringan vaqtni "x vaqt oldin" ko'rinishida chiqarish uchun
             function timeAgo(isoString) {

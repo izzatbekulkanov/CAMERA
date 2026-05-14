@@ -8,6 +8,7 @@ class Camera(models.Model):
     port = models.IntegerField(default=80, verbose_name="Port")
     username = models.CharField(max_length=50, default="admin", verbose_name="Foydalanuvchi")
     password = models.CharField(max_length=100, verbose_name="Parol")
+    rtsp_url = models.URLField(blank=True, null=True, verbose_name="RTSP URL")
     name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Kamera nomi")
     is_active = models.BooleanField(default=False, verbose_name="Faol")
 

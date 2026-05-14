@@ -5,7 +5,12 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from users.view import progress as prog
-from users.tasks import hemis_sync_students_task, hemis_sync_employees_task
+
+try:
+    from users.tasks import hemis_sync_students_task, hemis_sync_employees_task
+    CELERY_AVAILABLE = True
+except ImportError:
+    CELERY_AVAILABLE = False
 
 
 @login_required
@@ -25,8 +30,12 @@ def sync_students_from_hemis(request):
     # progressni darhol running qilib qo'yamiz (task ichida ham reset qiladi)
     prog.reset("students", 0, message="Task queue qilindi...")
 
-    task = hemis_sync_students_task.delay(body)
-    return JsonResponse({"success": True, "task_id": task.id})
+    if CELERY_AVAILABLE:
+        task = hemis_sync_students_task.delay(body)
+        return JsonResponse({"success": True, "task_id": task.id})
+
+    hemis_sync_students_task(None, body)
+    return JsonResponse({"success": True, "task_id": None, "mode": "direct"})
 
 
 @login_required
@@ -39,5 +48,9 @@ def sync_employees_from_hemis(request):
 
     prog.reset("employees", 0, message="Task queue qilindi...")
 
-    task = hemis_sync_employees_task.delay(body)
-    return JsonResponse({"success": True, "task_id": task.id})
+    if CELERY_AVAILABLE:
+        task = hemis_sync_employees_task.delay(body)
+        return JsonResponse({"success": True, "task_id": task.id})
+
+    hemis_sync_employees_task(None, body)
+    return JsonResponse({"success": True, "task_id": None, "mode": "direct"})

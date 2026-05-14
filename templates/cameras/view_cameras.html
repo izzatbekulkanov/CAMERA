@@ -35,22 +35,26 @@
                     <div class="border rounded-3 overflow-hidden h-100 bg-white">
                         <div class="position-relative bg-black">
                             <div class="ratio ratio-16x9">
-                                {# LOADER – birinchi frame kelguncha ko‘rinadi #}
-                                <div id="loader-{{ camera.id }}" class="d-none d-flex w-100 h-100 justify-content-center align-items-center bg-dark">
-                                    <div class="spinner-border text-light" role="status">
-                                        <span class="visually-hidden">Yuklanmoqda...</span>
+                                {% if enable_ws %}
+                                    {# LOADER – birinchi frame kelguncha ko‘rinadi #}
+                                    <div id="loader-{{ camera.id }}" class="d-none d-flex w-100 h-100 justify-content-center align-items-center bg-dark">
+                                        <div class="spinner-border text-light" role="status">
+                                            <span class="visually-hidden">Yuklanmoqda...</span>
+                                        </div>
                                     </div>
-                                </div>
 
-                                {# PLAY OVERLAY #}
-                                <div id="play-overlay-{{ camera.id }}" class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50" style="cursor: pointer; z-index: 10;">
-                                    <button class="btn btn-primary btn-lg rounded-circle shadow-lg js-play-btn" data-id="{{ camera.id }}">
-                                        <i class="fas fa-play"></i>
-                                    </button>
-                                </div>
+                                    {# PLAY OVERLAY #}
+                                    <div id="play-overlay-{{ camera.id }}" class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50" style="cursor: pointer; z-index: 10;">
+                                        <button class="btn btn-primary btn-lg rounded-circle shadow-lg js-play-btn" data-id="{{ camera.id }}">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                    </div>
 
-                                {# IMG – dastlab d-none, keyin JS orqali ko‘rinadi #}
-                                <img id="cam-{{ camera.id }}" class="w-100 h-100 object-fit-cover d-none" alt="Stream">
+                                    {# IMG – dastlab d-none, keyin JS orqali ko‘rinadi #}
+                                    <img id="cam-{{ camera.id }}" class="w-100 h-100 object-fit-cover d-none" alt="Stream">
+                                {% else %}
+                                    <iframe id="cam-{{ camera.id }}" class="w-100 h-100 object-fit-cover" src="{{ camera.go2rtc_mjpeg_url }}" style="border: none; pointer-events: none;" title="Stream" allow="fullscreen"></iframe>
+                                {% endif %}
                             </div>
                             <div id="status-{{ camera.id }}" class="position-absolute top-50 start-50 translate-middle text-white text-center bg-dark bg-opacity-75 px-3 py-2 rounded-3 d-none">
                                 <div class="spinner-border spinner-border-sm mb-2"></div>
@@ -74,9 +78,10 @@
                                     <i class="fas fa-stop"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-secondary js-fullscreen-cam"
-                                        data-id="{{ camera.id }}"
-                                        data-name="{{ camera.name|default:camera.ip }}"
-                                        title="To‘liq ekran">
+                                    data-id="{{ camera.id }}"
+                                    data-name="{{ camera.name|default:camera.ip }}"
+                                    data-src="{{ camera.go2rtc_mjpeg_url }}"
+                                    title="To‘liq ekran">
                                     <i class="fas fa-expand"></i>
                                 </button>
                             </div>
@@ -133,6 +138,7 @@
     // User "barchasini ustida ko'rish" deganda yengil bo'lishini so'radi.
     // Shuning uchun bu yerda ?ai=0 (AI OFF) qilib ulaymiz.
 
+    const enableWs = {{ enable_ws|yesno:"true,false" }};
     const wsBase = `${location.protocol === 'https:' ? 'wss://' : 'ws://'}${location.host}/ws/ipcamera/`;
     const fsOverlay = document.getElementById('fullscreen-cam');
     const fsImg = document.getElementById('fs-img');
@@ -322,39 +328,41 @@
     //     streams.set(id.toString(), stream);
     // });
 
-    // CLICK HANDLERS (Play)
-    document.querySelectorAll('.js-play-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Card click bo'lib ketmasligi uchun
+    if (enableWs) {
+        // CLICK HANDLERS (Play)
+        document.querySelectorAll('.js-play-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Card click bo'lib ketmasligi uchun
 
-            const id = btn.dataset.id;
-            if (streams.has(id)) return; // Already playing
+                const id = btn.dataset.id;
+                if (streams.has(id)) return; // Already playing
 
-            const imgEl = document.getElementById(`cam-${id}`);
-            const statusEl = document.getElementById(`status-${id}`);
-            const fpsEl = document.getElementById(`fps-${id}`);
-            const loaderEl = document.getElementById(`loader-${id}`);
-            const playOverlay = document.getElementById(`play-overlay-${id}`);
-            const stopBtn = document.querySelector(`.js-stop-btn[data-id="${id}"]`);
+                const imgEl = document.getElementById(`cam-${id}`);
+                const statusEl = document.getElementById(`status-${id}`);
+                const fpsEl = document.getElementById(`fps-${id}`);
+                const loaderEl = document.getElementById(`loader-${id}`);
+                const playOverlay = document.getElementById(`play-overlay-${id}`);
+                const stopBtn = document.querySelector(`.js-stop-btn[data-id="${id}"]`);
 
-            const stream = new CameraStream(id, imgEl, statusEl, fpsEl, loaderEl, playOverlay, stopBtn);
-            streams.set(id, stream);
-            stream.connect(); // Start connection
+                const stream = new CameraStream(id, imgEl, statusEl, fpsEl, loaderEl, playOverlay, stopBtn);
+                streams.set(id, stream);
+                stream.connect(); // Start connection
+            });
         });
-    });
 
-    // CLICK HANDLERS (Stop)
-    document.querySelectorAll('.js-stop-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const id = btn.dataset.id;
-            const stream = streams.get(id);
-            if (stream) {
-                stream.stop();
-                streams.delete(id);
-            }
+        // CLICK HANDLERS (Stop)
+        document.querySelectorAll('.js-stop-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                const stream = streams.get(id);
+                if (stream) {
+                    stream.stop();
+                    streams.delete(id);
+                }
+            });
         });
-    });
+    }
 
     // Fullscreen boshqaruvi
     const openFullscreen = (id, name) => {
@@ -387,6 +395,15 @@
             const id = btn.dataset.id;
             const name = btn.dataset.name;
             openFullscreen(id, name);
+
+            if (!enableWs) {
+                const src = btn.dataset.src || '';
+                if (src) {
+                    fsImg.src = src;
+                    fsImg.style.display = 'block';
+                    fsLoader.style.display = 'none';
+                }
+            }
         });
     });
 

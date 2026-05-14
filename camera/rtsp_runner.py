@@ -46,12 +46,13 @@ RECONNECT_MAX = 20.0
 RECONNECT_JITTER = 0.30
 
 # =========================
-# FFMPEG / CUDA
+# FFMPEG / CPU (GPU o'chirilgan)
 # =========================
 
-FFMPEG_BIN = shutil.which("ffmpeg-gpu") or shutil.which("ffmpeg") or "ffmpeg"
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-logger.info("[RTSP] FFMPEG=%s DEVICE=%s", FFMPEG_BIN, DEVICE.type.upper())
+# CPU-only mode: ffmpeg-gpu o'chiq, faqat ffmpeg
+FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
+DEVICE = torch.device("cpu")  # Har doim CPU
+logger.info("[RTSP] FFMPEG=%s DEVICE=%s (CPU-only mode)", FFMPEG_BIN, DEVICE.type.upper())
 
 # =========================
 # InsightFace init (once)
@@ -61,12 +62,16 @@ FACE_APP = None
 try:
     from insightface.app import FaceAnalysis
 
+    # CPU-only: faqat CPUExecutionProvider
+    providers = ['CPUExecutionProvider']
+    ctx_id = -1  # CPU uchun -1
+
     FACE_APP = FaceAnalysis(
         name="buffalo_l",
-        providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
+        providers=providers,
     )
-    FACE_APP.prepare(ctx_id=0, det_size=(960, 960))
-    logger.info("[RTSP] InsightFace ready (buffalo_l, det_size=960)")
+    FACE_APP.prepare(ctx_id=ctx_id, det_size=(960, 960))
+    logger.info("[RTSP] InsightFace ready (buffalo_l, CPU-only, ctx_id=%s)", ctx_id)
 except Exception as exc:
     FACE_APP = None
     logger.exception("[RTSP] InsightFace load failed: %s", exc)

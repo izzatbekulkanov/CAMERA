@@ -5,10 +5,24 @@ import signal
 import subprocess
 from urllib.parse import quote
 
-from celery import shared_task
+try:
+    from celery import shared_task
+    CELERY_AVAILABLE = True
+except ImportError:
+    CELERY_AVAILABLE = False
+    def shared_task(*args, **kwargs):  # Dummy decorator
+        def decorator(func):
+            return func
+        return decorator
+
 from django.utils import timezone
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
+
+try:
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+    CHANNELS_AVAILABLE = True
+except ImportError:
+    CHANNELS_AVAILABLE = False
 
 from .models import YouTubeStream
 

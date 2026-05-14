@@ -1,6 +1,9 @@
 # camera/views.py
 import json
 import logging
+from urllib.parse import quote
+
+from django.conf import settings
 from django.db import transaction
 import requests
 from django.contrib.auth.decorators import login_required
@@ -13,6 +16,49 @@ from django.views.decorators.http import require_POST
 from camera.models import Camera
 
 logger = logging.getLogger(__name__)
+
+
+def build_rtsp_url(camera: Camera) -> str:
+    """Default RTSP URL builder (Hikvision-like)."""
+    if camera.rtsp_url:
+        return camera.rtsp_url
+    user = camera.username or "admin"
+    pwd = quote(camera.password or "", safe="")
+    ip = camera.ip
+    return f"rtsp://{user}:{pwd}@{ip}:554/Streaming/Channels/101"
+
+
+def build_rtsp_candidates(camera: Camera) -> list[str]:
+    """Common RTSP variants for Hikvision/Dahua/Generic cameras."""
+    if camera.rtsp_url:
+        return [camera.rtsp_url]
+
+    user = camera.username or "admin"
+    pwd = quote(camera.password or "", safe="")
+    ip = camera.ip
+    port = camera.port or 554
+
+    return [
+        f"rtsp://{user}:{pwd}@{ip}:{port}/Streaming/Channels/101",
+        f"rtsp://{user}:{pwd}@{ip}:{port}/Streaming/Channels/102",
+        f"rtsp://{user}:{pwd}@{ip}:{port}/cam/realmonitor?channel=1&subtype=0",
+        f"rtsp://{user}:{pwd}@{ip}:{port}/cam/realmonitor?channel=1&subtype=1",
+        f"rtsp://{user}:{pwd}@{ip}:{port}/live/ch00_0",
+        f"rtsp://{user}:{pwd}@{ip}:{port}/live/ch00_1",
+    ]
+
+
+def build_go2rtc_mjpeg_url(rtsp_url: str) -> str:
+    base = getattr(settings, "GO2RTC_BASE_URL", "").rstrip("/")
+    path = getattr(settings, "GO2RTC_MJPEG_PATH", "/stream.html")
+    if not base:
+        return ""
+    src = quote(rtsp_url, safe="")
+    return f"{base}{path}?src={src}"
+
+
+def build_go2rtc_mjpeg_urls(camera: Camera) -> list[str]:
+    return [build_go2rtc_mjpeg_url(rtsp) for rtsp in build_rtsp_candidates(camera)]
 
 
 # ================== API ==================
@@ -32,6 +78,7 @@ def api_add_camera(request):
     username = data.get("username") or "admin"
     password = data.get("password")
     port_raw = data.get("port", 80)
+    rtsp_url = data.get("rtsp_url")
 
     try:
         port = int(port_raw)
@@ -60,6 +107,7 @@ def api_add_camera(request):
                 "port": port,
                 "username": username,
                 "password": password,
+                "rtsp_url": rtsp_url,
                 "is_active": True,
                 "name": f"Kamera {ip}",
             },
@@ -215,6 +263,12 @@ def api_update_camera(request, ip):
             camera.name = new_name
             updated_fields.append('name')
 
+    if 'rtsp_url' in data:
+        new_rtsp = data['rtsp_url'].strip() if data['rtsp_url'] else None
+        if camera.rtsp_url != new_rtsp:
+            camera.rtsp_url = new_rtsp
+            updated_fields.append('rtsp_url')
+
     if 'port' in data:
         try:
             new_port = int(data['port'])
@@ -291,6 +345,11 @@ def add_camera_view(request):
 def view_cameras(request):
     """Faol kameralarni grid ko‘rinishida ko‘rsatish."""
     cameras = Camera.objects.filter(is_active=True).order_by('name', 'ip')
+    enable_ws = getattr(settings, "ENABLE_WS", False)
+
+    if not enable_ws:
+        for cam in cameras:
+            cam.go2rtc_mjpeg_url = build_go2rtc_mjpeg_url(build_rtsp_url(cam))
     breadcrumbs = [
         {'name': 'Bosh sahifa', 'url': '/'},
         {'name': 'Jonli ko‘rish', 'url': None},
@@ -299,6 +358,7 @@ def view_cameras(request):
         'cameras': cameras,
         'breadcrumbs': breadcrumbs,
         'total_cameras': cameras.count(),
+        'enable_ws': enable_ws,
     }
     return render(request, 'cameras/view_cameras.html', context)
 
@@ -311,6 +371,9 @@ def ip_camera_view_auto(request):
         raise Http404("Faol va yuzni aniqlash yoqilgan kamera topilmadi.")
 
     camera = qs.first()
+    enable_ws = getattr(settings, "ENABLE_WS", False)
+    rtsp_url = build_rtsp_url(camera)
+    go2rtc_mjpeg_url = build_go2rtc_mjpeg_url(rtsp_url)
     breadcrumbs = [
         {'name': 'Bosh sahifa', 'url': '/'},
         {'name': 'Avto IP Kamera Ko‘rinishi', 'url': None},
@@ -319,6 +382,9 @@ def ip_camera_view_auto(request):
         'camera': camera,
         'breadcrumbs': breadcrumbs,
         'total_cameras': qs.count(),
+        'enable_ws': enable_ws,
+        'go2rtc_mjpeg_url': go2rtc_mjpeg_url,
+        'rtsp_url': rtsp_url,
     }
     return render(request, 'cameras/ip_camera_view.html', context)
 
@@ -342,5 +408,3 @@ def camera_list_view(request):
         'stats': stats,
     }
     return render(request, 'cameras/camera_list.html', context)
-
-

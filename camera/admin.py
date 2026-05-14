@@ -14,7 +14,7 @@ class CameraAdmin(admin.ModelAdmin):
     # Tahrirlash sahifasida maydonlar tartibi
     fieldsets = (
         ("Asosiy ma'lumotlar", {
-            "fields": ("name", "ip", "port", "username", "password", "is_active")
+            "fields": ("name", "ip", "port", "username", "password", "rtsp_url", "is_active")
         }),
         ("Vaqtlar", {
             "fields": ("added_at", "last_checked"),

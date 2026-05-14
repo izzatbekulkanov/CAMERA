@@ -11,8 +11,14 @@ from typing import Optional
 import cv2
 import numpy as np
 import torch
-from channels.db import database_sync_to_async
-from channels.generic.websocket import AsyncWebsocketConsumer
+
+try:
+    from channels.db import database_sync_to_async
+    from channels.generic.websocket import AsyncWebsocketConsumer
+    CHANNELS_AVAILABLE = True
+except ImportError:
+    CHANNELS_AVAILABLE = False
+    
 from django.utils import timezone
 
 from attendance.models import Attendance
@@ -20,20 +26,13 @@ from camera.models import Camera
 
 logger = logging.getLogger(__name__)
 
-# ================== GPU / FFMPEG ==================
+# ================== DEVICE (CPU-only mode) ==================
 
-if torch.cuda.is_available():
-    DEVICE = torch.device("cuda")
-    try:
-        gpu_name = torch.cuda.get_device_name(0)
-    except Exception:
-        gpu_name = "CUDA device"
-    logger.info("[GPU] %s (CUDA)", gpu_name)
-else:
-    DEVICE = torch.device("cpu")
-    logger.info("[GPU] CPU")
+# CPU-only: GPU topilisidek ham, CPU ishlatamiz
+DEVICE = torch.device("cpu")  # Har doim CPU
+logger.info("[DEVICE] CPU-only mode (GPU o'chirilgan)")
 
-FFMPEG_BIN = shutil.which("ffmpeg-gpu") or shutil.which("ffmpeg") or "ffmpeg"
+FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
 logger.info("[FFMPEG] binary: %s", FFMPEG_BIN)
 
 # ================== InsightFace init ==================
@@ -42,14 +41,19 @@ try:
     from insightface.app import FaceAnalysis
 
     # det_size: uzoqdan yuzni yaxshiroq olish uchun kattaroq qo'yish mumkin.
-    # Lekin juda katta bo'lsa GPU/CPU yuk ortadi.
+    # Lekin juda katta bo'lsa CPU yuk ortadi.
     DET_SIZE = 640  # 640 / 960
+    
+    # CPU-only: faqat CPUExecutionProvider
+    providers = ['CPUExecutionProvider']
+    ctx_id = -1  # CPU uchun -1
+    
     FACE_APP = FaceAnalysis(
         name="buffalo_l",
-        providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
+        providers=providers,
     )
-    FACE_APP.prepare(ctx_id=0, det_size=(DET_SIZE, DET_SIZE))
-    logger.info("[INSIGHTFACE] ready (buffalo_l, det_size=%s)", DET_SIZE)
+    FACE_APP.prepare(ctx_id=ctx_id, det_size=(DET_SIZE, DET_SIZE))
+    logger.info("[INSIGHTFACE] ready (buffalo_l, CPU-only, det_size=%s)", DET_SIZE)
 except Exception as exc:
     logger.error("[INSIGHTFACE] yuklanmadi: %s", exc)
     FACE_APP = None

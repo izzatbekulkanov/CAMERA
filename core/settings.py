@@ -14,7 +14,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # 🔹 Asosiy sozlamalar
 # ===============================
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-default-key")
-DEBUG = os.getenv("DEBUG", "True") == "True"
+DEBUG = True
+
+# Go2RTC (HTTP relay) va WS toggles
+GO2RTC_BASE_URL = os.getenv("GO2RTC_BASE_URL", "http://10.10.0.48:1984")
+GO2RTC_MJPEG_PATH = os.getenv("GO2RTC_MJPEG_PATH", "/api/stream.mjpeg")
+ENABLE_WS = os.getenv("ENABLE_WS", "False") == "True"
 
 # ALLOWED_HOSTS
 ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()]
@@ -39,11 +44,11 @@ INSTALLED_APPS = [
     'users',
     'attendance',
     'camera',
-    'youtube',  # ✅ qo‘shing
+    'youtube',
 
     # 3rd-party apps
-    'channels',
-    'rosetta',
+    # 'channels',  # Development uchun o'chirilgan
+    # 'rosetta',
 ]
 
 # ===============================
@@ -51,7 +56,7 @@ INSTALLED_APPS = [
 # ===============================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ WhiteNoise shu yerda bo'lishi TO'G'RI
+    # 'whitenoise.middleware.WhiteNoiseMiddleware',  # Development uchun o'chirilgan
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -61,8 +66,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# Agar siz productionda ham collectstatic qilmasdan ishlashni xohlaysiz:
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Development uchun oddiy storage
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+# Production: 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 ROOT_URLCONF = 'core.urls'
 
@@ -163,37 +169,35 @@ LOGOUT_REDIRECT_URL = 'logout'
 LOGIN_URL = 'login'
 
 # ===============================
-# 🔹 Celery / Redis
+# 🔹 Celery (Development ready)
 # ===============================
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://127.0.0.1:6379/1')
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'memory://')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'cache+memory://')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = os.getenv('CELERY_TIMEZONE', 'Asia/Tashkent')
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 daqiqa limit
+CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_TASK_ALWAYS_EAGER', 'True') == 'True'
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # ===============================
 # 🔹 Channels (WebSocket)
 # ===============================
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [(os.getenv('CHANNELS_REDIS_HOST', '127.0.0.1'),
-                       int(os.getenv('CHANNELS_REDIS_PORT', 6379)))],
-        },
-    },
-}
+if ENABLE_WS:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        }
+    }
 
 # ===============================
-# 🔹 Redis Cache (ixtiyoriy)
+# 🔹 Cache (Simple Memory Cache)
 # ===============================
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/2',
-        'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'}
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
     }
 }

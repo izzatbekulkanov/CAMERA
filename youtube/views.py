@@ -6,7 +6,12 @@ from django.views.decorators.http import require_POST
 
 from camera.models import Camera
 from .models import YouTubeProfile, YouTubeStream
-from .tasks import start_youtube_stream, stop_youtube_stream
+
+try:
+    from .tasks import start_youtube_stream, stop_youtube_stream
+    CELERY_AVAILABLE = True
+except ImportError:
+    CELERY_AVAILABLE = False
 
 
 def normalize_stream_key(key: str) -> str:
@@ -77,6 +82,10 @@ def youtube_start(request):
 
     stream, _ = YouTubeStream.objects.get_or_create(camera=camera, profile=profile)
 
+    if not CELERY_AVAILABLE:
+        messages.error(request, "Celery yoqilmagan. YouTube streamni ishga tushirib bo‘lmaydi.")
+        return redirect("youtube_dashboard")
+
     messages.info(request, "Stream ishga tushirilmoqda...")
     start_youtube_stream.delay(stream.id)
     return redirect("youtube_dashboard")
@@ -85,6 +94,10 @@ def youtube_start(request):
 @login_required
 def youtube_stop(request, stream_id: int):
     stream = get_object_or_404(YouTubeStream, id=stream_id)
+    if not CELERY_AVAILABLE:
+        messages.error(request, "Celery yoqilmagan. YouTube streamni to‘xtatib bo‘lmaydi.")
+        return redirect("youtube_dashboard")
+
     messages.info(request, "Stream to‘xtatilmoqda...")
     stop_youtube_stream.delay(stream.id)
     return redirect("youtube_dashboard")

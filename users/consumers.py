@@ -23,9 +23,13 @@ try:
     from insightface.app import FaceAnalysis
 
     print("[INSIGHTFACE] buffalo_l modeli yuklanmoqda...")
-    face_app = FaceAnalysis(name="buffalo_l", providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
-    face_app.prepare(ctx_id=0, det_size=(640, 640))
-    print("[INSIGHTFACE] Model yuklandi (L40S GPU)")
+    # CPU-only mode: faqat CPUExecutionProvider
+    providers = ['CPUExecutionProvider']
+    ctx_id = -1  # CPU uchun -1 (-1 = CPU, 0 = GPU)
+    
+    face_app = FaceAnalysis(name="buffalo_l", providers=providers)
+    face_app.prepare(ctx_id=ctx_id, det_size=(640, 640))
+    print(f"[INSIGHTFACE] Model yuklandi (CPU mode - ctx_id: {ctx_id})")
 except Exception as e:
     print(f"[INSIGHTFACE XATO] {e}")
     face_app = None

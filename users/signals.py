@@ -2,8 +2,13 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from users.models import CustomUser
-from users.tasks import create_insightface_encoding
 from attendance.models import SiteSettings
+
+try:
+    from users.tasks import create_insightface_encoding
+    CELERY_AVAILABLE = True
+except ImportError:
+    CELERY_AVAILABLE = False
 
 @receiver(post_save, sender=CustomUser)
 def enqueue_face_encoding(sender, instance, created, **kwargs):
@@ -16,4 +21,5 @@ def enqueue_face_encoding(sender, instance, created, **kwargs):
     # ❌ batch progressni buzadi — olib tashlang:
     # face_progress_reset(total=1, message="Face encoding navbatda (1 user)")
 
-    create_insightface_encoding.delay(instance.id)  # run_id yo'q -> progressga tegmaydi
+    if CELERY_AVAILABLE:
+        create_insightface_encoding.delay(instance.id)  # run_id yo'q -> progressga tegmaydi

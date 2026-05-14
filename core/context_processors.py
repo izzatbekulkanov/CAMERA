@@ -1,4 +1,5 @@
 # core/context_processors.py
+from django.conf import settings
 from attendance.models import SiteSettings
 
 
@@ -8,5 +9,6 @@ def site_settings(request):
     """
     settings_obj = SiteSettings.get_settings()  # singleton metodingdan foydalanamiz
     return {
-        'global_site_settings': settings_obj
+        'global_site_settings': settings_obj,
+        'enable_ws': getattr(settings, "ENABLE_WS", False),
     }

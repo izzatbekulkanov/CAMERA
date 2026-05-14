@@ -1,8 +1,13 @@
 import os
 from django.core.wsgi import get_wsgi_application
-from whitenoise import WhiteNoise
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
 application = get_wsgi_application()
-application = WhiteNoise(application, root=os.path.join(os.path.dirname(__file__), 'static'))
+
+# Development uchun whitenoise o'chirilgan
+# try:
+#     from whitenoise import WhiteNoise
+#     application = WhiteNoise(application, root=os.path.join(os.path.dirname(__file__), 'static'))
+# except ImportError:
+#     pass

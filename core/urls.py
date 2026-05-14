@@ -35,9 +35,14 @@ urlpatterns = [
     # i18n URL (tilni o‘zgartirish uchun)
     path('i18n/', include('django.conf.urls.i18n')),
 
-    # Rosetta (translation editor)
-    path('rosetta/', include('rosetta.urls')),
 ]
+
+# Rosetta (optional)
+try:
+    import rosetta  # noqa: F401
+    urlpatterns += [path('rosetta/', include('rosetta.urls'))]
+except Exception:
+    pass
 
 # ===============================
 # 🔹 Dev holatda static & media fayllarni servis qilish
