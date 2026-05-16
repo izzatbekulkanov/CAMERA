@@ -12,6 +12,7 @@ from django.core.cache import cache
 from django.conf import settings
 
 from attendance.models import SiteSettings
+from camera.device import get_face_runtime
 from users.models import CustomUser, FaceEncoding
 
 User = get_user_model()
@@ -22,14 +23,11 @@ User = get_user_model()
 try:
     from insightface.app import FaceAnalysis
 
+    face_runtime = get_face_runtime()
     print("[INSIGHTFACE] buffalo_l modeli yuklanmoqda...")
-    # CPU-only mode: faqat CPUExecutionProvider
-    providers = ['CPUExecutionProvider']
-    ctx_id = -1  # CPU uchun -1 (-1 = CPU, 0 = GPU)
-    
-    face_app = FaceAnalysis(name="buffalo_l", providers=providers)
-    face_app.prepare(ctx_id=ctx_id, det_size=(640, 640))
-    print(f"[INSIGHTFACE] Model yuklandi (CPU mode - ctx_id: {ctx_id})")
+    face_app = FaceAnalysis(name="buffalo_l", providers=face_runtime["providers"])
+    face_app.prepare(ctx_id=face_runtime["ctx_id"], det_size=(640, 640))
+    print(f"[INSIGHTFACE] Model yuklandi ({face_runtime['device_type'].upper()} mode)")
 except Exception as e:
     print(f"[INSIGHTFACE XATO] {e}")
     face_app = None

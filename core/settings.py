@@ -32,6 +32,7 @@ CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.getenv("CSRF_TRUSTED_ORI
 # 🔹 Ilovalar
 # ===============================
 INSTALLED_APPS = [
+    'daphne',
     # Default Django apps
     'django.contrib.admin',
     'django.contrib.auth',
@@ -47,7 +48,7 @@ INSTALLED_APPS = [
     'youtube',
 
     # 3rd-party apps
-    # 'channels',  # Development uchun o'chirilgan
+    'channels',
     # 'rosetta',
 ]
 
@@ -185,6 +186,7 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # ===============================
 # 🔹 Channels (WebSocket)
 # ===============================
+ENABLE_WS = True
 if ENABLE_WS:
     CHANNEL_LAYERS = {
         'default': {

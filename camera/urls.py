@@ -23,4 +23,5 @@ urlpatterns = [
 
     # 🔥 Faqat IP Kameralar uchun sahifa (yangi qo‘shildi)
     path('cameras/ip/view/', ip_camera_view_auto, name='ip_camera_view'),
+    path('cameras/ip/stream/<int:camera_id>/', views.ip_camera_mjpeg_stream, name='ip_camera_mjpeg_stream'),
 ]

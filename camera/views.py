@@ -1,13 +1,16 @@
 # camera/views.py
 import json
 import logging
+import os
+import shutil
+import time
 from urllib.parse import quote
 
 from django.conf import settings
 from django.db import transaction
 import requests
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, Http404
+from django.http import JsonResponse, Http404, StreamingHttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -36,16 +39,30 @@ def build_rtsp_candidates(camera: Camera) -> list[str]:
     user = camera.username or "admin"
     pwd = quote(camera.password or "", safe="")
     ip = camera.ip
-    port = camera.port or 554
+    rtsp_port = 554
 
     return [
-        f"rtsp://{user}:{pwd}@{ip}:{port}/Streaming/Channels/101",
-        f"rtsp://{user}:{pwd}@{ip}:{port}/Streaming/Channels/102",
-        f"rtsp://{user}:{pwd}@{ip}:{port}/cam/realmonitor?channel=1&subtype=0",
-        f"rtsp://{user}:{pwd}@{ip}:{port}/cam/realmonitor?channel=1&subtype=1",
-        f"rtsp://{user}:{pwd}@{ip}:{port}/live/ch00_0",
-        f"rtsp://{user}:{pwd}@{ip}:{port}/live/ch00_1",
+        f"rtsp://{user}:{pwd}@{ip}:{rtsp_port}/Streaming/Channels/101",
+        f"rtsp://{user}:{pwd}@{ip}:{rtsp_port}/Streaming/Channels/102",
+        f"rtsp://{user}:{pwd}@{ip}:{rtsp_port}/Streaming/Channels/103",
+        f"rtsp://{user}:{pwd}@{ip}:{rtsp_port}/cam/realmonitor?channel=1&subtype=0",
+        f"rtsp://{user}:{pwd}@{ip}:{rtsp_port}/cam/realmonitor?channel=1&subtype=1",
+        f"rtsp://{user}:{pwd}@{ip}:{rtsp_port}/live/ch00_0",
+        f"rtsp://{user}:{pwd}@{ip}:{rtsp_port}/live/ch00_1",
     ]
+
+
+def build_preview_rtsp_candidates(camera: Camera) -> list[str]:
+    """Preview uchun yengilroq oqimlarni birinchi sinaydi."""
+    candidates = build_rtsp_candidates(camera)
+    preferred_parts = (
+        "/Streaming/Channels/102",
+        "/Streaming/Channels/103",
+        "subtype=1",
+    )
+    preferred = [url for url in candidates if any(part in url for part in preferred_parts)]
+    rest = [url for url in candidates if url not in preferred]
+    return preferred + rest
 
 
 def build_go2rtc_mjpeg_url(rtsp_url: str) -> str:
@@ -58,7 +75,135 @@ def build_go2rtc_mjpeg_url(rtsp_url: str) -> str:
 
 
 def build_go2rtc_mjpeg_urls(camera: Camera) -> list[str]:
-    return [build_go2rtc_mjpeg_url(rtsp) for rtsp in build_rtsp_candidates(camera)]
+    return [url for url in (build_go2rtc_mjpeg_url(rtsp) for rtsp in build_rtsp_candidates(camera)) if url]
+
+
+async def _local_mjpeg_frames(camera: Camera):
+    """Async generator: RTSP → MJPEG frames via OpenCV in a thread."""
+    import asyncio
+    import queue
+    import threading
+
+    try:
+        import cv2
+    except Exception as exc:
+        logger.error("[LOCAL MJPEG] cv2 import failed: %s", exc)
+        return
+
+    frame_queue = queue.Queue(maxsize=2)
+    stop_event = threading.Event()
+
+    def _capture_thread():
+        """Sinxron thread: OpenCV bilan RTSP o'qiydi, JPEG qilib queue'ga qo'yadi."""
+        for rtsp_url in build_preview_rtsp_candidates(camera):
+            if stop_event.is_set():
+                break
+            cap = None
+            try:
+                logger.info("[LOCAL MJPEG] opening camera=%s url=%s", camera.id, rtsp_url)
+                cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+                if not cap.isOpened():
+                    logger.warning("[LOCAL MJPEG] open failed camera=%s url=%s", camera.id, rtsp_url)
+                    continue
+
+                logger.info("[LOCAL MJPEG] stream started camera=%s url=%s", camera.id, rtsp_url)
+                misses = 0
+                while not stop_event.is_set():
+                    ok, frame = cap.read()
+                    if not ok or frame is None:
+                        misses += 1
+                        if misses >= 20:
+                            logger.warning("[LOCAL MJPEG] read failed camera=%s url=%s", camera.id, rtsp_url)
+                            break
+                        time.sleep(0.05)
+                        continue
+
+                    misses = 0
+                    h, w = frame.shape[:2]
+                    if w > 1280:
+                        scale = 1280 / float(w)
+                        frame = cv2.resize(frame, (1280, int(h * scale)))
+
+                    ok, encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 82])
+                    if not ok:
+                        continue
+
+                    jpeg_data = (
+                        b"--frame\r\n"
+                        b"Content-Type: image/jpeg\r\n"
+                        b"Cache-Control: no-cache\r\n\r\n"
+                        + encoded.tobytes()
+                        + b"\r\n"
+                    )
+
+                    # Queue to'lsa, eski frameni tashlab yangi qo'yamiz
+                    try:
+                        frame_queue.put_nowait(jpeg_data)
+                    except queue.Full:
+                        try:
+                            frame_queue.get_nowait()
+                        except queue.Empty:
+                            pass
+                        frame_queue.put_nowait(jpeg_data)
+
+                    time.sleep(1 / 12)
+
+                # Agar bitta URL muvaffaqiyatli ishlagan bo'lsa, boshqasini sinashga hojat yo'q
+                if not stop_event.is_set():
+                    continue
+                break
+            except Exception as exc:
+                logger.warning("[LOCAL MJPEG] stream error camera=%s url=%s err=%s", camera.id, rtsp_url, exc)
+            finally:
+                if cap is not None:
+                    cap.release()
+
+        # Thread tugadi — sentinel qo'yamiz
+        frame_queue.put(None)
+
+    # Threadni ishga tushiramiz
+    thread = threading.Thread(target=_capture_thread, daemon=True)
+    thread.start()
+
+    try:
+        while True:
+            # Queue'dan frame olish (async-safe)
+            try:
+                data = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: frame_queue.get(timeout=5.0)
+                )
+            except Exception:
+                # Timeout — kamera javob bermayapti
+                break
+
+            if data is None:
+                # Thread tugadi
+                break
+
+            yield data
+    except (asyncio.CancelledError, GeneratorExit):
+        pass
+    finally:
+        stop_event.set()
+        thread.join(timeout=3.0)
+
+
+@login_required(login_url='login')
+async def ip_camera_mjpeg_stream(request, camera_id: int):
+    from asgiref.sync import sync_to_async
+    camera = await sync_to_async(
+        lambda: Camera.objects.filter(pk=camera_id, is_active=True).first()
+    )()
+    if not camera:
+        raise Http404("Kamera topilmadi yoki faol emas.")
+
+    response = StreamingHttpResponse(
+        _local_mjpeg_frames(camera),
+        content_type="multipart/x-mixed-replace; boundary=frame",
+    )
+    response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response["Pragma"] = "no-cache"
+    return response
 
 
 # ================== API ==================
@@ -374,6 +519,9 @@ def ip_camera_view_auto(request):
     enable_ws = getattr(settings, "ENABLE_WS", False)
     rtsp_url = build_rtsp_url(camera)
     go2rtc_mjpeg_url = build_go2rtc_mjpeg_url(rtsp_url)
+    go2rtc_mjpeg_urls = build_go2rtc_mjpeg_urls(camera)
+    local_mjpeg_url = f"/cameras/ip/stream/{camera.id}/"
+    camera_ws_enabled = enable_ws and bool(shutil.which("ffmpeg") or os.path.isfile(r"C:\Users\Izzatbek\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe"))
     breadcrumbs = [
         {'name': 'Bosh sahifa', 'url': '/'},
         {'name': 'Avto IP Kamera Ko‘rinishi', 'url': None},
@@ -383,7 +531,10 @@ def ip_camera_view_auto(request):
         'breadcrumbs': breadcrumbs,
         'total_cameras': qs.count(),
         'enable_ws': enable_ws,
+        'camera_ws_enabled': camera_ws_enabled,
         'go2rtc_mjpeg_url': go2rtc_mjpeg_url,
+        'local_mjpeg_url': local_mjpeg_url,
+        'camera_stream_urls': [local_mjpeg_url] + (go2rtc_mjpeg_urls or ([go2rtc_mjpeg_url] if go2rtc_mjpeg_url else [])),
         'rtsp_url': rtsp_url,
     }
     return render(request, 'cameras/ip_camera_view.html', context)

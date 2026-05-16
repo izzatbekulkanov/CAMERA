@@ -10,7 +10,6 @@ from typing import Optional
 
 import cv2
 import numpy as np
-import torch
 
 try:
     from channels.db import database_sync_to_async
@@ -22,17 +21,23 @@ except ImportError:
 from django.utils import timezone
 
 from attendance.models import Attendance
+from camera.device import get_face_runtime
 from camera.models import Camera
 
 logger = logging.getLogger(__name__)
 
-# ================== DEVICE (CPU-only mode) ==================
+# ================== DEVICE ==================
 
-# CPU-only: GPU topilisidek ham, CPU ishlatamiz
-DEVICE = torch.device("cpu")  # Har doim CPU
-logger.info("[DEVICE] CPU-only mode (GPU o'chirilgan)")
+FACE_RUNTIME = get_face_runtime()
+DEVICE_TYPE = FACE_RUNTIME["device_type"]
+logger.info(
+    "[DEVICE] requested=%s resolved=%s providers=%s",
+    FACE_RUNTIME["requested"],
+    DEVICE_TYPE.upper(),
+    FACE_RUNTIME["providers"],
+)
 
-FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
+FFMPEG_BIN = shutil.which("ffmpeg") or r"C:\Users\Izzatbek\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe"
 logger.info("[FFMPEG] binary: %s", FFMPEG_BIN)
 
 # ================== InsightFace init ==================
@@ -44,16 +49,16 @@ try:
     # Lekin juda katta bo'lsa CPU yuk ortadi.
     DET_SIZE = 640  # 640 / 960
     
-    # CPU-only: faqat CPUExecutionProvider
-    providers = ['CPUExecutionProvider']
-    ctx_id = -1  # CPU uchun -1
-    
     FACE_APP = FaceAnalysis(
         name="buffalo_l",
-        providers=providers,
+        providers=FACE_RUNTIME["providers"],
     )
-    FACE_APP.prepare(ctx_id=ctx_id, det_size=(DET_SIZE, DET_SIZE))
-    logger.info("[INSIGHTFACE] ready (buffalo_l, CPU-only, det_size=%s)", DET_SIZE)
+    FACE_APP.prepare(ctx_id=FACE_RUNTIME["ctx_id"], det_size=(DET_SIZE, DET_SIZE))
+    logger.info(
+        "[INSIGHTFACE] ready (buffalo_l, device=%s, det_size=%s)",
+        DEVICE_TYPE.upper(),
+        DET_SIZE,
+    )
 except Exception as exc:
     logger.error("[INSIGHTFACE] yuklanmadi: %s", exc)
     FACE_APP = None
@@ -238,7 +243,7 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
             self.camera_id,
             self.camera.name or "-",
             self.camera.ip,
-            DEVICE.type.upper(),
+            DEVICE_TYPE.upper(),
             FFMPEG_BIN,
             self.ai_enabled,
         )
@@ -259,14 +264,14 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
             return
 
         try:
-            if proc.returncode is None:
+            if proc.poll() is None:
                 proc.terminate()
                 try:
-                    await asyncio.wait_for(proc.wait(), timeout=2.5)
-                except asyncio.TimeoutError:
+                    proc.wait(timeout=2.5)
+                except Exception:
                     proc.kill()
-                    await proc.wait()
-        except ProcessLookupError:
+                    proc.wait()
+        except (ProcessLookupError, OSError):
             pass
         except Exception:
             pass
@@ -283,15 +288,22 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
         pwd = urllib.parse.quote(c.password or "", safe="")
         user = c.username or "admin"
 
-        # UI uchun yengil oqimni avval sinaymiz (third/sub), keyin main.
-        return [
-            f"rtsp://{user}:{pwd}@{c.ip}:554/Streaming/Channels/103",  # third (ko'p Hikvision)
-            f"rtsp://{user}:{pwd}@{c.ip}:554/cam/realmonitor?channel=1&subtype=1",  # sub
-            f"rtsp://{user}:{pwd}@{c.ip}:554/Streaming/Channels/102",  # sub alt
+        urls = []
+        if c.rtsp_url:
+            urls.append(c.rtsp_url)
+
+        # UI uchun avval odatiy Hikvision main/sub oqimlar, keyin generic variantlar.
+        urls.extend([
             f"rtsp://{user}:{pwd}@{c.ip}:554/Streaming/Channels/101",  # main
+            f"rtsp://{user}:{pwd}@{c.ip}:554/Streaming/Channels/102",  # sub
+            f"rtsp://{user}:{pwd}@{c.ip}:554/Streaming/Channels/103",  # third (ko'p Hikvision)
             f"rtsp://{user}:{pwd}@{c.ip}:554/cam/realmonitor?channel=1&subtype=0",  # main alt
+            f"rtsp://{user}:{pwd}@{c.ip}:554/cam/realmonitor?channel=1&subtype=1",  # sub alt
+            f"rtsp://{user}:{pwd}@{c.ip}:554/live/ch00_0",
+            f"rtsp://{user}:{pwd}@{c.ip}:554/live/ch00_1",
             f"rtsp://{user}:{pwd}@{c.ip}:554",  # last resort
-        ]
+        ])
+        return list(dict.fromkeys(urls))
 
     # ---------- ffmpeg command ----------
 
@@ -312,7 +324,7 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
 
         # GPU decode OOM bo'lishi mumkin: UI uchun ko'p kamera ochilsa GPU decode og'irlashadi.
         # Shuning uchun default: GPU decode ON bo'lsa ham, muammo bo'lsa kameraning o'zi CPU decodega tushadi.
-        if DEVICE.type == "cuda":
+        if DEVICE_TYPE == "cuda":
             cmd += ["-hwaccel", "cuda"]
 
         cmd += [
@@ -395,94 +407,172 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
     # ---------- main loop ----------
 
     async def stream_pipeline(self):
+        import subprocess
+        import queue
+        import threading
+
         cam_id = self.camera_id or 0
         candidates = self.build_rtsp_candidates()
         loop = asyncio.get_running_loop()
 
-        hwaccel_on = (DEVICE.type == "cuda")
-        buffer = bytearray()
-
         while self._running:
-            rtsp_url = None
-            cmd = None
+            for rtsp_url in candidates:
+                if not self._running:
+                    break
 
-            # 1) RTSP candidate topamiz
-            for url in candidates:
-                rtsp_url = url
-                cmd = self.build_ffmpeg_cmd(rtsp_url)
-                logger.info("[CAM %s] ffmpeg start url=%s", cam_id, rtsp_url)
-
+                logger.info("[CAM %s] ffmpeg start url=%s ffmpeg_bin=%s", cam_id, rtsp_url, FFMPEG_BIN)
                 try:
-                    proc = await asyncio.create_subprocess_exec(
-                        *cmd,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE,
+                    cmd = self.build_ffmpeg_cmd(rtsp_url)
+                    proc = subprocess.Popen(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        bufsize=0,
                     )
                     self._proc = proc
                     active_ffmpeg_processes[cam_id] = proc
-                    break
                 except Exception as exc:
-                    logger.warning("[CAM %s] ffmpeg spawn failed url=%s err=%s", cam_id, rtsp_url, exc)
+                    logger.warning("[CAM %s] ffmpeg spawn failed url=%s err=%s (type=%s)", cam_id, rtsp_url, exc, type(exc).__name__)
                     await asyncio.sleep(0.5)
                     continue
 
-            if not self._proc:
-                await asyncio.sleep(2.0)
-                continue
+                # Stream o'qish — threadda stdout o'qib, queue orqali async loopga uzatamiz
+                frame_queue = queue.Queue(maxsize=4)
+                stop_event = threading.Event()
 
-            # 2) Stream o‘qish
-            try:
-                assert self._proc.stdout is not None
-                assert self._proc.stderr is not None
+                def _reader_thread(p, q, stop_ev):
+                    """FFmpeg stdout'dan JPEG kadrlarni o'qib queue'ga qo'yadi."""
+                    buf = bytearray()
+                    try:
+                        while not stop_ev.is_set():
+                            chunk = p.stdout.read(32768)
+                            if not chunk:
+                                break
+                            buf.extend(chunk)
 
-                buffer.clear()
-                self.stats = CamStats(started_at=time.monotonic(), last_report=time.monotonic())
+                            # JPEG kadrlarni ajratib olish
+                            while True:
+                                soi = buf.find(b"\xff\xd8")
+                                if soi < 0:
+                                    if len(buf) > 2_000_000:
+                                        buf.clear()
+                                    break
+                                if soi > 0:
+                                    del buf[:soi]
+                                eoi = buf.find(b"\xff\xd9", 2)
+                                if eoi < 0:
+                                    if len(buf) > 5_000_000:
+                                        buf.clear()
+                                    break
+                                frame = bytes(buf[:eoi + 2])
+                                del buf[:eoi + 2]
+                                if len(frame) < 5_000:
+                                    continue
+                                # Queue'ga qo'yish
+                                try:
+                                    q.put_nowait(frame)
+                                except queue.Full:
+                                    try:
+                                        q.get_nowait()
+                                    except queue.Empty:
+                                        pass
+                                    q.put_nowait(frame)
+                    except Exception:
+                        pass
+                    finally:
+                        q.put(None)  # sentinel
 
-                while self._running:
-                    chunk = await self._proc.stdout.read(32768)
-                    if not chunk:
-                        # stderr o‘qib ko‘ramiz
-                        err = await self._proc.stderr.read()
-                        err_text = (err.decode(errors="ignore").strip() if err else "")
-                        logger.warning("[CAM %s] rtsp failed url=%s err=%s", cam_id, rtsp_url, err_text[:500])
+                reader = threading.Thread(
+                    target=_reader_thread,
+                    args=(proc, frame_queue, stop_event),
+                    daemon=True,
+                )
+                reader.start()
 
-                        # agar GPU decode OOM bo'lsa, keyingi urinishda CPU decodega tushiramiz
-                        if "CUDA_ERROR_OUT_OF_MEMORY" in err_text and hwaccel_on:
-                            hwaccel_on = False
-                            logger.warning("[CAM %s] GPU decode OOM -> next starts will be CPU decode", cam_id)
+                got_any_frame = False
+                try:
+                    self.stats = CamStats(started_at=time.monotonic(), last_report=time.monotonic())
 
-                        break
+                    while self._running:
+                        # Birinchi frame uchun kattaroq timeout
+                        get_timeout = 10.0 if not got_any_frame else 3.0
+                        try:
+                            frame_bytes = await asyncio.wait_for(
+                                loop.run_in_executor(None, lambda t=get_timeout: frame_queue.get(timeout=t)),
+                                timeout=get_timeout + 2.0,
+                            )
+                        except (asyncio.TimeoutError, Exception) as exc:
+                            if not got_any_frame:
+                                logger.warning("[CAM %s] no frames from url=%s (timeout, exc=%s)", cam_id, rtsp_url, type(exc).__name__)
+                            break
 
-                    buffer.extend(chunk)
+                        if frame_bytes is None:
+                            # FFmpeg tugadi
+                            err_text = ""
+                            try:
+                                err_data = proc.stderr.read()
+                                err_text = err_data.decode(errors="ignore").strip() if err_data else ""
+                            except Exception:
+                                pass
+                            logger.warning("[CAM %s] ffmpeg ended url=%s err=%s", cam_id, rtsp_url, err_text[:500])
+                            break
 
-                    frames = self._extract_jpegs_from_buffer(buffer)
-                    if not frames:
-                        continue
-
-                    for frame_bytes in frames:
+                        got_any_frame = True
                         self.stats.frames_decoded += 1
 
                         processed = await loop.run_in_executor(
                             None, self.process_frame_with_models, frame_bytes
                         )
                         if not processed:
-                            continue  # corrupt frame -> skip
+                            continue
 
                         await self.send(bytes_data=processed)
                         self._bump_metrics(len(processed))
+                        self._report_stats_if_needed(cam_id, False)
 
-                    self._report_stats_if_needed(cam_id, hwaccel_on)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    logger.exception("[CAM %s] stream loop error url=%s: %s", cam_id, rtsp_url, exc)
+                finally:
+                    stop_event.set()
+                    await loop.run_in_executor(None, self._stop_ffmpeg_sync)
+                    reader.join(timeout=3.0)
 
-            except asyncio.CancelledError:
-                break
-            except Exception as exc:
-                logger.exception("[CAM %s] stream loop error: %s", cam_id, exc)
-            finally:
-                await self._stop_ffmpeg()
+                # Agar birinchi URL muvaffaqiyatli ishlagan bo'lsa, boshqasini sinashga hojat yo'q
+                if got_any_frame:
+                    break
 
-            # reconnect delay
+                if self._running:
+                    await asyncio.sleep(0.4)
+
+            # Barcha candidate'lar yiqilsa, qisqa pauzadan keyin qayta sinaymiz.
             if self._running:
                 await asyncio.sleep(1.0)
+
+    def _stop_ffmpeg_sync(self):
+        """Sinxron ffmpeg to'xtatish (threaddan chaqiriladi)."""
+        cam_id = self.camera_id
+        proc = self._proc
+
+        if not proc:
+            return
+
+        try:
+            if proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=2.5)
+                except Exception:
+                    proc.kill()
+                    proc.wait()
+        except (ProcessLookupError, OSError):
+            pass
+
+        if cam_id in active_ffmpeg_processes:
+            active_ffmpeg_processes.pop(cam_id, None)
+
+        self._proc = None
 
     # ---------- per-frame processing ----------
 

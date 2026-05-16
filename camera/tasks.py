@@ -10,6 +10,16 @@ from camera.models import Camera
 logger = logging.getLogger(__name__)
 
 
+def start_background_tasks() -> None:
+    """
+    ASGI import paytida chaqiriladigan yengil hook.
+
+    Real kamera recognition oqimi `python manage.py camera_daemon` orqali yuradi.
+    Bu funksiya mavjud bo‘lmasa ASGI startida import xatosi chiqadi.
+    """
+    logger.info("[CAMERA] ASGI background hook ready; camera_daemon handles RTSP recognition.")
+
+
 @shared_task
 def check_camera_health() -> None:
     """

@@ -11,6 +11,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.db import transaction
 
+from camera.device import get_face_runtime
 from .models import Attendance, AttendancePhoto, PsychologicalProfile
 from attendance.data import generate_psychology_comment
 
@@ -38,7 +39,8 @@ AROUSAL_W = {
 }
 
 def _create_ort_session():
-    providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    face_runtime = get_face_runtime()
+    providers = face_runtime["providers"]
     try:
         sess = ort.InferenceSession(MODEL_PATH, providers=providers)
         return sess
@@ -59,9 +61,10 @@ INSIGHT_APP = None
 try:
     from insightface.app import FaceAnalysis
     # name="buffalo_l" odatda embedding + det beradi.
-    INSIGHT_APP = FaceAnalysis(name="buffalo_l", providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
-    INSIGHT_APP.prepare(ctx_id=0, det_size=(640, 640))
-    print("[INSIGHTFACE] FaceAnalysis yuklandi! (Celery worker)")
+    face_runtime = get_face_runtime()
+    INSIGHT_APP = FaceAnalysis(name="buffalo_l", providers=face_runtime["providers"])
+    INSIGHT_APP.prepare(ctx_id=face_runtime["ctx_id"], det_size=(640, 640))
+    print(f"[INSIGHTFACE] FaceAnalysis yuklandi! (Celery worker, {face_runtime['device_type'].upper()} mode)")
 except Exception as e:
     INSIGHT_APP = None
     print("[INSIGHTFACE] Yuklanmadi:", str(e))
@@ -110,30 +113,42 @@ def load_image_rgb(path: str) -> np.ndarray | None:
 
 def get_best_face_crop(path: str) -> Image.Image | None:
     """
-    InsightFace yordamida eng katta / eng ishonchli yuzni topib crop qiladi.
+    InsightFace yoki OpenCV yordamida eng katta / eng ishonchli yuzni topib crop qiladi.
     Yuz topilmasa None qaytaradi.
     """
-    if INSIGHT_APP is None:
-        return None
-
     rgb = load_image_rgb(path)
     if rgb is None:
         return None
 
-    faces = INSIGHT_APP.get(rgb)
-    if not faces:
+    x1, y1, x2, y2 = None, None, None, None
+
+    if INSIGHT_APP is not None:
+        faces = INSIGHT_APP.get(rgb)
+        if faces:
+            def area(f):
+                fx1, fy1, fx2, fy2 = f.bbox
+                return float(max(0, fx2 - fx1) * max(0, fy2 - fy1))
+            best = max(faces, key=area)
+            x1, y1, x2, y2 = best.bbox
+            x1, y1, x2, y2 = int(max(0, x1)), int(max(0, y1)), int(x2), int(y2)
+    
+    if x1 is None:
+        try:
+            import cv2
+            gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+            cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            face_cascade = cv2.CascadeClassifier(cascade_path)
+            cv_faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+            if len(cv_faces) > 0:
+                best_face = max(cv_faces, key=lambda rect: rect[2] * rect[3])
+                fx, fy, fw, fh = best_face
+                x1, y1, x2, y2 = fx, fy, fx + fw, fy + fh
+        except Exception:
+            pass
+
+    if x1 is None:
         return None
 
-    # eng katta bbox'li yuzni tanlaymiz
-    def area(f):
-        x1, y1, x2, y2 = f.bbox
-        return float(max(0, x2 - x1) * max(0, y2 - y1))
-
-    best = max(faces, key=area)
-    x1, y1, x2, y2 = best.bbox
-    x1, y1, x2, y2 = int(max(0, x1)), int(max(0, y1)), int(x2), int(y2)
-
-    # Crop + biroz padding
     h, w, _ = rgb.shape
     pad = int(0.15 * max(x2 - x1, y2 - y1))
     x1 = max(0, x1 - pad); y1 = max(0, y1 - pad)
@@ -355,6 +370,61 @@ def analyze_attendance_psychology(self, attendance_id: int):
                 "face_quality": float(agg["face_quality"]),
             }
         )
+
+    # Calculate State and POST if critical/warning
+    state = "normal"
+    state_display = "O'rtacha"
+    if agg["confidence"] >= 0.35:
+        if stress >= 0.80 or agg["negative_ratio"] >= 0.60:
+            state = "critical"
+            state_display = "Jiddiy"
+        elif stress >= 0.65 or agg["negative_ratio"] >= 0.45:
+            state = "warning"
+            state_display = "Ehtiyot"
+        elif stress < 0.30 and mood > 75 and energy > 0.70 and agg["negative_ratio"] < 0.25:
+            state = "excellent"
+            state_display = "A'lo"
+        elif stress < 0.45 and mood > 65 and agg["negative_ratio"] < 0.35:
+            state = "good"
+            state_display = "Yaxshi"
+
+    if state in ["critical", "warning"]:
+        try:
+            import requests
+            from django.utils import timezone
+            
+            id_num = attendance.user.student_id_number if attendance.user.role == "student" else attendance.user.employee_id_number
+            if not id_num:
+                id_num = attendance.user.username
+
+            payload = {
+                "system_id": "CAMERA_AI_01",
+                "timestamp": timezone.now().isoformat(),
+                "user": {
+                    "role": attendance.user.role,
+                    "id_number": id_num,
+                    "full_name": attendance.user.full_name
+                },
+                "psychological_state": {
+                    "status_code": state,
+                    "status_display": state_display,
+                    "stress_level": int(round(stress * 100)),
+                    "mood_score": int(mood),
+                    "energy_level": int(round(energy * 100)),
+                    "dominant_emotion": agg["dominant_emotion"]
+                },
+                "metrics": {
+                    "negative_ratio": round(agg["negative_ratio"], 2),
+                    "confidence_score": round(agg["confidence"], 2),
+                    "face_quality": round(agg["face_quality"], 2)
+                },
+                "ai_summary_text": summary.strip()
+            }
+            
+            requests.post("https://dc.namspi.uz/rest/api/psdate", json=payload, timeout=5)
+            print(f"[PSYCHOLOGY API] Ma'lumot {attendance.user.full_name} uchun yuborildi. Holat: {state}")
+        except Exception as e:
+            print(f"[PSYCHOLOGY API XATO] API ga jo'natishda xatolik: {str(e)}")
 
     # 100% yakuniy
     send_progress(100)

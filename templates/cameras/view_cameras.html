@@ -53,7 +53,7 @@
                                     {# IMG – dastlab d-none, keyin JS orqali ko‘rinadi #}
                                     <img id="cam-{{ camera.id }}" class="w-100 h-100 object-fit-cover d-none" alt="Stream">
                                 {% else %}
-                                    <iframe id="cam-{{ camera.id }}" class="w-100 h-100 object-fit-cover" src="{{ camera.go2rtc_mjpeg_url }}" style="border: none; pointer-events: none;" title="Stream" allow="fullscreen"></iframe>
+                                    <iframe id="cam-{{ camera.id }}" class="w-100 h-100 object-fit-cover" src="{{ camera.go2rtc_mjpeg_url }}" style="border: none;" title="Stream" allow="fullscreen"></iframe>
                                 {% endif %}
                             </div>
                             <div id="status-{{ camera.id }}" class="position-absolute top-50 start-50 translate-middle text-white text-center bg-dark bg-opacity-75 px-3 py-2 rounded-3 d-none">

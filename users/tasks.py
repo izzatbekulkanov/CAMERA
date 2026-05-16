@@ -37,6 +37,8 @@ from users.models import CustomUser
 from django.core.cache import cache
 from django.utils import timezone
 
+from camera.device import get_face_runtime
+
 # progress cache helpers (sizda users/view/progress.py ichida)
 from users.view import progress as prog
 
@@ -75,17 +77,15 @@ def _should_skip_encoding(user: CustomUser) -> tuple[bool, str]:
 try:
     from insightface.app import FaceAnalysis
 
+    face_runtime = get_face_runtime()
     print("[INSIGHTFACE] Model yuklanmoqda (buffalo_l, Celery)...")
-    # CPU-only mode: faqat CPUExecutionProvider
-    providers = ['CPUExecutionProvider']
-    ctx_id = -1  # CPU uchun -1 (-1 = CPU, 0 = GPU)
-    
+
     app = FaceAnalysis(
         name="buffalo_l",
-        providers=providers
+        providers=face_runtime["providers"]
     )
-    app.prepare(ctx_id=ctx_id, det_size=(640, 640))
-    print(f"[INSIGHTFACE] Model yuklandi! (Celery worker, CPU mode)")
+    app.prepare(ctx_id=face_runtime["ctx_id"], det_size=(640, 640))
+    print(f"[INSIGHTFACE] Model yuklandi! (Celery worker, {face_runtime['device_type'].upper()} mode)")
 except Exception as e:
     print(f"[INSIGHTFACE XATO][Celery] {e}")
     app = None

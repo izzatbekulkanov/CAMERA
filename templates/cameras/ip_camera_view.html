@@ -509,11 +509,11 @@
                                     Kamera oqimi yuklanmoqda…
                                 </div>
                                 <div class="ai-loader-text-sub">
-                                    go2rtc relay orqali live stream
+                                    lokal MJPEG stream orqali live stream
                                 </div>
                                 <div class="ai-loader-metrics">
                                 <span class="d-flex align-items-center gap-1">
-                                    <span class="ai-loader-dot"></span> GPU optimized
+                                    <span class="ai-loader-dot"></span> RTSP live
                                 </span>
                                     <span>Face tracking</span>
                                     <span>1-minutlik AI dashboard</span>
@@ -521,11 +521,11 @@
                             </div>
 
                             <!-- VIDEO STREAM -->
-                               <iframe id="video-stream"
-                                   src="{{ go2rtc_mjpeg_url }}"
-                                   title="AI camera stream"
-                                   style="width: 100%; height: 100%; border: none; min-height: 400px;"
-                                   allow="fullscreen"></iframe>
+                               <img id="video-stream"
+                                   src="{{ local_mjpeg_url }}"
+                                   alt="AI camera stream"
+                                   class="w-100 h-100 object-fit-cover"
+                                   style="min-height: 400px;">
                         </div>
                     </div>
                 </div>
@@ -555,6 +555,7 @@
 {% endblock %}
 
 {% block scripts %}
+    {{ camera_stream_urls|json_script:"camera-stream-urls" }}
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
@@ -573,15 +574,32 @@
             const aiToggle = document.getElementById('ai-toggle');
 
             const enableWs = {{ enable_ws|yesno:"true,false" }};
-            if (!enableWs && aiToggle) {
+            const enableCameraWs = {{ camera_ws_enabled|yesno:"true,false" }};
+            const relayScript = document.getElementById('camera-stream-urls');
+            const relayUrls = relayScript ? JSON.parse(relayScript.textContent || '[]').filter(Boolean) : [];
+
+            if (!enableCameraWs && aiToggle) {
                 aiToggle.checked = false;
                 aiToggle.disabled = true;
+                aiToggle.title = "Kamera WebSocket uchun ffmpeg topilmadi. go2rtc relay ishlatilmoqda.";
             }
 
             // =============== CAMERA WS ===============
             let frameUrl = null;
             let camSocket = null;
             let shouldReconnect = true;
+            let relayIndex = 0;
+            let relayTimer = null;
+            let hasVideoFrame = false;
+            let usingWsFrames = false;
+
+            function hideLoader() {
+                if (loaderEl) loaderEl.style.display = 'none';
+            }
+
+            function showLoader() {
+                if (loaderEl) loaderEl.style.display = 'flex';
+            }
 
             function setConnectionState(state) {
                 if (state === 'online') {
@@ -598,11 +616,66 @@
                 }
             }
 
+            function clearRelayTimer() {
+                if (relayTimer) {
+                    clearTimeout(relayTimer);
+                    relayTimer = null;
+                }
+            }
+
+            function setRelaySource(index) {
+                if (!relayUrls.length) {
+                    setConnectionState('offline');
+                    return;
+                }
+
+                usingWsFrames = false;
+                hasVideoFrame = false;
+                relayIndex = Math.max(0, Math.min(index, relayUrls.length - 1));
+                setConnectionState('connecting');
+                showLoader();
+
+                if (frameUrl) {
+                    URL.revokeObjectURL(frameUrl);
+                    frameUrl = null;
+                }
+
+                videoStreamEl.src = relayUrls[relayIndex];
+                clearRelayTimer();
+                relayTimer = setTimeout(() => {
+                    if (!hasVideoFrame && !usingWsFrames) {
+                        tryNextRelay();
+                    }
+                }, 7000);
+            }
+
+            function tryNextRelay() {
+                clearRelayTimer();
+                if (relayIndex + 1 < relayUrls.length) {
+                    setRelaySource(relayIndex + 1);
+                    return;
+                }
+                setConnectionState('offline');
+                showLoader();
+            }
+
+            videoStreamEl.addEventListener('load', () => {
+                if (usingWsFrames) return;
+                hasVideoFrame = true;
+                clearRelayTimer();
+                setConnectionState('online');
+                hideLoader();
+            });
+
+            videoStreamEl.addEventListener('error', () => {
+                if (usingWsFrames) return;
+                tryNextRelay();
+            });
+
             function connectCamera() {
-                if (!enableWs) {
+                if (!enableCameraWs) {
                     // go2rtc MJPEG mode
-                    setConnectionState('online');
-                    if (loaderEl) loaderEl.style.display = 'none';
+                    setRelaySource(relayIndex);
                     return;
                 }
                 if (camSocket) {
@@ -626,8 +699,12 @@
 
                 camSocket.onclose = (e) => {
                     console.log('[CAM] Closed', e.code);
-                    setConnectionState('offline');
-                    loaderEl.style.display = 'flex';
+                    if (!hasVideoFrame && relayUrls.length) {
+                        setRelaySource(relayIndex);
+                    } else if (!hasVideoFrame) {
+                        setConnectionState('offline');
+                        showLoader();
+                    }
 
                     if (shouldReconnect) {
                          setTimeout(connectCamera, 2000);
@@ -635,12 +712,17 @@
                 };
 
                 camSocket.onerror = () => {
-                    setConnectionState('offline');
-                    loaderEl.style.display = 'flex';
+                    if (!hasVideoFrame) {
+                        setConnectionState('offline');
+                        showLoader();
+                    }
                 };
 
                 camSocket.onmessage = (event) => {
                     if (event.data instanceof ArrayBuffer) {
+                        usingWsFrames = true;
+                        hasVideoFrame = true;
+                        clearRelayTimer();
                         const blob = new Blob([event.data], {type: 'image/jpeg'});
                         const newUrl = URL.createObjectURL(blob);
                         if (frameUrl) {
@@ -650,22 +732,25 @@
                         videoStreamEl.src = frameUrl;
 
                         if (loaderEl.style.display !== 'none') {
-                            loaderEl.style.display = 'none';
+                            hideLoader();
                         }
                     }
                 };
             }
 
             // Initial connect
-            connectCamera();
+            setRelaySource(0);
+            if (enableCameraWs) {
+                connectCamera();
+            }
 
             // Toggle listener
             aiToggle.addEventListener('change', () => {
-                if (!enableWs) return;
+                if (!enableCameraWs) return;
                 // Restart info toast or log
                 console.log("AI Toggled:", aiToggle.checked);
                 // Show loader briefly
-                loaderEl.style.display = 'flex';
+                if (!hasVideoFrame) showLoader();
                 connectCamera();
             });
 

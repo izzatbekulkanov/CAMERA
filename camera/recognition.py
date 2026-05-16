@@ -257,6 +257,13 @@ def process_recognition_sync(user: CustomUser, face_crop: np.ndarray) -> None:
         photo = AttendancePhoto(attendance=att)
         photo.image.save(filename, ContentFile(buffer.tobytes()))
         logger.info("[PHOTO] saved user=%s file=%s", user.id, filename)
+        
+        # As soon as a photo is captured, trigger psychological analysis
+        try:
+            from attendance.tasks import analyze_attendance_psychology
+            analyze_attendance_psychology.delay(att.id)
+        except Exception as exc:
+            logger.error("[PSYCHOLOGY] Trigger failed for user=%s: %s", user.id, exc)
     except Exception as exc:
         logger.exception("[PHOTO] save failed user=%s: %s", user.id, exc)
 

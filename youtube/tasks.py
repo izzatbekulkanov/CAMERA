@@ -53,6 +53,18 @@ def kill_ffmpeg_pid(pid: int):
     """FFmpeg process/group ni xavfsiz o‘chirish"""
     if not pid:
         return
+    if os.name == "nt":
+        for sig in (getattr(signal, "CTRL_BREAK_EVENT", signal.SIGTERM), signal.SIGTERM):
+            try:
+                os.kill(pid, sig)
+                time.sleep(0.3)
+                return
+            except ProcessLookupError:
+                return
+            except Exception:
+                continue
+        return
+
     try:
         pgid = os.getpgid(pid)
         os.killpg(pgid, signal.SIGTERM)
@@ -64,6 +76,13 @@ def kill_ffmpeg_pid(pid: int):
             os.kill(pid, signal.SIGTERM)
         except Exception:
             pass
+
+
+def popen_process_group_kwargs() -> dict:
+    """FFmpeg ni Linux va Windowsda keyin to‘xtatish mumkin bo‘lgan process groupda boshlaydi."""
+    if os.name == "nt":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"preexec_fn": os.setsid}
 
 
 # =========================================================
@@ -325,7 +344,7 @@ def start_youtube_stream(self, stream_id: int):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             text=True,
-            preexec_fn=os.setsid,
+            **popen_process_group_kwargs(),
         )
 
         # 3 soniya kutamiz: yiqilsa sababini olib failed qilamiz

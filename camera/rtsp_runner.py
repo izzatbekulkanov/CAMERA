@@ -16,6 +16,7 @@ import numpy as np
 import torch
 from asgiref.sync import sync_to_async
 
+from camera.device import get_face_runtime
 from camera.models import Camera
 from camera.recognition import (
     auto_exit_detector_loop,
@@ -46,13 +47,19 @@ RECONNECT_MAX = 20.0
 RECONNECT_JITTER = 0.30
 
 # =========================
-# FFMPEG / CPU (GPU o'chirilgan)
+# FFMPEG / DEVICE
 # =========================
 
-# CPU-only mode: ffmpeg-gpu o'chiq, faqat ffmpeg
+FACE_RUNTIME = get_face_runtime()
 FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
-DEVICE = torch.device("cpu")  # Har doim CPU
-logger.info("[RTSP] FFMPEG=%s DEVICE=%s (CPU-only mode)", FFMPEG_BIN, DEVICE.type.upper())
+DEVICE = torch.device("cuda" if FACE_RUNTIME["device_type"] == "cuda" and torch.cuda.is_available() else "cpu")
+logger.info(
+    "[RTSP] FFMPEG=%s requested=%s resolved=%s providers=%s",
+    FFMPEG_BIN,
+    FACE_RUNTIME["requested"],
+    DEVICE.type.upper(),
+    FACE_RUNTIME["providers"],
+)
 
 # =========================
 # InsightFace init (once)
@@ -62,16 +69,12 @@ FACE_APP = None
 try:
     from insightface.app import FaceAnalysis
 
-    # CPU-only: faqat CPUExecutionProvider
-    providers = ['CPUExecutionProvider']
-    ctx_id = -1  # CPU uchun -1
-
     FACE_APP = FaceAnalysis(
         name="buffalo_l",
-        providers=providers,
+        providers=FACE_RUNTIME["providers"],
     )
-    FACE_APP.prepare(ctx_id=ctx_id, det_size=(960, 960))
-    logger.info("[RTSP] InsightFace ready (buffalo_l, CPU-only, ctx_id=%s)", ctx_id)
+    FACE_APP.prepare(ctx_id=FACE_RUNTIME["ctx_id"], det_size=(960, 960))
+    logger.info("[RTSP] InsightFace ready (buffalo_l, device=%s)", DEVICE.type.upper())
 except Exception as exc:
     FACE_APP = None
     logger.exception("[RTSP] InsightFace load failed: %s", exc)
