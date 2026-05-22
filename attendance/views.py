@@ -14,6 +14,7 @@ from django.utils import timezone
 import subprocess
 from attendance.data import generate_psychology_comment
 from attendance.models import Attendance, PsychologicalProfile
+from attendance.services import get_all_services_status, ALLOWED_SERVICES, ALLOWED_ACTIONS
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 
@@ -23,15 +24,33 @@ class AttendanceView(LoginRequiredMixin, View):
     paginate_by = 100
 
     def get(self, request, *args, **kwargs):
-        # ✅ date filter: default today
-        date_str = request.GET.get("date")
-        if date_str:
+        # ✅ date filter: dropdowns or fallback date string, default today
+        year_str = request.GET.get("year")
+        month_str = request.GET.get("month")
+        day_str = request.GET.get("day")
+        
+        if year_str and month_str and day_str:
             try:
-                today = datetime.strptime(date_str, "%Y-%m-%d").date()
+                today = datetime.strptime(f"{year_str}-{month_str}-{day_str}", "%Y-%m-%d").date()
             except ValueError:
-                today = timezone.localdate()
+                # If invalid date (e.g. Feb 31), fallback to date parameter
+                date_str = request.GET.get("date")
+                if date_str:
+                    try:
+                        today = datetime.strptime(date_str, "%Y-%m-%d").date()
+                    except ValueError:
+                        today = timezone.localdate()
+                else:
+                    today = timezone.localdate()
         else:
-            today = timezone.localdate()
+            date_str = request.GET.get("date")
+            if date_str:
+                try:
+                    today = datetime.strptime(date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    today = timezone.localdate()
+            else:
+                today = timezone.localdate()
 
         # ✅ role filter
         role = request.GET.get("role")  # employee / student
@@ -39,11 +58,9 @@ class AttendanceView(LoginRequiredMixin, View):
         # ✅ search query (name, username, IDs)
         q = request.GET.get("q")
 
-        # ✅ time interval filter
-        entry_from = request.GET.get("entry_from")  # HH:MM
-        entry_to = request.GET.get("entry_to")
-        exit_from = request.GET.get("exit_from")
-        exit_to = request.GET.get("exit_to")
+        # ✅ time reference filters (±30 min range)
+        entry_time_ref = request.GET.get("entry_time_ref")  # HH:MM
+        exit_time_ref = request.GET.get("exit_time_ref")    # HH:MM
 
         qs = (
             Attendance.objects
@@ -65,29 +82,31 @@ class AttendanceView(LoginRequiredMixin, View):
                 Q(user__student_id_number__icontains=q)
             )
 
-        # ✅ entry time interval
-        if entry_from:
+        # ✅ entry time reference (±30 min)
+        if entry_time_ref:
             try:
-                qs = qs.filter(entry_time__gte=entry_from)
+                ref_time = datetime.strptime(entry_time_ref, "%H:%M").time()
+                ref_datetime = datetime.combine(today, ref_time)
+                if timezone.is_aware(timezone.now()):
+                    ref_datetime = timezone.make_aware(ref_datetime)
+                from datetime import timedelta
+                start_dt = ref_datetime - timedelta(minutes=30)
+                end_dt = ref_datetime + timedelta(minutes=30)
+                qs = qs.filter(entry_time__range=(start_dt, end_dt))
             except ValueError:
                 pass
 
-        if entry_to:
+        # ✅ exit time reference (±30 min)
+        if exit_time_ref:
             try:
-                qs = qs.filter(entry_time__lte=entry_to)
-            except ValueError:
-                pass
-
-        # ✅ exit time interval
-        if exit_from:
-            try:
-                qs = qs.filter(exit_time__gte=exit_from)
-            except ValueError:
-                pass
-
-        if exit_to:
-            try:
-                qs = qs.filter(exit_time__lte=exit_to)
+                ref_time = datetime.strptime(exit_time_ref, "%H:%M").time()
+                ref_datetime = datetime.combine(today, ref_time)
+                if timezone.is_aware(timezone.now()):
+                    ref_datetime = timezone.make_aware(ref_datetime)
+                from datetime import timedelta
+                start_dt = ref_datetime - timedelta(minutes=30)
+                end_dt = ref_datetime + timedelta(minutes=30)
+                qs = qs.filter(exit_time__range=(start_dt, end_dt))
             except ValueError:
                 pass
 
@@ -108,6 +127,24 @@ class AttendanceView(LoginRequiredMixin, View):
             {'name': 'Bugungi davomat', 'url': None},
         ]
 
+        current_year = timezone.localdate().year
+        years_list = list(range(2024, current_year + 3))
+        months_list = [
+            (1, "Yanvar"),
+            (2, "Fevral"),
+            (3, "Mart"),
+            (4, "Aprel"),
+            (5, "May"),
+            (6, "Iyun"),
+            (7, "Iyul"),
+            (8, "Avgust"),
+            (9, "Sentabr"),
+            (10, "Oktabr"),
+            (11, "Noyabr"),
+            (12, "Dekabr"),
+        ]
+        days_list = list(range(1, 32))
+
         context = {
             "attendances": page_obj,
             "page_obj": page_obj,
@@ -116,14 +153,22 @@ class AttendanceView(LoginRequiredMixin, View):
             "breadcrumbs": breadcrumbs,
             "today": today,
 
+            # ✅ dropdown lists
+            "years_list": years_list,
+            "months_list": months_list,
+            "days_list": days_list,
+
+            # ✅ selected date dropdown values
+            "selected_year": today.year,
+            "selected_month": today.month,
+            "selected_day": today.day,
+
             # ✅ return filter values to template
             "role": role or "",
             "q": q or "",
             "date": today.strftime("%Y-%m-%d"),
-            "entry_from": entry_from or "",
-            "entry_to": entry_to or "",
-            "exit_from": exit_from or "",
-            "exit_to": exit_to or "",
+            "entry_time_ref": entry_time_ref or "",
+            "exit_time_ref": exit_time_ref or "",
         }
         return render(request, self.template_name, context)
 
@@ -161,17 +206,34 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
     login_url = 'login'
     template_name = "attendance/psychological_profile.html"
     paginate_by = 100
-
     def get(self, request, *args, **kwargs):
-        # ✅ date param bo'lsa shu sanani oladi, bo'lmasa today
-        date_str = request.GET.get("date")
-        if date_str:
+        # ✅ date filter: dropdowns or fallback date string, default today
+        year_str = request.GET.get("year")
+        month_str = request.GET.get("month")
+        day_str = request.GET.get("day")
+        
+        if year_str and month_str and day_str:
             try:
-                today = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
+                today = datetime.strptime(f"{year_str}-{month_str}-{day_str}", "%Y-%m-%d").date()
             except ValueError:
-                today = timezone.localdate()
+                # If invalid date (e.g. Feb 31), fallback to date parameter
+                date_str = request.GET.get("date")
+                if date_str:
+                    try:
+                        today = datetime.strptime(date_str, "%Y-%m-%d").date()
+                    except ValueError:
+                        today = timezone.localdate()
+                else:
+                    today = timezone.localdate()
         else:
-            today = timezone.localdate()
+            date_str = request.GET.get("date")
+            if date_str:
+                try:
+                    today = datetime.strptime(date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    today = timezone.localdate()
+            else:
+                today = timezone.localdate()
 
         # ✅ filterlar
         role = request.GET.get("role")  # employee yoki student
@@ -252,25 +314,21 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
             )
 
             # ====== STATE ======
-            if avg_conf < 0.35:
+            if avg_stress < 0.30 and avg_mood > 75 and avg_energy > 0.70:
+                state = "excellent"
+                state_display = "A'lo"
+            elif avg_stress < 0.45 and avg_mood > 65:
+                state = "good"
+                state_display = "Yaxshi"
+            elif avg_stress < 0.65:
                 state = "normal"
-                state_display = "Taxminiy"
+                state_display = "O‘rtacha"
+            elif avg_stress < 0.80:
+                state = "warning"
+                state_display = "Ehtiyot"
             else:
-                if avg_stress >= 0.80 or avg_neg >= 0.60:
-                    state = "critical"
-                    state_display = "Jiddiy"
-                elif avg_stress >= 0.65 or avg_neg >= 0.45:
-                    state = "warning"
-                    state_display = "Ehtiyot"
-                elif avg_stress < 0.30 and avg_mood > 75 and avg_energy > 0.70 and avg_neg < 0.25:
-                    state = "excellent"
-                    state_display = "A'lo"
-                elif avg_stress < 0.45 and avg_mood > 65 and avg_neg < 0.35:
-                    state = "good"
-                    state_display = "Yaxshi"
-                else:
-                    state = "normal"
-                    state_display = "O‘rtacha"
+                state = "critical"
+                state_display = "Jiddiy"
 
             final_profiles.append({
                 "user": user,
@@ -319,6 +377,24 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
         critical_count = sum(1 for p in final_profiles if p["state"] == "critical")
         warning_count = sum(1 for p in final_profiles if p["state"] == "warning")
 
+        current_year = timezone.localdate().year
+        years_list = list(range(2024, current_year + 3))
+        months_list = [
+            (1, "Yanvar"),
+            (2, "Fevral"),
+            (3, "Mart"),
+            (4, "Aprel"),
+            (5, "May"),
+            (6, "Iyun"),
+            (7, "Iyul"),
+            (8, "Avgust"),
+            (9, "Sentabr"),
+            (10, "Oktabr"),
+            (11, "Noyabr"),
+            (12, "Dekabr"),
+        ]
+        days_list = list(range(1, 32))
+
         return render(request, self.template_name, {
             "profiles": page_obj,
             "page_obj": page_obj,
@@ -328,8 +404,18 @@ class PsychologicalProfileView(LoginRequiredMixin, View):
             "breadcrumbs": breadcrumbs,
             "today": today,
 
-            "role": role,
-            "q": q,
+            # ✅ dropdown lists
+            "years_list": years_list,
+            "months_list": months_list,
+            "days_list": days_list,
+
+            # ✅ selected date dropdown values
+            "selected_year": today.year,
+            "selected_month": today.month,
+            "selected_day": today.day,
+
+            "role": role or "",
+            "q": q or "",
             "date": today.strftime("%Y-%m-%d"),
 
             "total_employees": len(final_profiles),
@@ -366,6 +452,16 @@ def service_logs_view(request):
         "breadcrumbs": breadcrumbs,
         "services": services,
     })
+
+@login_required(login_url="login")
+def service_status_view(request):
+    """
+    API endpoint that returns current status of all 3 allowed services.
+    Used by the frontend status poller (every 5 seconds).
+    """
+    services = get_all_services_status()
+    return JsonResponse({"services": services})
+
 
 ALLOWED_ACTIONS = {"start", "stop", "restart", "enable", "disable"}
 

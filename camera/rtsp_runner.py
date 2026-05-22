@@ -26,16 +26,24 @@ from camera.recognition import (
 )
 from camera.hikvision import enqueue_hikvision_event
 
+try:
+    from channels.layers import get_channel_layer
+    CHANNELS_AVAILABLE = True
+except ImportError:
+    CHANNELS_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 # =========================
 # CONFIG (stable)
 # =========================
 
+import os
 STREAM_W, STREAM_H = 1280, 720
 JPEG_QV = 4               # quality 2..10 (lower = better quality)
 RECOG_FRAME_STEP = 1
 MAX_FACES_PER_FRAME = 3
+MAX_DETECTION_FPS = float(os.getenv("CAMERA_MAX_DETECTION_FPS", "4.0"))
 
 MAX_BUFFER_BYTES = 12_000_000
 READ_TIMEOUT_S = 4.0      # ffmpeg stdout.read timeout
@@ -72,12 +80,22 @@ try:
     FACE_APP = FaceAnalysis(
         name="buffalo_l",
         providers=FACE_RUNTIME["providers"],
+        provider_options=FACE_RUNTIME.get("provider_options"),
     )
     FACE_APP.prepare(ctx_id=FACE_RUNTIME["ctx_id"], det_size=(960, 960))
     logger.info("[RTSP] InsightFace ready (buffalo_l, device=%s)", DEVICE.type.upper())
 except Exception as exc:
     FACE_APP = None
     logger.exception("[RTSP] InsightFace load failed: %s", exc)
+
+import threading
+FACE_LOCK = threading.Lock()
+
+def detect_faces_sync(frame) -> list:
+    if FACE_APP is None:
+        return []
+    with FACE_LOCK:
+        return FACE_APP.get(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
 # =========================
 # DB helpers
@@ -125,10 +143,11 @@ def build_ffmpeg_cmd(rtsp_url: str, use_hwaccel: bool) -> list[str]:
 
     cmd += [
         "-i", rtsp_url,
-        "-vf", f"scale={STREAM_W}:{STREAM_H}:flags=bicubic",
+        "-vf", f"scale={STREAM_W}:{STREAM_H}:flags=fast_bilinear",
         "-an", "-sn",
         "-vcodec", "mjpeg",
         "-q:v", str(JPEG_QV),
+        "-threads", "1",
         "-f", "image2pipe",
         "pipe:1",
     ]
@@ -214,6 +233,7 @@ class CameraWorker:
     faces: int = 0
     last_frame_m: float = field(default_factory=time.monotonic)
     last_stats_m: float = field(default_factory=time.monotonic)
+    last_detection_m: float = field(default_factory=time.monotonic)
 
 # =========================
 # Daemon
@@ -354,7 +374,13 @@ class RtspDaemon:
                         if w.frames % RECOG_FRAME_STEP != 0:
                             continue
 
-                        faces = FACE_APP.get(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                        # ✅ Soniyasiga maksimal MAX_DETECTION_FPS ta kadrni AI deteksiyaga yuboramiz (qolganlarini o'tkazib yuboramiz)
+                        now = time.monotonic()
+                        if now - w.last_detection_m < (1.0 / MAX_DETECTION_FPS):
+                            continue
+                        w.last_detection_m = now
+
+                        faces = await loop.run_in_executor(None, detect_faces_sync, frame)
                         w.faces += len(faces)
 
                         for face in faces[:MAX_FACES_PER_FRAME]:
@@ -371,13 +397,36 @@ class RtspDaemon:
 
                                 person_id = user.employee_id_number if user.role == "employee" else user.student_id_number
 
-                                enqueue_hikvision_event(
+                                enqueued = enqueue_hikvision_event(
                                     camera_ip=cam.ip,
                                     full_name=(user.full_name or user.username or "Unknown"),
                                     person_id=person_id or "",
                                     user_id=user.id,
                                     similarity=sim,
                                 )
+
+                                # Broadcast to live_attendance_events channels group
+                                if enqueued and CHANNELS_AVAILABLE:
+                                    try:
+                                        channel_layer = get_channel_layer()
+                                        if channel_layer is not None:
+                                            photo_url = user.image.url if getattr(user, "image", None) and user.image else None
+                                            await channel_layer.group_send(
+                                                "live_attendance_events",
+                                                {
+                                                    "type": "face_detected_event",
+                                                    "camera_id": cam.id,
+                                                    "user_id": user.id,
+                                                    "full_name": user.full_name or user.username or "Unknown",
+                                                    "photo_url": photo_url,
+                                                    "role": getattr(user, "role", "unknown"),
+                                                    "entry_time": time.strftime("%H:%M"),
+                                                    "last_seen_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                                                    "is_present": True
+                                                }
+                                            )
+                                    except Exception as e:
+                                        logger.error("[RTSP Channels Broadcast] Failed to send to channels group: %s", e)
 
                     # ✅ kamera heartbeat: video kelmasa restart
                     if time.monotonic() - w.last_frame_m > CAMERA_HEARTBEAT_S:

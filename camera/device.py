@@ -46,8 +46,8 @@ def requested_face_device() -> str:
 def _onnx_cuda_available() -> bool:
     try:
         import onnxruntime as ort
-
-        return "CUDAExecutionProvider" in ort.get_available_providers()
+        available = ort.get_available_providers()
+        return "CUDAExecutionProvider" in available or "TensorrtExecutionProvider" in available
     except Exception:
         return False
 
@@ -68,14 +68,43 @@ def get_face_runtime() -> dict:
     use_cuda = requested == "gpu" or (requested == "auto" and onnx_cuda_available)
 
     if use_cuda and not onnx_cuda_available:
-        logger.warning("[DEVICE] GPU requested, but CUDA providers are not available. Falling back to CPU.")
+        logger.warning("[DEVICE] GPU requested, but CUDA/TensorRT providers are not available. Falling back to CPU.")
         use_cuda = False
 
     if use_cuda:
+        import onnxruntime as ort
+        available = ort.get_available_providers()
+        providers = []
+        provider_options = []
+
+        if "TensorrtExecutionProvider" in available:
+            providers.append("TensorrtExecutionProvider")
+            cache_dir = "/home/smartgate/web/CAMERA/models/trt_cache"
+            try:
+                os.makedirs(cache_dir, exist_ok=True)
+            except Exception as e:
+                logger.error("[DEVICE] Failed to create TensorRT cache dir: %s", e)
+            provider_options.append({
+                "trt_fp16_enable": "1",
+                "trt_engine_cache_enable": "1",
+                "trt_engine_cache_path": cache_dir,
+            })
+
+        if "CUDAExecutionProvider" in available:
+            providers.append("CUDAExecutionProvider")
+            provider_options.append({
+                "device_id": "0",
+                "cudnn_conv_algo_search": "DEFAULT",
+            })
+
+        providers.append("CPUExecutionProvider")
+        provider_options.append({})
+
         return {
             "requested": requested,
             "device_type": "cuda",
-            "providers": ["CUDAExecutionProvider", "CPUExecutionProvider"],
+            "providers": providers,
+            "provider_options": provider_options,
             "ctx_id": 0,
             "onnx_cuda_available": onnx_cuda_available,
             "torch_cuda_available": torch_cuda_available,
@@ -85,6 +114,7 @@ def get_face_runtime() -> dict:
         "requested": requested,
         "device_type": "cpu",
         "providers": ["CPUExecutionProvider"],
+        "provider_options": [{}],
         "ctx_id": -1,
         "onnx_cuda_available": onnx_cuda_available,
         "torch_cuda_available": torch_cuda_available,

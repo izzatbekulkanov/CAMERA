@@ -116,25 +116,114 @@ class PsychologyConsumer(AsyncWebsocketConsumer):
 
 
 class ServiceLogConsumer(AsyncWebsocketConsumer):
+    """
+    Enhanced WebSocket consumer for real-time log streaming.
+
+    Validates service names against ALLOWED_SERVICES, supports
+    historical log retrieval, and ensures proper subprocess cleanup.
+
+    Requirements covered:
+    - 1.3: Reject WebSocket for services not in ALLOWED_SERVICES (code 4003)
+    - 4.1: Stream logs starting with last 50 lines
+    - 4.2: Send log lines as JSON with type="stream"
+    - 4.3: Terminate journalctl subprocess on disconnect within 5 seconds
+    - 4.4: Handle get_history command (default 100, max 500 lines)
+    - 4.7: Reject non-allowed services with close code 4003
+    - 4.8: Send error and close if journalctl exits unexpectedly
+    - 6.2: Reject unauthenticated WebSocket connections with code 4001
+    """
+
     async def connect(self):
+        from .services import ALLOWED_SERVICES
+
         self.service_name = self.scope["url_route"]["kwargs"]["service_name"]
-        await self.accept()
         self.proc = None
+        self.task = None
+
+        # Reject unauthenticated users with close code 4001
+        user = self.scope.get("user")
+        if not user or user.is_anonymous:
+            await self.close(code=4001)
+            return
+
+        # Reject connections for services not in the allowed list
+        if self.service_name not in ALLOWED_SERVICES:
+            await self.close(code=4003)
+            return
+
+        await self.accept()
         self.task = asyncio.create_task(self.stream_logs())
 
     async def disconnect(self, close_code):
-        if self.task:
+        # Cancel the streaming task
+        if hasattr(self, "task") and self.task:
             self.task.cancel()
+            try:
+                await self.task
+            except (asyncio.CancelledError, Exception):
+                pass
 
-        if self.proc:
+        # Terminate the journalctl subprocess
+        if hasattr(self, "proc") and self.proc:
             try:
                 self.proc.terminate()
-            except:
-                pass
+                await asyncio.wait_for(self.proc.wait(), timeout=5)
+            except (asyncio.TimeoutError, ProcessLookupError, OSError):
+                try:
+                    self.proc.kill()
+                except (ProcessLookupError, OSError):
+                    pass
+
+    async def receive(self, text_data):
+        """Handle client commands like requesting historical logs."""
+        try:
+            data = json.loads(text_data)
+        except (json.JSONDecodeError, TypeError):
+            return
+
+        if data.get("action") == "get_history":
+            try:
+                lines_count = int(data.get("lines", 100))
+            except (ValueError, TypeError):
+                lines_count = 100
+            # Cap at 500 lines maximum, minimum 1
+            lines_count = max(1, min(lines_count, 500))
+            await self.send_history(lines_count)
+
+    async def send_history(self, lines_count: int):
+        """Send last N lines of logs (non-streaming, one-shot retrieval)."""
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "journalctl",
+                "-u", self.service_name,
+                "-n", str(lines_count),
+                "--no-pager",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
+
+            for line in stdout.decode(errors="ignore").splitlines():
+                text = line.strip()
+                if text:
+                    await self.send(text_data=json.dumps({
+                        "line": text,
+                        "type": "history",
+                    }))
+        except asyncio.TimeoutError:
+            await self.send(text_data=json.dumps({
+                "error": "History retrieval timed out",
+            }))
+        except Exception as exc:
+            await self.send(text_data=json.dumps({
+                "error": str(exc),
+            }))
 
     async def stream_logs(self):
         """
-        journalctl -u <service> -f --no-pager
+        Stream real-time logs from journalctl -f, starting with the last 50 lines.
+        Sends JSON messages with a 'type' field of "stream".
+        If the subprocess exits unexpectedly, sends an error and closes the connection.
         """
         try:
             self.proc = await asyncio.create_subprocess_exec(
@@ -142,6 +231,7 @@ class ServiceLogConsumer(AsyncWebsocketConsumer):
                 "-u", self.service_name,
                 "-f",
                 "--no-pager",
+                "-n", "50",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -149,13 +239,30 @@ class ServiceLogConsumer(AsyncWebsocketConsumer):
             while True:
                 line = await self.proc.stdout.readline()
                 if not line:
+                    # Subprocess exited unexpectedly
                     break
 
                 text = line.decode(errors="ignore").strip()
-                await self.send(text_data=json.dumps({"line": text}))
+                if text:
+                    await self.send(text_data=json.dumps({
+                        "line": text,
+                        "type": "stream",
+                    }))
+
+            # If we reach here, the subprocess exited unexpectedly
+            await self.send(text_data=json.dumps({
+                "error": "Log stream ended unexpectedly",
+            }))
+            await self.close(code=1011)
 
         except asyncio.CancelledError:
             pass
 
         except Exception as exc:
-            await self.send(text_data=json.dumps({"error": str(exc)}))
+            try:
+                await self.send(text_data=json.dumps({
+                    "error": str(exc),
+                }))
+                await self.close(code=1011)
+            except Exception:
+                pass

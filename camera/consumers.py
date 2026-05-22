@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import shutil
+import threading
 import time
 import urllib.parse
 from dataclasses import dataclass
@@ -40,28 +41,36 @@ logger.info(
 FFMPEG_BIN = shutil.which("ffmpeg") or r"C:\Users\Izzatbek\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe"
 logger.info("[FFMPEG] binary: %s", FFMPEG_BIN)
 
-# ================== InsightFace init ==================
+# ================== InsightFace lazy init ==================
 
-try:
-    from insightface.app import FaceAnalysis
+FACE_APP = None
+_face_app_lock = threading.Lock()
 
-    # det_size: uzoqdan yuzni yaxshiroq olish uchun kattaroq qo'yish mumkin.
-    # Lekin juda katta bo'lsa CPU yuk ortadi.
-    DET_SIZE = 640  # 640 / 960
-    
-    FACE_APP = FaceAnalysis(
-        name="buffalo_l",
-        providers=FACE_RUNTIME["providers"],
-    )
-    FACE_APP.prepare(ctx_id=FACE_RUNTIME["ctx_id"], det_size=(DET_SIZE, DET_SIZE))
-    logger.info(
-        "[INSIGHTFACE] ready (buffalo_l, device=%s, det_size=%s)",
-        DEVICE_TYPE.upper(),
-        DET_SIZE,
-    )
-except Exception as exc:
-    logger.error("[INSIGHTFACE] yuklanmadi: %s", exc)
-    FACE_APP = None
+def get_face_app():
+    global FACE_APP
+    if FACE_APP is not None:
+        return FACE_APP
+    with _face_app_lock:
+        if FACE_APP is not None:
+            return FACE_APP
+        try:
+            from insightface.app import FaceAnalysis
+            DET_SIZE = 640
+            app = FaceAnalysis(
+                name="buffalo_l",
+                providers=FACE_RUNTIME["providers"],
+            )
+            app.prepare(ctx_id=FACE_RUNTIME["ctx_id"], det_size=(DET_SIZE, DET_SIZE))
+            FACE_APP = app
+            logger.info(
+                "[INSIGHTFACE] lazily initialized ready (buffalo_l, device=%s, det_size=%s)",
+                DEVICE_TYPE.upper(),
+                DET_SIZE,
+            )
+        except Exception as exc:
+            logger.error("[INSIGHTFACE] lazy loading failed: %s", exc)
+            FACE_APP = None
+    return FACE_APP
 
 
 # ================== DB helpers ==================
@@ -149,10 +158,20 @@ def get_live_attendance_data():
 class LiveAttendanceConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.accept()
+        # Join live_attendance_events channels group
+        await self.channel_layer.group_add(
+            "live_attendance_events",
+            self.channel_name
+        )
         self.task = asyncio.create_task(self.broadcast_loop())
         logger.info("[ATTENDANCE] client ulandi")
 
     async def disconnect(self, close_code):
+        # Leave live_attendance_events channels group
+        await self.channel_layer.group_discard(
+            "live_attendance_events",
+            self.channel_name
+        )
         if hasattr(self, "task"):
             self.task.cancel()
         logger.info("[ATTENDANCE] uzildi → %s", close_code)
@@ -166,6 +185,20 @@ class LiveAttendanceConsumer(AsyncWebsocketConsumer):
                 await asyncio.sleep(4.5)
         except asyncio.CancelledError:
             logger.info("[ATTENDANCE] broadcast bekor qilindi")
+
+    async def face_detected_event(self, event):
+        payload = {
+            "type": "face_detected",
+            "camera_id": event.get("camera_id"),
+            "user_id": event.get("user_id"),
+            "full_name": event.get("full_name"),
+            "photo_url": event.get("photo_url"),
+            "role": event.get("role"),
+            "entry_time": event.get("entry_time"),
+            "last_seen_iso": event.get("last_seen_iso"),
+            "is_present": event.get("is_present", True)
+        }
+        await self.send(text_data=json.dumps(payload, ensure_ascii=False))
 
 
 # ================== IP camera WS ==================
@@ -212,7 +245,7 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
         self.ai_enabled = True  # Default
 
     async def connect(self):
-        if FACE_APP is None:
+        if get_face_app() is None:
             await self.close(code=1011)
             return
 
@@ -577,8 +610,9 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
     # ---------- per-frame processing ----------
 
     def process_frame_with_models(self, jpeg_bytes: bytes) -> Optional[bytes]:
+        face_app = get_face_app()
         # Agar AI o'chiq bo'lsa yoki FaceApp yo'q bo'lsa -> shunchaki frame qaytaramiz (CPU tejash)
-        if not self.ai_enabled or FACE_APP is None:
+        if not self.ai_enabled or face_app is None:
             return jpeg_bytes
 
         try:
@@ -587,11 +621,11 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
             if frame is None:
                 return None
 
-            # InsightFace ko'pincha BGR ham ishlaydi, lekin ayrim holatda RGB yaxshiroq bo'ladi.
+            # InsightFace ko'pincha BGR ham ishlaydi, lekin ayrim holatda RGB yaxshoreq bo'ladi.
             # Agar sizda det yomon bo'lsa, quyidagi 2 qatorni ishlating:
             # frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             # faces = FACE_APP.get(frame_rgb)
-            faces = FACE_APP.get(frame)
+            faces = face_app.get(frame)
 
             self.stats.faces_seen += len(faces)
             if len(faces) > 0:

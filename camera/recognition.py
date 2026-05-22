@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 from asgiref.sync import sync_to_async
 from django.core.files.base import ContentFile
-from django.db import transaction
+from django.db import connections, transaction
 from django.utils import timezone
 
 from attendance.models import Attendance, AttendancePhoto
@@ -104,8 +104,11 @@ _faiss_expires_at: float = 0.0
 
 def warmup_encodings_cache() -> None:
     """Daemon startda bir marta chaqirib qo'ying (lag kamayadi)."""
-    with _faiss_lock:
-        _build_index_sync()
+    try:
+        with _faiss_lock:
+            _build_index_sync()
+    finally:
+        connections.close_all()
 
 
 def _build_index_sync() -> None:
@@ -194,19 +197,22 @@ def recognize_user_from_embedding(emb: np.ndarray) -> Tuple[Optional[CustomUser]
     emb: (512,) float32 normed embedding
     returns: (user_or_none, similarity)
     """
-    index, users_db = _load_index()
-    if index is None or not users_db:
-        return None, 0.0
+    try:
+        index, users_db = _load_index()
+        if index is None or not users_db:
+            return None, 0.0
 
-    res = _search_best(emb)
-    if res is None:
-        return None, 0.0
+        res = _search_best(emb)
+        if res is None:
+            return None, 0.0
 
-    sim, idx = res
-    if 0 <= idx < len(users_db) and sim >= FACE_COSINE_THRESHOLD:
-        return users_db[idx], float(sim)
+        sim, idx = res
+        if 0 <= idx < len(users_db) and sim >= FACE_COSINE_THRESHOLD:
+            return users_db[idx], float(sim)
 
-    return None, float(sim)
+        return None, float(sim)
+    finally:
+        connections.close_all()
 
 # =========================
 # Attendance update + photo
@@ -218,77 +224,83 @@ def process_recognition_sync(user: CustomUser, face_crop: np.ndarray) -> None:
     - DB update throttled
     - photo save throttled
     """
-    now_dt = timezone.now()
-    today = timezone.localdate()
-
-    # in-memory last seen
-    _remember_seen(user.id, now_dt)
-
-    # DB throttle
-    if not _allow_action(_last_db_update, user.id, USER_DB_UPDATE_COOLDOWN_S):
-        return
-
     try:
-        with transaction.atomic():
-            att, created = Attendance.objects.get_or_create(
-                user=user,
-                date=today,
-                defaults={"entry_time": now_dt, "last_seen": now_dt, "is_present": True},
-            )
-            if not created:
-                if not att.entry_time:
-                    att.entry_time = now_dt
-                att.last_seen = now_dt
-                att.is_present = True
-                att.save(update_fields=["entry_time", "last_seen", "is_present"])
-    except Exception as exc:
-        logger.exception("[ATTENDANCE] update failed user=%s: %s", user.id, exc)
-        return
+        now_dt = timezone.now()
+        today = timezone.localdate()
 
-    # Photo throttle
-    if not _allow_action(_last_photo_time, user.id, PHOTO_INTERVAL_S):
-        return
+        # in-memory last seen
+        _remember_seen(user.id, now_dt)
 
-    try:
-        ok, buffer = cv2.imencode(".jpg", face_crop, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
-        if not ok:
+        # DB throttle
+        if not _allow_action(_last_db_update, user.id, USER_DB_UPDATE_COOLDOWN_S):
             return
-        filename = f"{user.username or 'user'}_{uuid.uuid4().hex[:8]}.jpg"
-        photo = AttendancePhoto(attendance=att)
-        photo.image.save(filename, ContentFile(buffer.tobytes()))
-        logger.info("[PHOTO] saved user=%s file=%s", user.id, filename)
-        
-        # As soon as a photo is captured, trigger psychological analysis
+
         try:
-            from attendance.tasks import analyze_attendance_psychology
-            analyze_attendance_psychology.delay(att.id)
+            with transaction.atomic():
+                att, created = Attendance.objects.get_or_create(
+                    user=user,
+                    date=today,
+                    defaults={"entry_time": now_dt, "last_seen": now_dt, "is_present": True},
+                )
+                if not created:
+                    if not att.entry_time:
+                        att.entry_time = now_dt
+                    att.last_seen = now_dt
+                    att.is_present = True
+                    att.save(update_fields=["entry_time", "last_seen", "is_present"])
         except Exception as exc:
-            logger.error("[PSYCHOLOGY] Trigger failed for user=%s: %s", user.id, exc)
-    except Exception as exc:
-        logger.exception("[PHOTO] save failed user=%s: %s", user.id, exc)
+            logger.exception("[ATTENDANCE] update failed user=%s: %s", user.id, exc)
+            return
+
+        # Photo throttle
+        if not _allow_action(_last_photo_time, user.id, PHOTO_INTERVAL_S):
+            return
+
+        try:
+            ok, buffer = cv2.imencode(".jpg", face_crop, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+            if not ok:
+                return
+            filename = f"{user.username or 'user'}_{uuid.uuid4().hex[:8]}.jpg"
+            photo = AttendancePhoto(attendance=att)
+            photo.image.save(filename, ContentFile(buffer.tobytes()))
+            logger.info("[PHOTO] saved user=%s file=%s", user.id, filename)
+            
+            # As soon as a photo is captured, trigger psychological analysis
+            try:
+                from attendance.tasks import analyze_attendance_psychology
+                analyze_attendance_psychology.delay(att.id)
+            except Exception as exc:
+                logger.error("[PSYCHOLOGY] Trigger failed for user=%s: %s", user.id, exc)
+        except Exception as exc:
+            logger.exception("[PHOTO] save failed user=%s: %s", user.id, exc)
+    finally:
+        connections.close_all()
 
 
 def mark_exit_sync(user: CustomUser, when: Optional[timezone.datetime] = None) -> None:
-    now_dt = when or timezone.now()
-    today = timezone.localdate()
-
     try:
-        att = Attendance.objects.filter(user=user, date=today, is_present=True).first()
-        if not att:
-            return
+        now_dt = when or timezone.now()
+        today = timezone.localdate()
 
-        att.exit_time = now_dt
-        att.is_present = False
+        try:
+            att = Attendance.objects.filter(user=user, date=today, is_present=True).first()
+            if not att:
+                return
 
-        if att.entry_time:
-            att.duration_minutes = max(1, int((att.exit_time - att.entry_time).total_seconds() // 60))
-        else:
-            att.duration_minutes = 0
+            att.exit_time = now_dt
+            att.is_present = False
 
-        att.save(update_fields=["exit_time", "is_present", "duration_minutes"])
-        logger.info("[EXIT] user=%s exit_time=%s", user.id, att.exit_time)
-    except Exception as exc:
-        logger.exception("[EXIT] mark_exit failed user=%s: %s", user.id, exc)
+            if att.entry_time:
+                att.duration_minutes = max(1, int((att.exit_time - att.entry_time).total_seconds() // 60))
+            else:
+                att.duration_minutes = 0
+
+            att.save(update_fields=["exit_time", "is_present", "duration_minutes"])
+            logger.info("[EXIT] user=%s exit_time=%s", user.id, att.exit_time)
+        except Exception as exc:
+            logger.exception("[EXIT] mark_exit failed user=%s: %s", user.id, exc)
+    finally:
+        connections.close_all()
 
 # =========================
 # Exit detector (async-safe)
@@ -300,23 +312,26 @@ def _close_stale_attendances_sync(now_dt, cutoff, today) -> int:
     DB-based exit:
     last_seen cutoff'dan eski bo'lgan is_present=True attendancelarni yopadi.
     """
-    qs = Attendance.objects.filter(
-        date=today,
-        is_present=True,
-        last_seen__lt=cutoff,
-    ).select_related("user")
+    try:
+        qs = Attendance.objects.filter(
+            date=today,
+            is_present=True,
+            last_seen__lt=cutoff,
+        ).select_related("user")
 
-    closed = 0
-    for att in qs.iterator(chunk_size=500):
-        att.exit_time = now_dt
-        att.is_present = False
-        if att.entry_time:
-            att.duration_minutes = max(1, int((now_dt - att.entry_time).total_seconds() // 60))
-        else:
-            att.duration_minutes = 0
-        att.save(update_fields=["exit_time", "is_present", "duration_minutes"])
-        closed += 1
-    return closed
+        closed = 0
+        for att in qs.iterator(chunk_size=500):
+            att.exit_time = now_dt
+            att.is_present = False
+            if att.entry_time:
+                att.duration_minutes = max(1, int((now_dt - att.entry_time).total_seconds() // 60))
+            else:
+                att.duration_minutes = 0
+            att.save(update_fields=["exit_time", "is_present", "duration_minutes"])
+            closed += 1
+        return closed
+    finally:
+        connections.close_all()
 
 
 async def auto_exit_detector_loop() -> None:

@@ -62,7 +62,7 @@ class CustomUser(AbstractUser):
 class FaceEncoding(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="face_encodings")
     encoding_data = models.JSONField()
-    model_version = models.CharField(max_length=50, default="insightface_buffalo_l")
+    model_version = models.CharField(max_length=50, default="insightface_buffalo_l", db_index=True)
     confidence = models.FloatField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

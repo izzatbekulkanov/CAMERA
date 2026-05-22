@@ -20,6 +20,7 @@ HIKVISION_URL = "https://dc.namspi.uz/DS-K1T673DX.php"
 TIMEOUT = 2.0
 
 _queue: queue.Queue[dict] = queue.Queue(maxsize=1000)
+_session = requests.Session()
 
 # 🔒 ASOSIY SHABLON (dict) — hamma maydonlar saqlanadi
 _BASE_EVENT = {
@@ -55,9 +56,9 @@ _BASE_EVENT = {
     },
 }
 
-SEND_COOLDOWN_S = 10.0  # ✅ user+camera uchun 10s da 1 marta
+SEND_COOLDOWN_S = 10.0  # ✅ user uchun 10s da 1 marta
 
-_last_sent: dict[tuple[str, str], float] = defaultdict(float)
+_last_sent: dict[str, float] = defaultdict(float)
 _last_sent_lock = threading.Lock()
 
 
@@ -85,19 +86,19 @@ def enqueue_hikvision_event(
         person_id: str,
         user_id: int | None = None,
         similarity: float | None = None
-) -> None:
+) -> bool:
     """
     RTSP runner ichidan chaqiriladi.
     Queue ga event qo'yadi.
-    Throttle: har user+camera uchun 10 sekundda 1 martadan ortiq yubormaydi.
+    Throttle: har xodim/talaba uchun 10 sekundda 1 martadan ortiq yubormaydi (barcha kameralar bo'yicha global).
     """
-    key = (camera_ip, str(person_id or user_id or "unknown"))
+    key = str(person_id or user_id or "unknown")
 
     nowm = time.monotonic()
     with _last_sent_lock:
         last = _last_sent.get(key, 0.0)
         if nowm - last < SEND_COOLDOWN_S:
-            return
+            return False
         _last_sent[key] = nowm
 
     event_str = _build_event_string(camera_ip=camera_ip, full_name=full_name, person_id=person_id)
@@ -122,8 +123,10 @@ def enqueue_hikvision_event(
             person_id,
             full_name,
         )
+        return True
     except queue.Full:
         logger.warning("[HIKVISION] queue full, event dropped camera=%s user_id=%s", camera_ip, user_id)
+        return False
 
 
 def _try_notify_telegram(meta: dict, status_code: int) -> None:
@@ -156,7 +159,7 @@ def _worker() -> None:
         try:
             meta = payload.pop("_meta", {})  # log/notify uchun
 
-            resp = requests.post(
+            resp = _session.post(
                 HIKVISION_URL,
                 json=payload,
                 timeout=TIMEOUT,

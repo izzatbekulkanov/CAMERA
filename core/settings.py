@@ -188,9 +188,14 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # ===============================
 ENABLE_WS = True
 if ENABLE_WS:
+    redis_host = os.getenv("CHANNELS_REDIS_HOST", "127.0.0.1")
+    redis_port = os.getenv("CHANNELS_REDIS_PORT", "6379")
     CHANNEL_LAYERS = {
         'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [(redis_host, int(redis_port))],
+            },
         }
     }
 

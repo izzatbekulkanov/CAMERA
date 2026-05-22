@@ -17,7 +17,7 @@ from users.models import CustomUser, TelegramProfile
 logger = logging.getLogger(__name__)
 
 _TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
-_TIMEOUT = 30  # 20 -> 30 sekundga oshirdik
+_TIMEOUT = 60  # 30 -> 60 sekundga oshirdik (Telegram getUpdates 50s taymautiga moslashtirildi)
 _POLL_SLEEP = 2.0  # 1.0 -> 2.0 sekundga oshirdik
 
 # chat_id -> awaiting_id (True/False)

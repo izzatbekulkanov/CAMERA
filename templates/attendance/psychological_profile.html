@@ -136,8 +136,23 @@
 
       <div class="d-flex flex-wrap align-items-center gap-2">
         <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
-          <input type="date" name="date" id="analyzeDate" class="form-control form-control-sm"
-                 value="{{ date }}" style="max-width: 180px;">
+          <select name="year" class="form-select form-select-sm" style="max-width: 90px;">
+            {% for y in years_list %}
+              <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+
+          <select name="month" class="form-select form-select-sm" style="max-width: 110px;">
+            {% for m_val, m_name in months_list %}
+              <option value="{{ m_val }}" {% if selected_month == m_val %}selected{% endif %}>{{ m_name }}</option>
+            {% endfor %}
+          </select>
+
+          <select name="day" class="form-select form-select-sm" style="max-width: 80px;">
+            {% for d in days_list %}
+              <option value="{{ d }}" {% if selected_day == d %}selected{% endif %}>{{ d }}</option>
+            {% endfor %}
+          </select>
 
           <select name="role" class="form-select form-select-sm" style="max-width: 150px;">
             <option value="">Hammasi</option>
@@ -154,10 +169,6 @@
             Qidirish
           </button>
         </form>
-
-        <button id="analyzeBtn" class="btn btn-dark btn-sm px-4">
-          Tahlil yangilash
-        </button>
       </div>
     </div>
 
@@ -172,21 +183,7 @@
     </div>
   </div>
 
-  <!-- LOADER -->
-  <div id="analyzeLoader" class="mb-3 d-none">
-    <div class="loader-card shadow-sm">
-      <div class="p-3">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <div class="fw-bold">AI tahlil jarayoni</div>
-          <div class="small muted" id="loaderText">Boshlanmoqda…</div>
-        </div>
-        <div class="progress" style="height: 12px; border-radius: 999px;">
-          <div id="analyzeProgress" class="progress-bar progress-bar-striped progress-bar-animated"
-               style="width: 0%; border-radius: 999px;">0%</div>
-        </div>
-      </div>
-    </div>
-  </div>
+
 
   <!-- TABLE PANEL -->
   <div class="panel">
@@ -396,7 +393,7 @@
             <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
               {% if page_obj.has_previous %}
                 <a class="page-link"
-                   href="?page={{ page_obj.previous_page_number }}&role={{ request.GET.role }}&q={{ request.GET.q }}&date={{ request.GET.date }}">
+                   href="?page={{ page_obj.previous_page_number }}&year={{ selected_year }}&month={{ selected_month }}&day={{ selected_day }}&role={{ role }}&q={{ q }}">
                   &laquo;
                 </a>
               {% else %}
@@ -410,7 +407,7 @@
               {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
                 <li class="page-item">
                   <a class="page-link"
-                     href="?page={{ num }}&role={{ request.GET.role }}&q={{ request.GET.q }}&date={{ request.GET.date }}">{{ num }}</a>
+                     href="?page={{ num }}&year={{ selected_year }}&month={{ selected_month }}&day={{ selected_day }}&role={{ role }}&q={{ q }}">{{ num }}</a>
                 </li>
               {% endif %}
             {% endfor %}
@@ -418,7 +415,7 @@
             <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
               {% if page_obj.has_next %}
                 <a class="page-link"
-                   href="?page={{ page_obj.next_page_number }}&role={{ request.GET.role }}&q={{ request.GET.q }}&date={{ request.GET.date }}">
+                   href="?page={{ page_obj.next_page_number }}&year={{ selected_year }}&month={{ selected_month }}&day={{ selected_day }}&role={{ role }}&q={{ q }}">
                   &raquo;
                 </a>
               {% else %}
@@ -439,64 +436,3 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-$(function() {
-  const loader = $('#analyzeLoader');
-  const bar = $('#analyzeProgress');
-  const txt = $('#loaderText');
-  const btn = $('#analyzeBtn');
-
-  let started = new Set();
-  let completed = new Set();
-
-  const ws = new WebSocket(
-    (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/psychology/'
-  );
-
-  window.addEventListener("beforeunload", () => ws.close());
-
-  ws.onmessage = function(e) {
-    const d = JSON.parse(e.data || '{}');
-
-    if (d.started && d.attendance_id) started.add(d.attendance_id);
-
-    if (d.progress !== undefined) {
-      loader.removeClass('d-none');
-      bar.css('width', d.progress + '%').text(d.progress + '%');
-      txt.text(`AI tahlil: ${d.user_full_name || 'xodim'} · ${d.progress}%`);
-    }
-
-    if (d.error) {
-      loader.removeClass('d-none');
-      bar.removeClass('bg-primary').addClass('bg-danger');
-      txt.text('Xatolik: ' + d.error);
-      return;
-    }
-
-    if (d.completed && d.attendance_id) {
-      completed.add(d.attendance_id);
-      if (d.progress === 100 || (started.size > 0 && completed.size >= started.size)) {
-        bar.css('width','100%').text('100%');
-        txt.text('Yakunlandi! Yangilanmoqda…');
-        setTimeout(() => location.reload(), 900);
-      }
-    }
-  };
-
-  btn.on('click', function() {
-    started = new Set();
-    completed = new Set();
-    loader.removeClass('d-none');
-    bar.removeClass('bg-danger').addClass('bg-primary');
-    bar.css('width','0%').text('0%');
-    txt.text('Boshlanmoqda…');
-
-    ws.send(JSON.stringify({
-      action: "start_analysis",
-      date: $('#analyzeDate').val()
-    }));
-  });
-});
-</script>
-{% endblock %}

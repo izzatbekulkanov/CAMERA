@@ -510,34 +510,54 @@ def view_cameras(request):
 
 @login_required(login_url='login')
 def ip_camera_view_auto(request):
-    """is_active=True va enable_face_detection=True kameralardan birinchisini ko‘rsatish."""
-    qs = Camera.objects.filter(is_active=True, enable_face_detection=True)
+    """is_active=True va enable_face_detection=True barcha kameralarni grid ko‘rinishida ko‘rsatish."""
+    qs = Camera.objects.filter(is_active=True, enable_face_detection=True).order_by('name', 'ip')
     if not qs.exists():
         raise Http404("Faol va yuzni aniqlash yoqilgan kamera topilmadi.")
 
-    camera = qs.first()
     enable_ws = getattr(settings, "ENABLE_WS", False)
-    rtsp_url = build_rtsp_url(camera)
-    go2rtc_mjpeg_url = build_go2rtc_mjpeg_url(rtsp_url)
-    go2rtc_mjpeg_urls = build_go2rtc_mjpeg_urls(camera)
-    local_mjpeg_url = f"/cameras/ip/stream/{camera.id}/"
     camera_ws_enabled = enable_ws and bool(shutil.which("ffmpeg") or os.path.isfile(r"C:\Users\Izzatbek\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe"))
+    
+    cameras_list = []
+    for cam in qs:
+        rtsp_url = build_rtsp_url(cam)
+        go2rtc_mjpeg_url = build_go2rtc_mjpeg_url(rtsp_url)
+        go2rtc_mjpeg_urls = build_go2rtc_mjpeg_urls(cam)
+        local_mjpeg_url = f"/cameras/ip/stream/{cam.id}/"
+        
+        cameras_list.append({
+            'instance': cam,
+            'id': cam.id,
+            'name': cam.name or cam.ip,
+            'ip': cam.ip,
+            'rtsp_url': rtsp_url,
+            'local_mjpeg_url': local_mjpeg_url,
+            'go2rtc_mjpeg_url': go2rtc_mjpeg_url,
+            'camera_stream_urls': [local_mjpeg_url] + (go2rtc_mjpeg_urls or ([go2rtc_mjpeg_url] if go2rtc_mjpeg_url else [])),
+        })
+
     breadcrumbs = [
         {'name': 'Bosh sahifa', 'url': '/'},
         {'name': 'Avto IP Kamera Ko‘rinishi', 'url': None},
     ]
+    
+    first_cam = qs.first()
     context = {
-        'camera': camera,
+        'camera': first_cam,
+        'cameras_list': cameras_list,
         'breadcrumbs': breadcrumbs,
         'total_cameras': qs.count(),
         'enable_ws': enable_ws,
         'camera_ws_enabled': camera_ws_enabled,
-        'go2rtc_mjpeg_url': go2rtc_mjpeg_url,
-        'local_mjpeg_url': local_mjpeg_url,
-        'camera_stream_urls': [local_mjpeg_url] + (go2rtc_mjpeg_urls or ([go2rtc_mjpeg_url] if go2rtc_mjpeg_url else [])),
-        'rtsp_url': rtsp_url,
+        
+        # Backward compatibility fields for single-camera fallback if needed
+        'go2rtc_mjpeg_url': cameras_list[0]['go2rtc_mjpeg_url'],
+        'local_mjpeg_url': cameras_list[0]['local_mjpeg_url'],
+        'camera_stream_urls': cameras_list[0]['camera_stream_urls'],
+        'rtsp_url': cameras_list[0]['rtsp_url'],
     }
     return render(request, 'cameras/ip_camera_view.html', context)
+
 
 
 @login_required(login_url='login')

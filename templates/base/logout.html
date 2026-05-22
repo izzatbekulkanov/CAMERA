@@ -3,18 +3,20 @@
 <html lang="uz" class="h-full">
 
 <head>
-    <meta charset="utf-8" />
-    <title>Tizimdan chiqish | SmartGate</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8"/>
+    <title>Tizimdan chiqish | {{ global_site_settings.site_name|default:"Kamera boshqaruv paneli" }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta content="Kamera va foydalanuvchilarni boshqarish tizimi" name="description"/>
+    <meta content="NamDPI" name="author"/>
 
-    {# FAVICON – SiteSettings’dan, fallback static #}
+    {# Favicon – SiteSettings’dan, fallback static #}
     {% if global_site_settings and global_site_settings.logo_small %}
         <link rel="icon" type="image/png" href="{{ global_site_settings.logo_small.url }}">
     {% else %}
-        <link rel="icon" href="{% static 'assets/images/favicon_old.ico' %}">
+        <link rel="shortcut icon" href="{% static 'assets/images/favicon_old.ico' %}">
     {% endif %}
 
-    {# Tailwind CDN #}
+    {# TailwindCSS CDN #}
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -22,147 +24,133 @@
                 extend: {
                     colors: {
                         brand: {
-                            500: '#22c55e',
-                            600: '#16a34a',
+                            500: '#3b82f6',
+                            600: '#2563eb',
                         }
                     }
                 }
             }
         }
     </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body.login-bg {
+            background: #e2e8f0;
+        }
+
+        body.login-bg::before {
+            content: "";
+            position: fixed;
+            inset: -24px;
+            background-image: url("{% static 'assets/images/login_background.jpeg' %}");
+            background-size: cover;
+            background-position: center;
+            filter: blur(9px);
+            transform: scale(1.06);
+            z-index: -2;
+        }
+
+        body.login-bg::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.68), rgba(226, 232, 240, 0.78));
+            z-index: -1;
+        }
+    </style>
 </head>
 
-<body class="h-full bg-slate-950 text-slate-50 antialiased">
+<body class="login-bg min-h-screen flex items-center justify-center p-4 antialiased overflow-hidden text-slate-800">
 
-{# Yorqin glassmorphism uchun fon effektlari #}
-<div class="fixed inset-0 -z-10 overflow-hidden">
-    <div class="absolute -top-40 -right-32 w-[420px] h-[420px] bg-emerald-400/30 blur-3xl rounded-full"></div>
-    <div class="absolute -bottom-40 -left-32 w-[420px] h-[420px] bg-sky-500/25 blur-3xl rounded-full"></div>
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top,_#020617,_#000)]"></div>
-</div>
+    <!-- Brand Logo (Top Left) -->
+    <div class="fixed top-4 left-4 sm:top-6 sm:left-8 z-50 flex items-center gap-2">
+        {% if global_site_settings and global_site_settings.logo_small %}
+            <img src="{{ global_site_settings.logo_small.url }}" alt="Logo" class="h-10 sm:h-12 w-auto drop-shadow-lg object-contain">
+        {% else %}
+            <img src="{% static 'assets/images/logo-sm.png' %}" alt="Logo" class="h-10 sm:h-12 w-auto drop-shadow-lg object-contain">
+        {% endif %}
+        <span class="font-extrabold text-slate-800 text-sm sm:text-base tracking-tight drop-shadow font-sans">
+            {{ global_site_settings.site_name|default:"CAMERA" }}
+        </span>
+    </div>
 
-<div class="min-h-screen flex flex-col items-center justify-center px-4">
-    <div class="w-full max-w-md">
-
-        {# Brand / Logo #}
-        <div class="flex items-center justify-center mb-8">
-            <div class="flex items-center gap-3">
-                <div
-                        class="h-16 w-16 rounded-3xl bg-white/5 border border-white/20 shadow-[0_0_60px_rgba(16,185,129,0.4)] flex items-center justify-center overflow-hidden backdrop-blur-xl">
-                    {% if global_site_settings and global_site_settings.logo_small %}
-                        <img src="{{ global_site_settings.logo_small.url }}"
-                             alt="{{ global_site_settings.site_name }}"
-                             class="h-12 w-12 object-contain">
-                    {% else %}
-                        <img src="{% static 'assets/images/logo-sm.png' %}"
-                             alt="SmartGate"
-                             class="h-12 w-12 object-contain">
-                    {% endif %}
-                </div>
-                <div class="flex flex-col">
-                        <span class="font-semibold text-slate-50 text-xl tracking-[0.06em]">
-                            {{ global_site_settings.site_name|default:"SmartGate" }}
-                        </span>
-                    <span class="text-xs uppercase text-slate-400 tracking-[0.25em]">
-                            AI Attendance System
-                        </span>
-                </div>
-            </div>
-        </div>
-
-        {# Main glass card #}
-        <div class="relative">
-            {# Yorqin border glow #}
-            <div
-                    class="absolute -inset-[1px] rounded-3xl bg-gradient-to-br from-emerald-400/60 via-sky-500/50 to-transparent opacity-80 blur-xl">
-            </div>
-
-            <div
-                    class="relative rounded-3xl bg-white/10 border border-white/15 backdrop-blur-2xl px-8 py-10 shadow-2xl shadow-emerald-500/30">
-
-                {# Check icon #}
-                <div class="flex justify-center mb-6">
-                    <div
-                            class="h-16 w-16 rounded-2xl bg-emerald-400/10 border border-emerald-300/50 flex items-center justify-center shadow-lg shadow-emerald-400/40">
-                        <svg xmlns="http://www.w3.org/2000/svg"
-                             viewBox="0 0 24 24"
-                             fill="none"
-                             class="h-9 w-9">
-                            <circle cx="12" cy="12" r="9"
-                                    class="stroke-emerald-300"
-                                    stroke-width="1.5"
-                                    fill="none" />
-                            <path d="M8 12.5L10.5 15L16 9.5"
-                                  class="stroke-emerald-300"
-                                  stroke-width="1.8"
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round" />
-                        </svg>
-                    </div>
-                </div>
-
-                <h1 class="text-2xl font-semibold text-center mb-2">
-                    Yana ko‘rishguncha! 👋
-                </h1>
-                <p class="text-center text-slate-200/80 text-sm mb-6">
-                    Siz tizimdan muvaffaqiyatli chiqdingiz.
-                    <br>
-                    Sessiyangiz xavfsiz tarzda yakunlandi.
-                </p>
-
-                {# Info line #}
-                <div
-                        class="mb-8 rounded-2xl bg-white/5 border border-white/15 px-4 py-3 text-xs text-slate-200/80 flex items-center gap-3 backdrop-blur-xl">
-                    <div
-                            class="h-7 w-7 rounded-xl bg-slate-900/70 border border-slate-700 flex items-center justify-center text-[10px] font-mono text-emerald-300">
-                        AI
-                    </div>
-                    <div>
-                        <div class="font-medium text-slate-50 text-xs">
-                            Sessiya yakunlandi
-                        </div>
-                        <div class="text-[11px] text-slate-200/70">
-                            Qayta kirish uchun faqat login sahifasidan foydalaning.
-                        </div>
-                    </div>
-                </div>
-
-                {# Return to login button – faqat bitta #}
-                <div class="flex flex-col">
-                    <a href="{% url 'login' %}"
-                       class="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 via-emerald-500 to-sky-400 text-slate-950 font-medium text-sm py-2.5 transition transform hover:-translate-y-[1px] active:translate-y-0 shadow-lg shadow-emerald-400/40">
-                        <span>Kirish sahifasiga qaytish</span>
-                        <svg xmlns="http://www.w3.org/2000/svg"
-                             viewBox="0 0 24 24"
-                             fill="none"
-                             class="h-4 w-4">
-                            <path d="M9 5L16 12L9 19"
-                                  class="stroke-slate-900"
-                                  stroke-width="1.7"
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round" />
-                        </svg>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        {# Footer #}
-        <div class="mt-8 text-center text-[11px] text-slate-400">
-            <p class="mb-1">
-                2015 -
-                <script>document.write(new Date().getFullYear())</script>
-                &copy;
-                <span class="font-medium">
-                        {{ global_site_settings.site_name|default:"SmartGate" }}
-                    </span>
-            </p>
-            <p class="text-slate-500">
-                Smart, AI-assisted attendance &amp; access platform
-            </p>
+    <!-- Language Switcher -->
+    <div class="fixed top-4 right-4 sm:top-6 sm:right-8 z-50">
+        <div class="relative font-sans">
+            <i class="fa-solid fa-language absolute left-3 top-1/2 -translate-y-1/2 text-slate-500/80 text-xs pointer-events-none"></i>
+            <select
+                onchange="document.cookie='lang='+this.value+'; path=/; max-age=31536000'; window.location.reload();"
+                class="appearance-none bg-white/80 backdrop-blur-md border border-white/50 text-slate-600 text-sm font-medium rounded-xl hover:bg-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 block pl-9 pr-8 py-2 shadow-sm cursor-pointer outline-none transition-all"
+            >
+                <option value="uz" selected>O'zbek</option>
+                <option value="ru">Русский</option>
+                <option value="en">English</option>
+            </select>
+            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500/70 pointer-events-none"></i>
         </div>
     </div>
-</div>
+
+    <!-- Orqa fon nurlari -->
+    <div class="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vh] rounded-full pointer-events-none" style="background:radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%);"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vh] rounded-full pointer-events-none" style="background:radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%);"></div>
+
+    <div class="w-full max-w-[420px] relative z-10 font-sans">
+
+        <!-- Karta -->
+        <div class="bg-white/80 backdrop-blur-xl border border-white/50 rounded-[1.5rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+
+            <!-- Check Icon & Logo -->
+            <div class="text-center mb-8">
+                <div class="w-28 h-28 mx-auto bg-white rounded-3xl shadow-sm flex items-center justify-center mb-5 border border-slate-100 overflow-hidden relative">
+                    {% if global_site_settings and global_site_settings.logo_small %}
+                        <img src="{{ global_site_settings.logo_small.url }}" alt="{{ global_site_settings.site_name }}" class="w-full h-full object-contain p-1.5">
+                    {% else %}
+                        <img src="{% static 'assets/images/logo-sm.png' %}" alt="Logo" class="w-full h-full object-contain p-1.5" onerror="this.outerHTML='<i class=\'fa-solid fa-camera text-5xl text-blue-500\'></i>'">
+                    {% endif %}
+                    
+                    <!-- Yana ko'rishguncha check badge -->
+                    <div class="absolute -bottom-1 -right-1 h-7 w-7 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white shadow">
+                        <i class="fa-solid fa-check text-white text-xs"></i>
+                    </div>
+                </div>
+                <h1 class="text-2xl font-extrabold text-slate-800 mb-1 tracking-tight">Yana ko‘rishguncha! 👋</h1>
+                <p class="text-sm text-slate-500">Siz tizimdan muvaffaqiyatli chiqdingiz.</p>
+            </div>
+
+            <!-- Xabarlar yoki chiqish statusi -->
+            <div class="mb-6 rounded-2xl bg-white/50 border border-slate-200/60 px-4 py-4 text-slate-600 flex items-center gap-3 shadow-sm">
+                <div class="h-9 w-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0 text-sm">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </div>
+                <div>
+                    <div class="font-bold text-slate-800 text-xs">Sessiya yakunlandi</div>
+                    <div class="text-[11px] text-slate-550 leading-normal mt-0.5">Sizning sessiyangiz xavfsiz tarzda yopildi. Qayta kirish uchun quyidagi tugmani bosing.</div>
+                </div>
+            </div>
+
+            <!-- Return to login button -->
+            <div class="flex flex-col">
+                <a href="{% url 'login' %}" class="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 transform hover:-translate-y-[1px] flex items-center justify-center gap-2 group text-sm">
+                    <span>Kirish sahifasiga qaytish</span>
+                    <i class="fa-solid fa-arrow-right-to-bracket text-sm group-hover:translate-x-1 transition-transform"></i>
+                </a>
+            </div>
+
+        </div>
+
+        <p class="text-center text-xs text-slate-500 mt-6 font-medium font-sans">
+            &copy; <script>document.write(new Date().getFullYear())</script> {{ global_site_settings.site_name|default:"CAMERA" }} | Barcha huquqlar himoyalangan
+        </p>
+
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        document.documentElement.classList.remove('theme-dark', 'dark');
+        document.documentElement.classList.add('theme-light');
+        document.documentElement.setAttribute('data-theme', 'light');
+        localStorage.setItem('proadmin-theme', 'light');
+    </script>
 
 </body>
 </html>

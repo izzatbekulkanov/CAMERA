@@ -4,7 +4,7 @@
 
 <head>
     <meta charset="utf-8"/>
-    <title>Tizimga kirish | Kamera boshqaruv paneli</title>
+    <title>Tizimga kirish | {{ global_site_settings.site_name|default:"Kamera boshqaruv paneli" }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta content="Kamera va foydalanuvchilarni boshqarish tizimi" name="description"/>
     <meta content="NamDPI" name="author"/>
@@ -24,246 +24,483 @@
                 extend: {
                     colors: {
                         brand: {
-                            500: '#22c55e',
-                            600: '#16a34a',
+                            500: '#3b82f6',
+                            600: '#2563eb',
                         }
                     }
                 }
             }
         }
     </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body.login-bg {
+            background: #e2e8f0;
+        }
+
+        body.login-bg::before {
+            content: "";
+            position: fixed;
+            inset: -24px;
+            background-image: url("{% static 'assets/images/login_background.jpeg' %}");
+            background-size: cover;
+            background-position: center;
+            filter: blur(9px);
+            transform: scale(1.06);
+            z-index: -2;
+        }
+
+        body.login-bg::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.68), rgba(226, 232, 240, 0.78));
+            z-index: -1;
+        }
+
+        .fade-transition {
+            transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+        }
+
+        .hidden-section {
+            opacity: 0;
+            transform: scale(0.96);
+            pointer-events: none;
+        }
+
+        .visible-section {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+    </style>
 </head>
 
-<body class="h-full bg-slate-950 text-slate-50 antialiased">
+<body class="login-bg min-h-screen flex items-center justify-center p-4 antialiased overflow-hidden text-slate-800">
 
-{# Fon va yorqin glassmorphism effektlari #}
-<div class="fixed inset-0 -z-10 overflow-hidden">
-    <div class="absolute -top-40 -right-32 w-[420px] h-[420px] bg-emerald-400/30 blur-3xl rounded-full"></div>
-    <div class="absolute -bottom-40 -left-32 w-[420px] h-[420px] bg-sky-500/25 blur-3xl rounded-full"></div>
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top,_#020617,_#000)]"></div>
-</div>
+    <!-- Brand Logo (Top Left) -->
+    <div class="fixed top-4 left-4 sm:top-6 sm:left-8 z-50 flex items-center gap-2">
+        {% if global_site_settings and global_site_settings.logo_small %}
+            <img src="{{ global_site_settings.logo_small.url }}" alt="Logo" class="h-10 sm:h-12 w-auto drop-shadow-lg object-contain">
+        {% else %}
+            <img src="{% static 'assets/images/logo-sm.png' %}" alt="Logo" class="h-10 sm:h-12 w-auto drop-shadow-lg object-contain">
+        {% endif %}
+        <span class="font-extrabold text-slate-800 text-sm sm:text-base tracking-tight drop-shadow font-sans">
+            {{ global_site_settings.site_name|default:"CAMERA" }}
+        </span>
+    </div>
 
-<div class="min-h-screen flex flex-col items-center justify-center px-4">
-    <div class="w-full max-w-md">
+    <!-- Language Switcher -->
+    <div class="fixed top-4 right-4 sm:top-6 sm:right-8 z-50">
+        <div class="relative font-sans">
+            <i class="fa-solid fa-language absolute left-3 top-1/2 -translate-y-1/2 text-slate-500/80 text-xs pointer-events-none"></i>
+            <select
+                onchange="document.cookie='lang='+this.value+'; path=/; max-age=31536000'; window.location.reload();"
+                class="appearance-none bg-white/80 backdrop-blur-md border border-white/50 text-slate-600 text-sm font-medium rounded-xl hover:bg-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 block pl-9 pr-8 py-2 shadow-sm cursor-pointer outline-none transition-all"
+            >
+                <option value="uz" selected>O'zbek</option>
+                <option value="ru">Русский</option>
+                <option value="en">English</option>
+            </select>
+            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500/70 pointer-events-none"></i>
+        </div>
+    </div>
 
-        {# LOGO + nom #}
-        <div class="flex items-center justify-center mb-8">
-            <div class="flex items-center gap-3">
-                <div
-                        class="h-16 w-16 rounded-3xl bg-white/5 border border-white/20 shadow-[0_0_60px_rgba(16,185,129,0.4)] flex items-center justify-center overflow-hidden backdrop-blur-xl">
+    <!-- Orqa fon nurlari -->
+    <div class="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vh] rounded-full pointer-events-none" style="background:radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%);"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vh] rounded-full pointer-events-none" style="background:radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%);"></div>
+
+    <!-- Portal Asosiy Container -->
+    <div id="login-container" class="w-full max-w-[600px] transition-all duration-300 ease-out z-10">
+
+        <!-- 1. Tanlov Ekran (Portal Choice) -->
+        <div id="portal-select" class="fade-transition visible-section">
+            
+            <!-- Logo va Sarlavha -->
+            <div class="text-center mb-10 font-sans">
+                <div class="w-28 h-28 mx-auto bg-white rounded-3xl shadow-sm flex items-center justify-center mb-5 border border-slate-100 overflow-hidden">
                     {% if global_site_settings and global_site_settings.logo_small %}
-                        <img src="{{ global_site_settings.logo_small.url }}"
-                             alt="{{ global_site_settings.site_name }}"
-                             class="h-12 w-12 object-contain">
+                        <img src="{{ global_site_settings.logo_small.url }}" alt="{{ global_site_settings.site_name }}" class="w-full h-full object-contain p-1.5">
                     {% else %}
-                        <img src="{% static 'assets/images/logo-sm.png' %}"
-                             alt="Logo"
-                             class="h-12 w-12 object-contain">
+                        <img src="{% static 'assets/images/logo-sm.png' %}" alt="Logo" class="w-full h-full object-contain p-1.5" onerror="this.outerHTML='<i class=\'fa-solid fa-camera text-5xl text-blue-500\'></i>'">
                     {% endif %}
                 </div>
-                <div class="flex flex-col">
-                    <span class="font-semibold text-slate-50 text-xl tracking-[0.06em]">
-                        {{ global_site_settings.site_name|default:"NamDPI Kamera" }}
-                    </span>
-                    <span class="text-xs uppercase text-slate-400 tracking-[0.25em]">
-                        Kamera boshqaruv tizimi
-                    </span>
-                </div>
+                <h1 class="text-3xl font-extrabold text-slate-800 mb-2 tracking-tight">
+                    {{ global_site_settings.site_name|default:"CAMERA" }}
+                </h1>
+                <p class="text-sm text-slate-500">Tizimga qaysi usul orqali kirishni xohlaysiz?</p>
             </div>
+
+            <!-- 2 ta karta tanlovi -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8 font-sans">
+
+                <!-- Karta 1: Parol bilan kirish -->
+                <button onclick="showPasswordForm(true)" class="group relative text-left p-8 bg-white/90 backdrop-blur-md border border-white/60 rounded-[1.5rem] shadow-sm hover:shadow-xl hover:shadow-blue-500/10 hover:border-blue-300 transition-all duration-300 transform hover:-translate-y-1 overflow-hidden flex flex-col items-center text-center cursor-pointer outline-none w-full">
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div class="relative w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center text-2xl mb-5 group-hover:scale-110 transition-transform shadow-sm">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <div class="relative text-lg font-bold text-slate-800 mb-2">Parol bilan</div>
+                    <div class="relative text-sm text-slate-500 mb-6 leading-relaxed flex-grow">Foydalanuvchi nomi va parolingiz orqali an'anaviy kirish</div>
+                    <div class="relative w-10 h-10 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center text-sm group-hover:bg-blue-600 group-hover:text-white transition-colors mt-auto shadow-sm">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                </button>
+
+                <!-- Karta 2: DC bilan kirish -->
+                <button onclick="showDCForm(true)" class="group relative text-left p-8 bg-white/90 backdrop-blur-md border border-white/60 rounded-[1.5rem] shadow-sm hover:shadow-xl hover:shadow-sky-500/10 hover:border-sky-300 transition-all duration-300 transform hover:-translate-y-1 overflow-hidden flex flex-col items-center text-center cursor-pointer outline-none w-full">
+                    <div class="absolute inset-0 bg-gradient-to-br from-sky-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div class="relative w-16 h-16 rounded-2xl bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center text-2xl mb-5 group-hover:scale-110 transition-transform shadow-sm">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+                    <div class="relative text-lg font-bold text-slate-800 mb-2">DC bilan kirish</div>
+                    <div class="relative text-sm text-slate-500 mb-6 leading-relaxed flex-grow">Active Directory (Domain Controller) orqali korporativ kirish</div>
+                    <div class="relative w-10 h-10 rounded-full bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center text-sm group-hover:bg-sky-500 group-hover:text-white transition-colors mt-auto shadow-sm">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                </button>
+
+            </div>
+
+            <!-- Quyi xavfsizlik ma'lumoti -->
+            <div class="flex items-center gap-3 p-4 bg-white/80 border border-slate-200/60 rounded-2xl mb-6 shadow-sm font-sans">
+                <i class="fa-solid fa-shield-halved text-emerald-500 text-lg shrink-0"></i>
+                <p class="text-xs text-slate-500 m-0 leading-relaxed font-medium">
+                    Ma'lumotlaringiz xavfsiz SSL/TLS protokoli orqali himoyalangan. Muammo bo'lsa administrator bilan bog'laning.
+                </p>
+            </div>
+
+            <p class="text-center text-xs text-slate-400 m-0 font-medium font-sans">
+                &copy; <script>document.write(new Date().getFullYear())</script> {{ global_site_settings.site_name|default:"CAMERA" }} | Barcha huquqlar himoyalangan
+            </p>
         </div>
 
-        {# ASOSIY CARD #}
-        <div class="relative">
-            {# Glow border #}
-            <div
-                    class="absolute -inset-[1px] rounded-3xl bg-gradient-to-br from-emerald-400/60 via-sky-500/50 to-transparent opacity-80 blur-xl">
-            </div>
+        <!-- 2. Parol bilan kirish formasi (Password Login Form) -->
+        <div id="login-password-form" class="fade-transition hidden-section" style="display: none;">
+            <div class="bg-white/80 backdrop-blur-xl border border-white/50 rounded-[1.5rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] font-sans">
+                
+                <!-- Logo va Sarlavha -->
+                <div class="text-center mb-8">
+                    <div class="w-28 h-28 mx-auto bg-white rounded-3xl shadow-sm flex items-center justify-center mb-5 border border-slate-100 overflow-hidden">
+                        {% if global_site_settings and global_site_settings.logo_small %}
+                            <img src="{{ global_site_settings.logo_small.url }}" alt="{{ global_site_settings.site_name }}" class="w-full h-full object-contain p-1.5">
+                        {% else %}
+                            <img src="{% static 'assets/images/logo-sm.png' %}" alt="Logo" class="w-full h-full object-contain p-1.5" onerror="this.outerHTML='<i class=\'fa-solid fa-camera text-5xl text-blue-500\'></i>'">
+                        {% endif %}
+                    </div>
+                    <h1 class="text-2xl font-extrabold text-slate-800 mb-1 tracking-tight">Parol bilan kirish</h1>
+                    <p class="text-sm text-slate-500">Tizimga kirish uchun ma'lumotlarni kiriting</p>
+                </div>
 
-            <div
-                    class="relative rounded-3xl bg-white/10 border border-white/15 backdrop-blur-2xl px-8 py-9 shadow-2xl shadow-emerald-500/30">
-
-                {# Xabarlar (Django messages) #}
+                <!-- Django xabarlari -->
                 {% if messages %}
-                    <div class="mb-4 space-y-2">
+                    <div class="mb-5 space-y-2">
                         {% for message in messages %}
-                            <div class="
-                                text-xs px-3 py-2 rounded-2xl border backdrop-blur
+                            <div class="text-xs px-4 py-3 rounded-xl border backdrop-blur flex items-center gap-2 font-medium
                                 {% if 'error' in message.tags %}
-                                    border-red-400/40 bg-red-500/10 text-red-100
+                                    border-red-200 bg-red-50 text-red-700
                                 {% elif 'success' in message.tags %}
-                                    border-emerald-400/40 bg-emerald-500/10 text-emerald-100
+                                    border-emerald-200 bg-emerald-50 text-emerald-700
                                 {% else %}
-                                    border-sky-400/40 bg-sky-500/10 text-sky-100
+                                    border-blue-200 bg-blue-50 text-blue-700
                                 {% endif %}
                             ">
-                                {{ message }}
+                                {% if 'error' in message.tags %}
+                                    <i class="fa-solid fa-circle-exclamation text-red-500"></i>
+                                {% elif 'success' in message.tags %}
+                                    <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-circle-info text-blue-500"></i>
+                                {% endif %}
+                                <span>{{ message }}</span>
                             </div>
                         {% endfor %}
                     </div>
                 {% endif %}
 
-                <h1 class="text-xl font-semibold mb-2">
-                    Tizimga kirish
-                </h1>
-                <p class="text-sm text-slate-200/80 mb-6">
-                    Tizimga kirish uchun login va parolingizni kiriting.
-                </p>
-
-                <form method="post" action="{% url 'login' %}" class="space-y-4">
+                <!-- Forma -->
+                <form id="passwordLoginForm" method="post" action="{% url 'login' %}">
                     {% csrf_token %}
+                    <div class="space-y-5">
 
-                    {# Login #}
-                    <div class="space-y-1.5">
-                        <label for="username" class="block text-xs font-medium text-slate-200/80">
-                            Foydalanuvchi nomi
-                        </label>
-                        <input
-                                class="w-full rounded-2xl border border-white/20 bg-white/5 px-3 py-2.5 text-sm text-slate-50 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/70 focus:border-emerald-300/70"
-                                type="text"
-                                id="username"
-                                name="username"
-                                required
-                                autocomplete="username"
-                                placeholder="Loginni kiriting">
-                    </div>
+                        <!-- Username -->
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <input type="text" name="username" class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-medium shadow-sm text-sm" placeholder="Foydalanuvchi nomi" required autocomplete="username">
+                        </div>
 
-                    {# Parol + ko‘rish/yashirish #}
-                    <div class="space-y-1.5">
-                        <label for="password" class="block text-xs font-medium text-slate-200/80">
-                            Parol
-                        </label>
-                        <div class="relative">
-                            <input
-                                    class="w-full rounded-2xl border border-white/20 bg-white/5 px-3 py-2.5 pr-10 text-sm text-slate-50 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/70 focus:border-emerald-300/70"
-                                    type="password"
-                                    id="password"
-                                    name="password"
-                                    autocomplete="current-password"
-                                    placeholder="Parolni kiriting">
-                            <button
-                                    type="button"
-                                    id="toggle-password"
-                                    class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-300/80 hover:text-slate-100 transition"
-                                    aria-label="Parolni ko‘rsatish">
-                                {# ko‘z icon #}
-                                <svg id="icon-eye" xmlns="http://www.w3.org/2000/svg"
-                                     viewBox="0 0 24 24"
-                                     fill="none"
-                                     class="h-4 w-4">
-                                    <path d="M2 12C3.6 7.9 7.3 5 12 5c4.7 0 8.4 2.9 10 7-1.6 4.1-5.3 7-10 7-4.7 0-8.4-2.9-10-7Z"
-                                          class="stroke-current"
-                                          stroke-width="1.6"
-                                          stroke-linecap="round"
-                                          stroke-linejoin="round"/>
-                                    <circle cx="12" cy="12" r="3"
-                                            class="stroke-current"
-                                            stroke-width="1.6"/>
-                                </svg>
-                                <svg id="icon-eye-off" xmlns="http://www.w3.org/2000/svg"
-                                     viewBox="0 0 24 24"
-                                     fill="none"
-                                     class="h-4 w-4 hidden">
-                                    <path d="M3 3l18 18"
-                                          class="stroke-current"
-                                          stroke-width="1.6"
-                                          stroke-linecap="round"/>
-                                    <path d="M10.6 10.6A3 3 0 0 0 13.4 13.4"
-                                          class="stroke-current"
-                                          stroke-width="1.6"
-                                          stroke-linecap="round"
-                                          stroke-linejoin="round"/>
-                                    <path d="M9.88 5.08A8.3 8.3 0 0 1 12 5c4.7 0 8.4 2.9 10 7-.4 1.1-1 2.1-1.7 3"
-                                          class="stroke-current"
-                                          stroke-width="1.6"
-                                          stroke-linecap="round"
-                                          stroke-linejoin="round"/>
-                                    <path d="M6.2 6.2C4.1 7.5 2.7 9.5 2 12c1.6 4.1 5.3 7 10 7 1.1 0 2.2-.2 3.2-.5"
-                                          class="stroke-current"
-                                          stroke-width="1.6"
-                                          stroke-linecap="round"
-                                          stroke-linejoin="round"/>
-                                </svg>
+                        <!-- Password -->
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                                <i class="fa-solid fa-lock"></i>
+                            </div>
+                            <input type="password" id="password" name="password" class="w-full pl-11 pr-12 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-medium shadow-sm text-sm" placeholder="Sizning parolingiz" required autocomplete="current-password">
+
+                            <button type="button" id="toggle-password" class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors focus:outline-none">
+                                <i id="icon-eye" class="fa-regular fa-eye"></i>
                             </button>
                         </div>
-                    </div>
 
-                    {# Eslab qolish + Parolni unutdingizmi #}
-                    <div class="flex items-center justify-between text-xs text-slate-300/80">
-                        <label class="inline-flex items-center gap-2 cursor-pointer">
-                            <input
+                        <!-- Remember Me & Forgot Password -->
+                        <div class="flex items-center justify-between text-xs text-slate-600 font-medium px-1">
+                            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                                <input
                                     type="checkbox"
-                                    class="h-3.5 w-3.5 rounded border-slate-500/70 bg-slate-900/60 text-emerald-400 focus:ring-emerald-400/60"
-                                    id="checkbox-signin"
+                                    class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/50 cursor-pointer"
+                                    id="checkbox-signin-pwd"
                                     checked>
-                            <span>Eslab qolish</span>
-                        </label>
+                                <span>Eslab qolish</span>
+                            </label>
 
-                        <a href="{% url 'reset_password' %}" class="hover:text-emerald-300 transition">
-                            Parolni unutdingizmi?
-                        </a>
-                    </div>
+                            <a href="{% url 'reset_password' %}" class="text-blue-600 hover:text-indigo-600 transition-colors">
+                                Parolni unutdingizmi?
+                            </a>
+                        </div>
 
-                    {# Submit tugma #}
-                    <div class="pt-2">
-                        <button
-                                class="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 via-emerald-500 to-sky-400 text-slate-950 font-medium text-sm py-2.5 transition transform hover:-translate-y-[1px] active:translate-y-0 shadow-lg shadow-emerald-400/40"
-                                type="submit">
-                            <span>Kirish</span>
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                 viewBox="0 0 24 24"
-                                 fill="none"
-                                 class="h-4 w-4">
-                                <path d="M9 5L16 12L9 19"
-                                      class="stroke-slate-900"
-                                      stroke-width="1.7"
-                                      stroke-linecap="round"
-                                      stroke-linejoin="round"/>
-                            </svg>
+                        <!-- Submit Button -->
+                        <button type="submit" id="pwdLoginBtn" class="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 transform hover:-translate-y-[1px] flex items-center justify-center gap-2 group text-sm">
+                            <span>Tizimga qadam</span>
+                            <i class="fa-solid fa-arrow-right-to-bracket text-sm group-hover:translate-x-1 transition-transform"></i>
                         </button>
+
                     </div>
                 </form>
-            </div>
-        </div>
 
-        {# FOOTER #}
-        <div class="mt-8 text-center text-[11px] text-slate-400">
-            <p>
-                <script>document.write(new Date().getFullYear())</script>
-                &copy;
-                <span class="font-medium">
-                    {{ global_site_settings.site_name|default:"NamDPI Kamera boshqaruv tizimi" }}
-                </span>
+                <!-- Boshqa usulni tanlash -->
+                <div class="mt-6 text-center">
+                    <button onclick="showSelectScreen(true)" class="inline-flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm hover:shadow cursor-pointer outline-none">
+                        <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                        Boshqa usulni tanlash
+                    </button>
+                </div>
+
+            </div>
+
+            <p class="text-center text-xs text-slate-500 mt-6 font-medium font-sans">
+                &copy; <script>document.write(new Date().getFullYear())</script> {{ global_site_settings.site_name|default:"CAMERA" }} | Barcha huquqlar himoyalangan
             </p>
         </div>
+
+        <!-- 3. DC bilan kirish formasi (DC Login Form) -->
+        <div id="login-dc-form" class="fade-transition hidden-section" style="display: none;">
+            <div class="bg-white/80 backdrop-blur-xl border border-white/50 rounded-[1.5rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] font-sans">
+                
+                <!-- Logo va Sarlavha -->
+                <div class="text-center mb-8">
+                    <div class="w-28 h-28 mx-auto bg-white rounded-3xl shadow-sm flex items-center justify-center mb-5 border border-slate-100 overflow-hidden">
+                        {% if global_site_settings and global_site_settings.logo_small %}
+                            <img src="{{ global_site_settings.logo_small.url }}" alt="{{ global_site_settings.site_name }}" class="w-full h-full object-contain p-1.5">
+                        {% else %}
+                            <img src="{% static 'assets/images/logo-sm.png' %}" alt="Logo" class="w-full h-full object-contain p-1.5" onerror="this.outerHTML='<i class=\'fa-solid fa-camera text-5xl text-blue-500\'></i>'">
+                        {% endif %}
+                    </div>
+                    <h1 class="text-2xl font-extrabold text-slate-800 mb-1 tracking-tight">DC bilan kirish</h1>
+                    <p class="text-sm text-slate-500">Active Directory orqali korporativ kirish</p>
+                </div>
+
+                <!-- Forma -->
+                <form id="dcLoginForm" method="post" action="{% url 'login' %}">
+                    {% csrf_token %}
+                    <div class="space-y-5">
+
+                        <!-- Corporate Username -->
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                                <i class="fa-solid fa-user-shield"></i>
+                            </div>
+                            <input type="text" name="username" class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-medium shadow-sm text-sm" placeholder="Korporativ login yoki e-mail" required>
+                        </div>
+
+                        <!-- DC Password -->
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                                <i class="fa-solid fa-lock"></i>
+                            </div>
+                            <input type="password" id="dc-password" name="password" class="w-full pl-11 pr-12 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-medium shadow-sm text-sm" placeholder="Sizning DC parolingiz" required autocomplete="current-password">
+
+                            <button type="button" id="toggle-dc-password" class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors focus:outline-none">
+                                <i id="icon-eye-dc" class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
+
+                        <!-- Remember Me -->
+                        <div class="flex items-center justify-between text-xs text-slate-600 font-medium px-1">
+                            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/50 cursor-pointer"
+                                    id="checkbox-signin-dc"
+                                    checked>
+                                <span>Eslab qolish</span>
+                            </label>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" id="dcLoginBtn" class="w-full py-3 px-4 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg hover:shadow-sky-500/30 transition-all duration-300 transform hover:-translate-y-[1px] flex items-center justify-center gap-2 group text-sm">
+                            <span>DC orqali kirish</span>
+                            <i class="fa-solid fa-arrow-right-to-bracket text-sm group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+
+                    </div>
+                </form>
+
+                <!-- Boshqa usulni tanlash -->
+                <div class="mt-6 text-center">
+                    <button onclick="showSelectScreen(true)" class="inline-flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm hover:shadow cursor-pointer outline-none">
+                        <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                        Boshqa usulni tanlash
+                    </button>
+                </div>
+
+            </div>
+
+            <p class="text-center text-xs text-slate-500 mt-6 font-medium font-sans">
+                &copy; <script>document.write(new Date().getFullYear())</script> {{ global_site_settings.site_name|default:"CAMERA" }} | Barcha huquqlar himoyalangan
+            </p>
+        </div>
+
     </div>
-</div>
 
-{# Parolni ko‘rish/yashirish uchun JS #}
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const passwordInput = document.getElementById('password');
-        const toggleBtn = document.getElementById('toggle-password');
-        const iconEye = document.getElementById('icon-eye');
-        const iconEyeOff = document.getElementById('icon-eye-off');
+    <!-- Scripts -->
+    <script>
+        document.documentElement.classList.remove('theme-dark', 'dark');
+        document.documentElement.classList.add('theme-light');
+        document.documentElement.setAttribute('data-theme', 'light');
+        localStorage.setItem('proadmin-theme', 'light');
 
-        if (toggleBtn && passwordInput) {
-            toggleBtn.addEventListener('click', function () {
-                const isHidden = passwordInput.type === 'password';
-                passwordInput.type = isHidden ? 'text' : 'password';
+        // --- EKRANLAR ALMASHINUVI (Transitions) ---
+        let currentSection = 'portal-select';
 
-                if (isHidden) {
-                    iconEye.classList.add('hidden');
-                    iconEyeOff.classList.remove('hidden');
-                    toggleBtn.setAttribute('aria-label', 'Parolni yashirish');
-                } else {
-                    iconEyeOff.classList.add('hidden');
-                    iconEye.classList.remove('hidden');
-                    toggleBtn.setAttribute('aria-label', 'Parolni ko‘rsatish');
+        function switchSection(fromId, toId, animate) {
+            const fromEl = document.getElementById(fromId);
+            const toEl = document.getElementById(toId);
+            const container = document.getElementById('login-container');
+
+            if (!fromEl || !toEl) return;
+
+            if (toId === 'portal-select') {
+                container.style.maxWidth = '600px';
+            } else {
+                container.style.maxWidth = '420px';
+            }
+
+            if (animate) {
+                fromEl.classList.remove('visible-section');
+                fromEl.classList.add('hidden-section');
+                
+                setTimeout(() => {
+                    fromEl.style.display = 'none';
+                    toEl.style.display = 'block';
+                    
+                    // Browser reflow’ni chaqirish
+                    toEl.offsetHeight;
+                    
+                    toEl.classList.remove('hidden-section');
+                    toEl.classList.add('visible-section');
+                }, 200);
+            } else {
+                fromEl.classList.remove('visible-section');
+                fromEl.classList.add('hidden-section');
+                fromEl.style.display = 'none';
+                
+                toEl.style.display = 'block';
+                toEl.classList.remove('hidden-section');
+                toEl.classList.add('visible-section');
+            }
+        }
+
+        function showPasswordForm(animate = true) {
+            switchSection(currentSection, 'login-password-form', animate);
+            currentSection = 'login-password-form';
+        }
+
+        function showDCForm(animate = true) {
+            switchSection(currentSection, 'login-dc-form', animate);
+            currentSection = 'login-dc-form';
+        }
+
+        function showSelectScreen(animate = true) {
+            switchSection(currentSection, 'portal-select', animate);
+            currentSection = 'portal-select';
+        }
+
+        // --- XABARLAR BO'LSA TO'G'RI FORMADAN BOSHLASH ---
+        document.addEventListener('DOMContentLoaded', function () {
+            {% if messages %}
+                showPasswordForm(false);
+            {% else %}
+                showSelectScreen(false);
+            {% endif %}
+        });
+
+        // --- PASSWORD SHOW/HIDE (Parol ko'rish/yashirish) ---
+        document.addEventListener('DOMContentLoaded', function () {
+            // Parol formasi uchun
+            const passwordInput = document.getElementById('password');
+            const toggleBtn = document.getElementById('toggle-password');
+            const eyeIcon = document.getElementById('icon-eye');
+
+            if (toggleBtn && passwordInput && eyeIcon) {
+                toggleBtn.addEventListener('click', function () {
+                    const isHidden = passwordInput.type === 'password';
+                    passwordInput.type = isHidden ? 'text' : 'password';
+
+                    if (isHidden) {
+                        eyeIcon.classList.replace('fa-eye', 'fa-eye-slash');
+                        toggleBtn.setAttribute('aria-label', 'Parolni yashirish');
+                    } else {
+                        eyeIcon.classList.replace('fa-eye-slash', 'fa-eye');
+                        toggleBtn.setAttribute('aria-label', 'Parolni ko‘rsatish');
+                    }
+                });
+            }
+
+            // DC formasi uchun
+            const dcPasswordInput = document.getElementById('dc-password');
+            const toggleDcBtn = document.getElementById('toggle-dc-password');
+            const eyeDcIcon = document.getElementById('icon-eye-dc');
+
+            if (toggleDcBtn && dcPasswordInput && eyeDcIcon) {
+                toggleDcBtn.addEventListener('click', function () {
+                    const isHidden = dcPasswordInput.type === 'password';
+                    dcPasswordInput.type = isHidden ? 'text' : 'password';
+
+                    if (isHidden) {
+                        eyeDcIcon.classList.replace('fa-eye', 'fa-eye-slash');
+                        toggleDcBtn.setAttribute('aria-label', 'Parolni yashirish');
+                    } else {
+                        eyeDcIcon.classList.replace('fa-eye-slash', 'fa-eye');
+                        toggleDcBtn.setAttribute('aria-label', 'Parolni ko‘rsatish');
+                    }
+                });
+            }
+
+            // --- SUBMIT BO'LGANDA SPINNER ANIMATSIYASI ---
+            const formPwd = document.getElementById('passwordLoginForm');
+            const btnPwd = document.getElementById('pwdLoginBtn');
+
+            formPwd.addEventListener('submit', function (e) {
+                if (formPwd.checkValidity()) {
+                    btnPwd.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Kirilmoqda...';
+                    btnPwd.style.opacity = '0.8';
+                    btnPwd.style.pointerEvents = 'none';
                 }
             });
-        }
-    });
-</script>
+
+            const formDc = document.getElementById('dcLoginForm');
+            const btnDc = document.getElementById('dcLoginBtn');
+
+            formDc.addEventListener('submit', function (e) {
+                if (formDc.checkValidity()) {
+                    btnDc.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Kirilmoqda...';
+                    btnDc.style.opacity = '0.8';
+                    btnDc.style.pointerEvents = 'none';
+                }
+            });
+        });
+    </script>
 
 </body>
 </html>

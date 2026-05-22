@@ -97,9 +97,31 @@
         <div class="card-body py-3">
             <form method="get" class="row g-2 align-items-end">
 
-                <div class="col-12 col-md-2">
-                    <label class="form-label small text-muted mb-1">Sana</label>
-                    <input type="date" name="date" value="{{ date }}" class="form-control form-control-sm">
+                <div class="col-4 col-md-1">
+                    <label class="form-label small text-muted mb-1">Yil</label>
+                    <select name="year" class="form-select form-select-sm">
+                        {% for y in years_list %}
+                            <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-4 col-md-1">
+                    <label class="form-label small text-muted mb-1">Oy</label>
+                    <select name="month" class="form-select form-select-sm">
+                        {% for m_val, m_name in months_list %}
+                            <option value="{{ m_val }}" {% if selected_month == m_val %}selected{% endif %}>{{ m_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-4 col-md-1">
+                    <label class="form-label small text-muted mb-1">Kun</label>
+                    <select name="day" class="form-select form-select-sm">
+                        {% for d in days_list %}
+                            <option value="{{ d }}" {% if selected_day == d %}selected{% endif %}>{{ d }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
 
                 <div class="col-12 col-md-2">
@@ -111,30 +133,20 @@
                     </select>
                 </div>
 
-                <div class="col-12 col-md-3">
+                <div class="col-12 col-md-2">
                     <label class="form-label small text-muted mb-1">Qidirish</label>
                     <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm"
                            placeholder="F.I.O / username / ID">
                 </div>
 
-                <div class="col-6 col-md-1">
-                    <label class="form-label small text-muted mb-1">Kirish (dan)</label>
-                    <input type="time" name="entry_from" value="{{ entry_from }}" class="form-control form-control-sm">
+                <div class="col-12 col-md-2">
+                    <label class="form-label small text-muted mb-1">Kirish vaqti</label>
+                    <input type="time" name="entry_time_ref" value="{{ entry_time_ref }}" class="form-control form-control-sm">
                 </div>
 
-                <div class="col-6 col-md-1">
-                    <label class="form-label small text-muted mb-1">Kirish (gacha)</label>
-                    <input type="time" name="entry_to" value="{{ entry_to }}" class="form-control form-control-sm">
-                </div>
-
-                <div class="col-6 col-md-1">
-                    <label class="form-label small text-muted mb-1">Chiqish (dan)</label>
-                    <input type="time" name="exit_from" value="{{ exit_from }}" class="form-control form-control-sm">
-                </div>
-
-                <div class="col-6 col-md-1">
-                    <label class="form-label small text-muted mb-1">Chiqish (gacha)</label>
-                    <input type="time" name="exit_to" value="{{ exit_to }}" class="form-control form-control-sm">
+                <div class="col-12 col-md-2">
+                    <label class="form-label small text-muted mb-1">Chiqish vaqti</label>
+                    <input type="time" name="exit_time_ref" value="{{ exit_time_ref }}" class="form-control form-control-sm">
                 </div>
 
                 <div class="col-12 col-md-1 d-flex gap-2">
@@ -264,7 +276,7 @@
                     <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
                         {% if page_obj.has_previous %}
                             <a class="page-link"
-                               href="?page={{ page_obj.previous_page_number }}&date={{ request.GET.date }}&role={{ request.GET.role }}&q={{ request.GET.q }}&entry_from={{ request.GET.entry_from }}&entry_to={{ request.GET.entry_to }}&exit_from={{ request.GET.exit_from }}&exit_to={{ request.GET.exit_to }}">
+                               href="?page={{ page_obj.previous_page_number }}&year={{ selected_year }}&month={{ selected_month }}&day={{ selected_day }}&role={{ role }}&q={{ q }}&entry_time_ref={{ entry_time_ref }}&exit_time_ref={{ exit_time_ref }}">
                                 &laquo;
                             </a>
                         {% else %}
@@ -278,7 +290,7 @@
                         {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
                             <li class="page-item">
                                 <a class="page-link"
-                                   href="?page={{ num }}&date={{ request.GET.date }}&role={{ request.GET.role }}&q={{ request.GET.q }}&entry_from={{ request.GET.entry_from }}&entry_to={{ request.GET.entry_to }}&exit_from={{ request.GET.exit_from }}&exit_to={{ request.GET.exit_to }}">
+                                   href="?page={{ num }}&year={{ selected_year }}&month={{ selected_month }}&day={{ selected_day }}&role={{ role }}&q={{ q }}&entry_time_ref={{ entry_time_ref }}&exit_time_ref={{ exit_time_ref }}">
                                     {{ num }}
                                 </a>
                             </li>
@@ -288,7 +300,7 @@
                     <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
                         {% if page_obj.has_next %}
                             <a class="page-link"
-                               href="?page={{ page_obj.next_page_number }}&date={{ request.GET.date }}&role={{ request.GET.role }}&q={{ request.GET.q }}&entry_from={{ request.GET.entry_from }}&entry_to={{ request.GET.entry_to }}&exit_from={{ request.GET.exit_from }}&exit_to={{ request.GET.exit_to }}">
+                               href="?page={{ page_obj.next_page_number }}&year={{ selected_year }}&month={{ selected_month }}&day={{ selected_day }}&role={{ role }}&q={{ q }}&entry_time_ref={{ entry_time_ref }}&exit_time_ref={{ exit_time_ref }}">
                                 &raquo;
                             </a>
                         {% else %}
@@ -312,6 +324,25 @@
 {% block scripts %}
 <script type="module">
 import PhotoSwipeLightbox from "https://cdn.jsdelivr.net/npm/photoswipe@5.4.4/dist/photoswipe-lightbox.esm.min.js";
+
+// Dinamik ravishda har bir rasmning asl o'lchamini aniqlab atributlarni yangilaymiz
+const updatePhotoDimensions = () => {
+    const links = document.querySelectorAll('.pswp-gallery a');
+    links.forEach(link => {
+        const img = new Image();
+        img.src = link.getAttribute('href');
+        img.onload = () => {
+            link.setAttribute('data-pswp-width', img.naturalWidth);
+            link.setAttribute('data-pswp-height', img.naturalHeight);
+        };
+    });
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', updatePhotoDimensions);
+} else {
+    updatePhotoDimensions();
+}
 
 const lightbox = new PhotoSwipeLightbox({
     gallery: '.pswp-gallery',
