@@ -1,156 +1,160 @@
-{% load static %}
+{% load static i18n %}
 <!DOCTYPE html>
-<html lang="uz" class="h-full">
-
+<html lang="uz" data-layout="horizontal" data-topbar-color="dark">
 <head>
-    <meta charset="utf-8"/>
-    <title>Tizimdan chiqish | {{ global_site_settings.site_name|default:"Kamera boshqaruv paneli" }}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta content="Kamera va foydalanuvchilarni boshqarish tizimi" name="description"/>
-    <meta content="NamDPI" name="author"/>
+    <meta charset="utf-8" />
+    <title>Chiqish | Aqilli Darvoza (SmartGate)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta content="Aqilli Darvoza — Namangan davlat pedagogika instituti intellektual biometrik davomat va monitoring tizimi" name="description" />
+    <meta content="SmartGate" name="author" />
 
-    {# Favicon – SiteSettings’dan, fallback static #}
-    {% if global_site_settings and global_site_settings.logo_small %}
-        <link rel="icon" type="image/png" href="{{ global_site_settings.logo_small.url }}">
-    {% else %}
-        <link rel="shortcut icon" href="{% static 'assets/images/favicon_old.ico' %}">
-    {% endif %}
+    <!-- App favicon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'assets/images/apple-touch-icon.png' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'assets/images/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'assets/images/favicon-16x16.png' %}">
+    <link rel="shortcut icon" href="{% static 'assets/images/favicon.ico' %}">
+    <link rel="manifest" href="{% static 'assets/images/site.webmanifest' %}">
 
-    {# TailwindCSS CDN #}
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            500: '#3b82f6',
-                            600: '#2563eb',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Theme Config Js -->
+    <script src="{% static 'assets/js/head.js' %}"></script>
+
+    <!-- Bootstrap css -->
+    <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet" type="text/css" id="app-style" />
+
+    <!-- App css -->
+    <link href="{% static 'assets/css/app.min.css' %}" rel="stylesheet" type="text/css" />
+
+    <!-- Icons css -->
+    <link href="{% static 'assets/css/icons.min.css' %}" rel="stylesheet" type="text/css" />
+
     <style>
-        body.login-bg {
-            background: #e2e8f0;
+        .brand-logo-img {
+            height: 36px;
+            width: 36px;
+            border-radius: 9px;
+            object-fit: contain;
+            box-shadow: 0 3px 8px rgba(80, 64, 251, 0.35);
         }
-
-        body.login-bg::before {
-            content: "";
-            position: fixed;
-            inset: -24px;
-            background-image: url("{% static 'assets/images/login_background.jpeg' %}");
-            background-size: cover;
-            background-position: center;
-            filter: blur(9px);
-            transform: scale(1.06);
-            z-index: -2;
+        .brand-text {
+            font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            white-space: nowrap;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
         }
-
-        body.login-bg::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            background: linear-gradient(135deg, rgba(248, 250, 252, 0.68), rgba(226, 232, 240, 0.78));
-            z-index: -1;
+        .brand-text .brand-title {
+            color: #1e293b;
+            font-weight: 700;
+        }
+        .brand-text .brand-highlight {
+            color: #556ee6;
+            font-weight: 700;
+        }
+        .btn-primary {
+            background-color: #6658dd;
+            border-color: #6658dd;
+        }
+        .btn-primary:hover {
+            background-color: #5b4ecd;
+            border-color: #5b4ecd;
+        }
+        .logout-checkmark {
+            width: 86px;
+            margin: 0 auto 15px auto;
+        }
+        .logout-checkmark .path {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 0;
+            animation: dash 2s ease-in-out;
+        }
+        .logout-checkmark .spin {
+            animation: spin 2s;
+            transform-origin: 50% 50%;
+        }
+        @keyframes dash {
+            0% { stroke-dashoffset: 1000; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 
-<body class="login-bg min-h-screen flex items-center justify-center p-4 antialiased overflow-hidden text-slate-800">
+<body class="authentication-bg authentication-bg-pattern">
 
-    <!-- Brand Logo (Top Left) -->
-    <div class="fixed top-4 left-4 sm:top-6 sm:left-8 z-50 flex items-center gap-2">
-        {% if global_site_settings and global_site_settings.logo_small %}
-            <img src="{{ global_site_settings.logo_small.url }}" alt="Logo" class="h-10 sm:h-12 w-auto drop-shadow-lg object-contain">
-        {% else %}
-            <img src="{% static 'assets/images/logo-sm.png' %}" alt="Logo" class="h-10 sm:h-12 w-auto drop-shadow-lg object-contain">
-        {% endif %}
-        <span class="font-extrabold text-slate-800 text-sm sm:text-base tracking-tight drop-shadow font-sans">
-            {{ global_site_settings.site_name|default:"CAMERA" }}
-        </span>
-    </div>
+    <div class="account-pages mt-5 mb-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6 col-xl-4">
+                    <div class="card bg-pattern shadow-lg border-0 rounded-3">
 
-    <!-- Language Switcher -->
-    <div class="fixed top-4 right-4 sm:top-6 sm:right-8 z-50">
-        <div class="relative font-sans">
-            <i class="fa-solid fa-language absolute left-3 top-1/2 -translate-y-1/2 text-slate-500/80 text-xs pointer-events-none"></i>
-            <select
-                onchange="document.cookie='lang='+this.value+'; path=/; max-age=31536000'; window.location.reload();"
-                class="appearance-none bg-white/80 backdrop-blur-md border border-white/50 text-slate-600 text-sm font-medium rounded-xl hover:bg-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 block pl-9 pr-8 py-2 shadow-sm cursor-pointer outline-none transition-all"
-            >
-                <option value="uz" selected>O'zbek</option>
-                <option value="ru">Русский</option>
-                <option value="en">English</option>
-            </select>
-            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500/70 pointer-events-none"></i>
-        </div>
-    </div>
+                        <div class="card-body p-4">
 
-    <!-- Orqa fon nurlari -->
-    <div class="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vh] rounded-full pointer-events-none" style="background:radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%);"></div>
-    <div class="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vh] rounded-full pointer-events-none" style="background:radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%);"></div>
+                            <!-- Brand Header -->
+                            <div class="text-center w-100 m-auto">
+                                <div class="auth-brand mb-3">
+                                    <a href="/" class="d-inline-flex align-items-center gap-2 text-decoration-none">
+                                        <img src="{% static 'assets/images/apple-touch-icon.png' %}" class="brand-logo-img" alt="Aqlli Darvoza">
+                                        <span class="brand-text">
+                                            <span class="brand-title">Aqlli</span>
+                                            <span class="brand-highlight">Darvoza</span>
+                                        </span>
+                                    </a>
+                                </div>
+                            </div>
 
-    <div class="w-full max-w-[420px] relative z-10 font-sans">
+                            <div class="text-center">
+                                <div class="mt-2 mb-3">
+                                    <div class="logout-checkmark">
+                                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130.2 130.2">
+                                            <circle class="path circle" fill="none" stroke="#4bd396" stroke-width="6" stroke-miterlimit="10" cx="65.1" cy="65.1" r="62.1"/>
+                                            <polyline class="path check" fill="none" stroke="#4bd396" stroke-width="6" stroke-linecap="round" stroke-miterlimit="10" points="100.2,40.2 51.5,88.8 29.8,67.5 "/>
+                                        </svg>
+                                    </div>
+                                </div>
 
-        <!-- Karta -->
-        <div class="bg-white/80 backdrop-blur-xl border border-white/50 rounded-[1.5rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                                <h4 class="fw-bold text-dark mb-1">Xayr, salomat bo'ling!</h4>
+                                <p class="text-muted font-size-13 mb-4">Siz tizimdan muvaffaqiyatli chiqdingiz.</p>
 
-            <!-- Check Icon & Logo -->
-            <div class="text-center mb-8">
-                <div class="w-28 h-28 mx-auto bg-white rounded-3xl shadow-sm flex items-center justify-center mb-5 border border-slate-100 overflow-hidden relative">
-                    {% if global_site_settings and global_site_settings.logo_small %}
-                        <img src="{{ global_site_settings.logo_small.url }}" alt="{{ global_site_settings.site_name }}" class="w-full h-full object-contain p-1.5">
-                    {% else %}
-                        <img src="{% static 'assets/images/logo-sm.png' %}" alt="Logo" class="w-full h-full object-contain p-1.5" onerror="this.outerHTML='<i class=\'fa-solid fa-camera text-5xl text-blue-500\'></i>'">
-                    {% endif %}
-                    
-                    <!-- Yana ko'rishguncha check badge -->
-                    <div class="absolute -bottom-1 -right-1 h-7 w-7 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white shadow">
-                        <i class="fa-solid fa-check text-white text-xs"></i>
+                                <div class="d-grid">
+                                    <a href="{% url 'login' %}" class="btn btn-primary btn-lg font-size-15 fw-semibold shadow-sm">
+                                        <i class="mdi mdi-login me-1"></i> Qaytadan Kirish
+                                    </a>
+                                </div>
+                            </div>
+
+                        </div> <!-- end card-body -->
                     </div>
-                </div>
-                <h1 class="text-2xl font-extrabold text-slate-800 mb-1 tracking-tight">Yana ko‘rishguncha! 👋</h1>
-                <p class="text-sm text-slate-500">Siz tizimdan muvaffaqiyatli chiqdingiz.</p>
-            </div>
+                    <!-- end card -->
 
-            <!-- Xabarlar yoki chiqish statusi -->
-            <div class="mb-6 rounded-2xl bg-white/50 border border-slate-200/60 px-4 py-4 text-slate-600 flex items-center gap-3 shadow-sm">
-                <div class="h-9 w-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0 text-sm">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                </div>
-                <div>
-                    <div class="font-bold text-slate-800 text-xs">Sessiya yakunlandi</div>
-                    <div class="text-[11px] text-slate-550 leading-normal mt-0.5">Sizning sessiyangiz xavfsiz tarzda yopildi. Qayta kirish uchun quyidagi tugmani bosing.</div>
-                </div>
-            </div>
+                    <div class="row mt-3">
+                        <div class="col-12 text-center">
+                            <p class="text-white-50 font-size-13 mb-0">
+                                NamDPI Aqilli Darvoza &copy; <script>document.write(new Date().getFullYear())</script> — Biometrik Monitoring Tizimi
+                            </p>
+                        </div>
+                    </div>
 
-            <!-- Return to login button -->
-            <div class="flex flex-col">
-                <a href="{% url 'login' %}" class="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 transform hover:-translate-y-[1px] flex items-center justify-center gap-2 group text-sm">
-                    <span>Kirish sahifasiga qaytish</span>
-                    <i class="fa-solid fa-arrow-right-to-bracket text-sm group-hover:translate-x-1 transition-transform"></i>
-                </a>
+                </div> <!-- end col -->
             </div>
-
+            <!-- end row -->
         </div>
-
-        <p class="text-center text-xs text-slate-500 mt-6 font-medium font-sans">
-            &copy; <script>document.write(new Date().getFullYear())</script> {{ global_site_settings.site_name|default:"CAMERA" }} | Barcha huquqlar himoyalangan
-        </p>
-
+        <!-- end container -->
     </div>
+    <!-- end page -->
 
-    <!-- Scripts -->
-    <script>
-        document.documentElement.classList.remove('theme-dark', 'dark');
-        document.documentElement.classList.add('theme-light');
-        document.documentElement.setAttribute('data-theme', 'light');
-        localStorage.setItem('proadmin-theme', 'light');
-    </script>
+    <footer class="footer footer-alt">
+        <script>document.write(new Date().getFullYear())</script> &copy; SmartGate by NamSPI
+    </footer>
 
+    <!-- Vendor & Auth JS -->
+    <script src="{% static 'assets/js/vendor.min.js' %}"></script>
+    <script src="{% static 'assets/js/app.min.js' %}"></script>
 </body>
 </html>

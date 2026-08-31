@@ -1,0 +1,269 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Noma'lum yuzlar guruhlari" %}{% endblock %}
+
+{% block styles %}
+<style>
+    /* AJAX qidiruv dropdown paneli - Creative/Ulysse dizayn tizimi ranglarida */
+    .search-results-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 9999;
+        border-radius: 8px;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        max-height: 220px;
+        overflow-y: auto;
+        display: none;
+    }
+    
+    .search-result-item {
+        padding: 10px 14px;
+        font-size: 13px;
+        cursor: pointer;
+        text-align: left;
+        border-bottom: 1px solid #f1f3f5;
+        transition: background 0.15s ease, color 0.15s ease;
+        color: #495057;
+    }
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+    .search-result-item:hover {
+        background-color: #f8f9fa;
+        color: #3bafda;
+    }
+
+    .no-results {
+        padding: 12px;
+        font-size: 13px;
+        color: #98a6ad;
+        text-align: center;
+    }
+
+    .face-avatar {
+        transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .face-avatar:hover {
+        transform: scale(1.25);
+        z-index: 5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include 'includes/breadcrumbs.html' %}
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-transparent border-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h4 class="card-title mb-0 text-dark fw-bold">{% trans "Noma'lum yuzlar guruhlari" %}</h4>
+                    
+                    <a href="{% url 'run_clustering_trigger' %}" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1">
+                        <i class="mdi mdi-refresh-circle fs-5 me-1"></i> {% trans "Qayta klasterlash (DBSCAN)" %}
+                    </a>
+                </div>
+
+                <div class="card-body pt-0">
+                    
+                    <!-- ✅ Qidiruv va Filtr shakli (Tizim umumiy dizayni) -->
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <form method="get" class="d-flex align-items-center flex-wrap gap-2">
+                            <input type="text" name="q" class="form-control form-control-sm"
+                                   placeholder="{% trans 'Guruh nomi...' %}" value="{{ search_query }}" style="width:240px;">
+                            
+                            <button type="submit" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1">
+                                <i class="mdi mdi-magnify"></i> {% trans "Filtrlash" %}
+                            </button>
+                            
+                            {% if search_query %}
+                            <a href="{% url 'unknown_clusters_list' %}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1">
+                                <i class="mdi mdi-restore"></i> {% trans "Tozalash" %}
+                            </a>
+                            {% endif %}
+                        </form>
+                    </div>
+
+                    <!-- ✅ Jadval -->
+                    <div class="table-responsive">
+                        <table class="table table-centered table-nowrap table-striped align-middle mb-0">
+                            <thead class="table-light text-muted">
+                                <tr>
+                                    <th style="width: 80px;" class="ps-3">#</th>
+                                    <th>{% trans "Guruh nomi" %}</th>
+                                    <th>{% trans "Yuz rasmlari" %}</th>
+                                    <th class="text-center" style="width: 150px;">{% trans "Rasm soni" %}</th>
+                                    <th>{% trans "Foydalanuvchini qidirish" %}</th>
+                                    <th class="text-center" style="width: 150px;">{% trans "Amal" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cluster in clusters %}
+                                <tr>
+                                    <td class="ps-3 fw-medium text-muted">
+                                        {{ forloop.counter0|add:page_obj.start_index }}
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-dark fs-5">{{ cluster.name|default:"Noma'lum Guruh" }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1 justify-content-start">
+                                            {% for face in cluster.faces.all|slice:":4" %}
+                                            <img src="{{ face.image.url }}" class="rounded border border-light face-avatar" width="42" height="42" style="object-fit: cover; object-position: top;">
+                                            {% empty %}
+                                            <span class="text-muted small">{% trans "Rasm yo'q" %}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-soft-primary text-primary px-3 py-1 rounded-pill fw-bold">
+                                            {{ cluster.faces.all|length }} {% trans "ta yuz" %}
+                                        </span>
+                                    </td>
+                                    <td style="min-width: 250px; position: relative;">
+                                        <input type="text" class="form-control form-control-sm rounded user-search-input" 
+                                               placeholder="{% trans 'Ism yoki ID kiriting...' %}" autocomplete="off" data-cluster-id="{{ cluster.id }}">
+                                        
+                                        <!-- AJAX qidiruv dropdowni -->
+                                        <div class="search-results-dropdown" id="dropdown-{{ cluster.id }}"></div>
+                                    </td>
+                                    <td class="text-center">
+                                        <form action="{% url 'associate_cluster' cluster.id %}" method="post" id="form-{{ cluster.id }}" class="m-0">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="user_id" id="user-id-{{ cluster.id }}">
+                                            <button type="submit" class="btn btn-soft-success btn-sm d-inline-flex align-items-center gap-1 associate-btn" id="btn-{{ cluster.id }}" disabled>
+                                                <i class="mdi mdi-link-variant"></i> {% trans "Biriktirish" %}
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5 text-muted">
+                                        <i class="mdi mdi-alert-circle-outline fs-1 d-block mb-2 text-warning"></i>
+                                        <h5 class="mt-2 fw-semibold">{% trans "Noma'lum yuz guruhlari topilmadi" %}</h5>
+                                        <p class="mb-0 text-muted">{% trans "Yangi begona yuzlar DBSCAN orqali guruhlansa, shu yerda ro'yxat shakllanadi." %}</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ✅ Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="card-footer bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
+                        <span class="text-muted small">
+                            {% trans "Ko'rsatilmoqda" %}: {{ page_obj.start_index }}-{{ page_obj.end_index }} ({% trans "Jami" %}: {{ page_obj.paginator.count }} ta)
+                        </span>
+                        <nav>
+                            <ul class="pagination pagination-rounded mb-0">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                {% endif %}
+
+                                {% for num in paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInputs = document.querySelectorAll(".user-search-input");
+
+    searchInputs.forEach(input => {
+        const clusterId = input.getAttribute("data-cluster-id");
+        const dropdown = document.getElementById(`dropdown-${clusterId}`);
+        const hiddenInput = document.getElementById(`user-id-${clusterId}`);
+        const submitBtn = document.getElementById(`btn-${clusterId}`);
+        let debounceTimer;
+
+        input.addEventListener("input", function() {
+            clearTimeout(debounceTimer);
+            const query = input.value.trim();
+
+            if (query.length < 2) {
+                dropdown.style.display = "none";
+                hiddenInput.value = "";
+                submitBtn.disabled = true;
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                fetch(`/api/users/search/?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        dropdown.innerHTML = "";
+                        
+                        if (data.results && data.results.length > 0) {
+                            dropdown.style.display = "block";
+                            data.results.forEach(user => {
+                                const item = document.createElement("div");
+                                item.className = "search-result-item";
+                                item.textContent = user.text;
+                                item.addEventListener("click", function() {
+                                    input.value = user.text;
+                                    hiddenInput.value = user.id;
+                                    submitBtn.disabled = false;
+                                    dropdown.style.display = "none";
+                                });
+                                dropdown.appendChild(item);
+                            });
+                        } else {
+                            dropdown.style.display = "block";
+                            const item = document.createElement("div");
+                            item.className = "no-results";
+                            item.textContent = "{% trans 'Foydalanuvchi topilmadi' %}";
+                            dropdown.appendChild(item);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("User search error:", err);
+                    });
+            }, 300);
+        });
+
+        document.addEventListener("click", function(e) {
+            if (e.target !== input && e.target !== dropdown) {
+                dropdown.style.display = "none";
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

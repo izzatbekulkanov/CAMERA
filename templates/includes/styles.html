@@ -1,11 +1,13 @@
 {% load static %}
 
 <!-- App favicon -->
-<link rel="shortcut icon" href="{% static 'assets/images/favicon_old.ico' %}">
+<link rel="shortcut icon" href="{% static 'assets/images/favicon.ico' %}">
 
 <!-- Plugins css -->
 <link href="{% static 'assets/libs/flatpickr/flatpickr.min.css' %}" rel="stylesheet" type="text/css"/>
 <link href="{% static 'assets/libs/selectize/css/selectize.bootstrap3.css' %}" rel="stylesheet" type="text/css"/>
+<link href="{% static 'assets/libs/magnific-popup/magnific-popup.css' %}" rel="stylesheet" type="text/css"/>
+<link href="{% static 'assets/libs/viewerjs/viewer.min.css' %}" rel="stylesheet" type="text/css"/>
 
 <!-- Theme Config Js -->
 <script src="{% static 'assets/js/head.js' %}"></script>
@@ -18,3 +20,68 @@
 
 <!-- Icons css -->
 <link href="{% static 'assets/css/icons.min.css' %}" rel="stylesheet" type="text/css"/>
+
+<!-- Brand Logo Global Styles -->
+<style>
+    .brand-logo-img {
+        height: 32px;
+        width: 32px;
+        border-radius: 6px;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+    .brand-text {
+        font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+        white-space: nowrap;
+        user-select: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+    }
+    .brand-text .brand-title {
+        color: #1e293b;
+        font-weight: 700;
+    }
+    .brand-text .brand-highlight {
+        color: #556ee6;
+        font-weight: 700;
+    }
+    .logo-dark .brand-text .brand-title {
+        color: #1e293b !important;
+    }
+    .logo-dark .brand-text .brand-highlight {
+        color: #556ee6 !important;
+    }
+    .logo-light .brand-text .brand-title {
+        color: #ffffff !important;
+    }
+    .logo-light .brand-text .brand-highlight {
+        color: #93c5fd !important;
+    }
+    .logo-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .logo-box a {
+        text-decoration: none !important;
+    }
+    .logo-box .logo-lg {
+        display: inline-flex !important;
+        align-items: center;
+        gap: 8px;
+        height: auto;
+    }
+    .logo-box .logo-sm {
+        display: none !important;
+    }
+    html[data-sidenav-size="condensed"]:not([data-layout="horizontal"]) .logo-box .logo-lg {
+        display: none !important;
+    }
+    html[data-sidenav-size="condensed"]:not([data-layout="horizontal"]) .logo-box .logo-sm {
+        display: inline-flex !important;
+    }
+</style>

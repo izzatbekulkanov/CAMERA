@@ -235,3 +235,13 @@ def site_settings_view(request):
     }
 
     return render(request, "pages/settings.html", context)
+
+
+@login_required(login_url="login")
+def site_settings_api_device_info(request):
+    """
+    JSON API that returns real-time hardware stats (CPU, RAM, GPU) for the site settings page.
+    """
+    from django.http import JsonResponse
+    return JsonResponse(get_device_info())
+

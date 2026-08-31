@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load static %}
+{% load static image_extras %}
 
 {% block title %}Psixologik portretlar{% endblock %}
 
@@ -34,6 +34,25 @@
   .avatar{ width:40px; height:40px; object-fit:cover; border-radius:999px; }
   .muted{ color: rgba(33,37,41,.65); }
   .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+  .smart-lazy-image {
+    background: linear-gradient(90deg, #eef2f7 25%, #f8fafc 37%, #eef2f7 63%);
+    background-size: 400% 100%;
+    animation: smartImageSkeleton 1.15s ease infinite;
+  }
+  .smart-lazy-image.is-loaded {
+    background: transparent;
+    animation: none;
+  }
+  .smart-lazy-image.is-error {
+    animation: none;
+    background: #f1f3f5;
+    opacity: .55;
+  }
+  @keyframes smartImageSkeleton {
+    0% { background-position: 100% 0; }
+    100% { background-position: 0 0; }
+  }
 
   /* chips / pills minimal */
   .pill{
@@ -197,6 +216,7 @@
             <th style="min-width:320px;">Ko‘rsatkichlar</th>
             <th style="width:140px;">Conf / Stab</th>
             <th class="text-center" style="width:90px;">Photos</th>
+            <th class="text-center" style="width:120px;">Yaratilgan vaqt</th>
             <th class="text-end" style="width:110px;"></th>
           </tr>
         </thead>
@@ -212,7 +232,15 @@
             <td data-label="Xodim" class="td-user">
               <div class="d-flex align-items-center gap-2">
                 {% if p.user.image %}
-                  <img src="{{ p.user.image.url }}" class="avatar">
+                  <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="
+                       data-src="{{ p.user.image|thumb:'avatar' }}"
+                       data-smart-img
+                       class="avatar smart-lazy-image"
+                       width="40"
+                       height="40"
+                       alt="{{ p.user.full_name }}"
+                       loading="lazy"
+                       decoding="async">
                 {% else %}
                   <div class="avatar bg-light d-flex align-items-center justify-content-center">
                     <i class="fas fa-user muted"></i>
@@ -272,6 +300,15 @@
               <span class="pill"><b>{{ p.photo_count|default:0 }}</b></span>
             </td>
 
+            <!-- CREATED AT -->
+            <td class="text-center small" data-label="Yaratilgan vaqt">
+              {% if p.created_at %}
+                <span class="text-dark fw-semibold" style="font-family: monospace;">{{ p.created_at|date:"H:i:s" }}</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+
             <!-- ACTION -->
             <td class="text-end td-actions">
               <button class="btn btn-outline-dark btn-sm rounded-pill"
@@ -288,11 +325,27 @@
                 <div class="modal-header">
                   <div class="d-flex align-items-center gap-2">
                     {% if p.user.image %}
-                      <img src="{{ p.user.image.url }}" class="rounded-circle" width="44" height="44" style="object-fit:cover;">
+                      <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="
+                           data-src="{{ p.user.image|thumb:'modal' }}"
+                           data-smart-img
+                           class="rounded-circle smart-lazy-image"
+                           width="44"
+                           height="44"
+                           style="object-fit:cover;"
+                           alt="{{ p.user.full_name }}"
+                           loading="lazy"
+                           decoding="async">
                     {% endif %}
                     <div>
                       <div class="fw-bold">{{ p.user.full_name }}</div>
-                      <div class="small muted">{{ today }} · Dominant: <b class="text-dark">{{ p.dominant_emotion }}</b></div>
+                      <div class="small muted">
+                        {% if p.created_at %}
+                          {{ p.created_at|date:"Y-m-d H:i:s" }}
+                        {% else %}
+                          {{ today }}
+                        {% endif %}
+                        · Dominant: <b class="text-dark">{{ p.dominant_emotion }}</b>
+                      </div>
                     </div>
                   </div>
                   <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -436,3 +489,61 @@
 </div>
 {% endblock %}
 
+{% block scripts %}
+<script>
+(function () {
+  const bootSmartImages = () => {
+    const images = Array.from(document.querySelectorAll('img[data-smart-img]'));
+    const queue = images.filter(img => img.dataset.src);
+    const maxParallel = 6;
+    let active = 0;
+
+    const next = () => {
+      while (active < maxParallel && queue.length > 0) {
+        const img = queue.shift();
+        if (!img || img.classList.contains('is-loaded')) continue;
+
+        active += 1;
+        const src = img.dataset.src;
+        const ticket = `${Date.now()}-${Math.random()}`;
+        img.dataset.loadTicket = ticket;
+
+        const probe = new Image();
+        probe.decoding = 'async';
+        probe.onload = () => {
+          if (img.dataset.loadTicket === ticket) {
+            img.src = src;
+            img.classList.add('is-loaded');
+            img.classList.remove('is-error');
+          }
+          active -= 1;
+          next();
+        };
+        probe.onerror = () => {
+          const tries = Number(img.dataset.retryCount || '0');
+          if (tries < 2) {
+            img.dataset.retryCount = String(tries + 1);
+            const sep = src.includes('?') ? '&' : '?';
+            img.dataset.src = `${src}${sep}retry=${Date.now()}`;
+            queue.push(img);
+          } else {
+            img.classList.add('is-error');
+          }
+          active -= 1;
+          window.setTimeout(next, 120);
+        };
+        probe.src = src;
+      }
+    };
+
+    next();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootSmartImages, { once: true });
+  } else {
+    bootSmartImages();
+  }
+})();
+</script>
+{% endblock %}

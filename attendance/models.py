@@ -98,12 +98,47 @@ class Attendance(models.Model):
     is_present = models.BooleanField(default=True, verbose_name="Hozirda binoda")
     duration_minutes = models.IntegerField(default=0, verbose_name="Binoda bo‘lgan vaqt (daqiqa)")
 
+    entry_camera = models.ForeignKey(
+        'camera.Camera',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='entry_attendances',
+        verbose_name="Kirish kamerasi"
+    )
+    exit_camera = models.ForeignKey(
+        'camera.Camera',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exit_attendances',
+        verbose_name="Chiqish kamerasi"
+    )
+    last_seen_camera = models.ForeignKey(
+        'camera.Camera',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='last_seen_attendances',
+        verbose_name="Oxirgi ko'rilgan kamera"
+    )
+    detection_count = models.IntegerField(default=1, verbose_name="Tanishlar soni")
+
     class Meta:
         unique_together = ('user', 'date')
         indexes = [models.Index(fields=['date', 'is_present'])]
 
     def __str__(self):
         return f"{self.user} — {self.date} ({'Binoda' if self.is_present else 'Chiqdi'})"
+
+    @property
+    def has_psychology(self):
+        return hasattr(self, 'psychology')
+
+    @property
+    def daily_face_logs(self):
+        from camera.models import FaceLog
+        return FaceLog.objects.filter(matched_user=self.user, captured_at__date=self.date).select_related('camera').order_by('-captured_at')
 
 
 class AttendancePhoto(models.Model):
@@ -147,3 +182,26 @@ class PsychologicalProfile(models.Model):
 
     def __str__(self):
         return f"{self.attendance.user.full_name} — {self.attendance.date} psixologik tahlil"
+
+
+class Feedback(models.Model):
+    FEEDBACK_TYPES = [
+        ('taklif', 'Taklif'),
+        ('xato', 'Xato topdim'),
+        ('rahmat', 'Rahmat aytmoqchiman'),
+    ]
+    full_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Foydalanuvchi ismi")
+    position = models.CharField(max_length=255, verbose_name="Lavozimi/Bo'limi")
+    feedback_type = models.CharField(max_length=20, choices=FEEDBACK_TYPES, default='taklif', verbose_name="Fikr turi")
+    rating = models.IntegerField(default=5, verbose_name="Baholash (1-5)")
+    message = models.TextField(verbose_name="Fikr/Taklif matni")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yuborilgan vaqt")
+
+    class Meta:
+        verbose_name = "Fikr-taklif / Xabar"
+        verbose_name_plural = "Fikr-takliflar / Xabarlar"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.full_name or 'Anonim'} - {self.get_feedback_type_display()} ({self.created_at.strftime('%Y-%m-%d %H:%M')})"
+

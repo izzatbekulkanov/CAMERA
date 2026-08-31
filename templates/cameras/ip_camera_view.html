@@ -322,190 +322,122 @@
             50% { transform: scale(1.3); opacity: 1; }
         }
 
-        /* LIVE ATTENDANCE PANEL */
+        /* CLEAN ENTERPRISE LIVE ATTENDANCE PANEL */
         .ai-user-row {
             display: flex;
             align-items: center;
-            gap: .9rem;
-            padding: .75rem .9rem;
-            border-radius: 12px;
-            border: 1px solid #eef2f7;
+            gap: .75rem;
+            padding: .65rem .85rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
             background: #ffffff;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s ease;
             position: relative;
-            overflow: hidden;
         }
 
-        .ai-user-row + .ai-user-row { margin-top: .6rem; }
+        .ai-user-row + .ai-user-row { margin-top: .5rem; }
         .ai-user-row:hover {
-            transform: translateY(-2px);
-            border-color: #3b5bfd;
-            background: #fcfdff;
-            box-shadow: 0 10px 25px rgba(59, 91, 253, 0.06), 0 0 0 1px rgba(59, 91, 253, 0.15);
+            border-color: #cbd5e1;
+            background: #f8fafc;
         }
 
-        .ai-user-row::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background: linear-gradient(to bottom, #10b981, #059669);
-            opacity: 0.95;
-            transition: width 0.2s ease;
-        }
-
-        .ai-user-row.offline::before { background: linear-gradient(to bottom, #ef4444, #dc2626); }
-        .ai-user-row:hover::before { width: 5px; }
-
-        .ai-user-avatar-wrap { position: relative; flex: 0 0 auto; }
-
-        .ai-user-avatar-ring {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            padding: 2px;
-            background: conic-gradient(from 180deg, #3b5bfd, #10b981, #0ea5e9, #3b5bfd);
-            display: grid;
-            place-items: center;
-            box-shadow: 0 2px 6px rgba(59, 91, 253, 0.12);
-            animation: spin-clockwise 8s linear infinite;
-        }
+        .ai-user-avatar-wrap { position: relative; flex: 0 0 38px; width: 38px; height: 38px; }
 
         .ai-user-avatar {
-            width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
-            border: 2px solid #ffffff; background: #f8f9fa; animation: spin-counter-clockwise 8s linear infinite;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #e2e8f0;
+            background: #f1f5f9;
         }
 
         .ai-user-fallback {
-            width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center;
-            background: linear-gradient(135deg, #3b5bfd, #6366f1);
-            font-size: .85rem; font-weight: 700; color: #ffffff; border: 2px solid #ffffff; animation: spin-counter-clockwise 8s linear infinite;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e0e7ff;
+            color: #4338ca;
+            font-size: .8rem;
+            font-weight: 700;
+            border: 1px solid #c7d2fe;
         }
 
-        .ai-user-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+        .ai-user-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
 
         .ai-user-name {
-            font-size: .85rem; font-weight: 700; color: #2b303a;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.01em;
+            font-size: .82rem;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .ai-user-pill {
-            padding: .15rem .55rem;
-            border-radius: 999px;
-            border: 1px solid #eef2f7;
-            background: #f8f9fa;
-            color: #6c757d;
-            font-size: .62rem;
-            font-weight: 600;
-            letter-spacing: 0.02em;
-            display: inline-flex;
+        .ai-user-meta {
+            display: flex;
             align-items: center;
-            gap: 0.2rem;
+            gap: .35rem;
+            font-size: .7rem;
+            flex-wrap: wrap;
         }
-
-        .ai-user-pill i { color: #3b5bfd; font-size: 0.7rem; }
 
         .ai-user-status {
             display: inline-flex;
             align-items: center;
-            gap: .35rem;
-            font-size: .62rem;
-            font-weight: 700;
-            padding: .2rem .6rem;
-            border-radius: 999px;
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            gap: .25rem;
+            font-size: .65rem;
+            font-weight: 600;
+            padding: .1rem .45rem;
+            border-radius: 4px;
             background: #ecfdf5;
-            color: #10b981;
-            white-space: nowrap;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            color: #059669;
+            border: 1px solid #a7f3d0;
         }
 
-        .ai-user-status .dot {
-            width: 6px; height: 6px; border-radius: 50%;
-            background: #10b981; box-shadow: 0 0 6px #10b981; animation: mini-pulse 1.2s infinite;
+        .ai-user-status.offline {
+            background: #fef2f2;
+            color: #dc2626;
+            border-color: #fecaca;
         }
 
-        .ai-user-status.offline { border-color: rgba(239, 68, 68, 0.2); background: #fef2f2; color: #ef4444; }
-        .ai-user-status.offline .dot { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
-
-        .ai-user-times { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: .25rem; }
+        .ai-user-times {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: .2rem;
+            font-size: .7rem;
+        }
 
         .ai-time-chip {
-            padding: .15rem .6rem;
-            border-radius: 8px;
-            background: #f8f9fa;
-            border: 1px solid #eef2f7;
-            color: #495057;
-            display: inline-flex;
-            align-items: center;
-            gap: .35rem;
-            font-size: .62rem;
+            padding: .15rem .45rem;
+            border-radius: 4px;
+            background: #f1f5f9;
+            color: #334155;
+            font-family: monospace;
             font-weight: 600;
-            transition: all 0.2s ease;
+            font-size: .72rem;
         }
 
-        .ai-user-row:hover .ai-time-chip { border-color: #dee2e6; background: #f1f3f5; }
-
-        .ai-time-chip .label {
-            text-transform: uppercase; letter-spacing: .08em; font-size: .55rem; color: #868e96; font-weight: 700;
+        .ai-time-ago {
+            font-size: .65rem;
+            color: #64748b;
         }
-
-        .ai-time-chip .value { color: #212529; font-weight: 700; }
-
-        .ai-time-chip.soft { background: #eef2ff; border-color: #e0e7ff; }
-        .ai-time-chip.soft .label { color: #6366f1; }
-        .ai-time-chip.soft .value { color: #4f46e5; }
 
         .ai-side-empty {
-            padding: 2.5rem 1.5rem;
+            padding: 3rem 1.5rem;
             text-align: center;
-            color: #868e96;
-            font-size: .78rem;
+            color: #94a3b8;
+            font-size: .8rem;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 0.6rem;
-        }
-
-        .ai-side-empty i {
-            font-size: 2.2rem;
-            color: rgba(99, 102, 241, 0.4);
-            animation: bounce-slow 3s ease-in-out infinite;
-        }
-
-        @keyframes bounce-slow {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-6px); }
-        }
-
-        /* FLYING AVATAR STYLES */
-        .flying-avatar {
-            position: fixed;
-            width: 54px;
-            height: 54px;
-            border-radius: 50%;
-            border: 3px solid #10b981;
-            box-shadow: 0 0 15px #10b981, inset 0 0 10px rgba(16, 185, 129, 0.5);
-            background-size: cover;
-            background-position: center;
-            background-color: #3b5bfd;
-            z-index: 99999;
-            pointer-events: none;
-            transform-origin: center;
-        }
-
-        .flying-avatar::after {
-            content: '';
-            position: absolute;
-            inset: -5px;
-            border-radius: 50%;
-            border: 2px dashed rgba(16, 185, 129, 0.6);
-            animation: spin-clockwise 4s linear infinite;
+            gap: 0.5rem;
         }
     </style>
 {% endblock %}
@@ -514,120 +446,280 @@
     <div class="container-fluid">
         {% include 'includes/breadcrumbs.html' %}
 
-        {# =================== TOP ACTIONS =================== #}
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        {# =================== TOP ACTIONS & CHECKPOINT SWITCHER =================== #}
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <div>
-                <h4 class="mb-0">Kamera Kuzatuvi (AI Cyber Monitor)</h4>
-                <small class="text-muted">Kamera oqimlarini real vaqt rejimida kuzatish va AI davomat nazorati</small>
+                <h4 class="mb-0 fw-bold text-dark">
+                    <i class="mdi mdi-transit-transfer text-primary me-2"></i>Nazorat Punktlari & Kamera Juftliklari Kuzatuvi
+                </h4>
+                <small class="text-muted">Binolar bo'yicha bog'langan Kirish & Chiqish kameralari oqimi hamda AI davomat nazorati</small>
             </div>
-            <div class="d-flex align-items-center gap-3">
-                <div class="form-check form-switch m-0 d-flex align-items-center gap-2" title="AI Yuz aniqlashni yoqish/o‘chirish">
-                    <input class="form-check-input" type="checkbox" role="switch" id="ai-toggle" checked style="cursor: pointer; width: 44px; height: 22px;">
-                    <label class="form-check-label text-muted small text-uppercase fw-semibold" for="ai-toggle" style="font-size: 0.72rem; letter-spacing: 0.05em; cursor: pointer;">AI Detect</label>
-                </div>
-
-                <a href="{% url 'view_cameras' %}" class="btn btn-light shadow-sm">
-                    <i class="mdi mdi-arrow-left me-1"></i> Barcha kameralar
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'isup_dashboard' %}" class="btn btn-outline-primary btn-sm shadow-sm fw-semibold">
+                    <i class="mdi mdi-cog-outline me-1"></i> ISUP Juftliklar Sozlamasi
                 </a>
             </div>
         </div>
 
+        <!-- Bino va Nazorat Punktlarini Tanlash Tablari -->
+        {% if camera_pairs_list %}
+            <div class="card border shadow-sm mb-3 bg-white">
+                <div class="card-body p-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap" id="checkpointFilterGroup" role="tablist">
+                        {% for pair in camera_pairs_list %}
+                            <button type="button" class="btn {% if forloop.first %}btn-primary active shadow-sm{% else %}btn-light text-dark border{% endif %} px-4 py-2 fw-bold d-flex align-items-center gap-2 rounded-3 filter-tab-btn" id="btnFilterPair{{ pair.id }}" onclick="filterCheckpointView('{{ pair.id }}')">
+                                <i class="mdi mdi-{% if 'TTJ' in pair.name or 'Turar' in pair.name %}home-city-outline text-warning{% else %}office-building-outline text-success{% endif %} font-size-18"></i>
+                                <span class="font-size-14">{{ pair.name }}</span>
+                                <span class="badge {% if forloop.first %}bg-white text-primary{% else %}bg-soft-primary text-primary{% endif %} ms-1">2 ta kamera (Kirish & Chiqish)</span>
+                            </button>
+                        {% endfor %}
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted font-size-12 d-none d-md-inline" id="activeFilterLabel">
+                            <i class="mdi mdi-check-circle-outline text-success me-1"></i>Hozirda: <strong>{{ camera_pairs_list.0.name }}</strong> (Faqat 2 ta kamera jonli ulanadi)
+                        </span>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
         <div class="row g-3">
-            <!-- LEFT: VIDEO GRID -->
+            <!-- LEFT: PAIRED CHECKPOINTS / VIDEO GRID -->
             <div class="col-xl-8 col-lg-7">
-                <div class="row {% if cameras_list|length == 1 %}row-cols-1{% else %}row-cols-1 row-cols-lg-2{% endif %} g-3" id="cameras-grid">
-                    {% for cam in cameras_list %}
-                    <div class="col">
-                        <div class="camera-card" id="camera-card-{{ cam.id }}" data-camera-id="{{ cam.id }}">
-                            <!-- Cyber HUD Brackets -->
-                            <div class="cyber-bracket top-left"></div>
-                            <div class="cyber-bracket top-right"></div>
-                            <div class="cyber-bracket bottom-left"></div>
-                            <div class="cyber-bracket bottom-right"></div>
-
-                            <!-- Cyber HUD Grid & Scanline -->
-                            <div class="cyber-grid-overlay"></div>
-                            <div class="cyber-scanline"></div>
-
-                            <!-- HUD Top Bar Overlay -->
-                            <div class="position-absolute top-0 start-0 w-100 p-3 d-flex justify-content-between align-items-center" style="z-index: 10; background: linear-gradient(to bottom, rgba(7, 10, 24, 0.9) 0%, rgba(7, 10, 24, 0) 100%);">
-                                <div>
-                                    <h6 class="mb-0 text-white fw-bold shadow-sm" style="font-size: 0.88rem; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">{{ cam.name }}</h6>
-                                    <span class="badge bg-dark bg-opacity-70 text-white-50 font-size-10 shadow-sm" style="letter-spacing: 0.5px;">IP: {{ cam.ip }}</span>
-                                </div>
-                                
-                                <div class="ai-pill bg-dark bg-opacity-75 border-secondary" id="connection-pill-{{ cam.id }}">
-                                    <span class="ai-pill-dot" id="connection-dot-{{ cam.id }}"></span>
-                                    <span id="connection-text-{{ cam.id }}" class="text-white" style="font-size: 0.65rem;">Ulanmoqda...</span>
-                                </div>
-                            </div>
-
-                            <!-- HUD Bottom Info Overlay -->
-                            <div class="position-absolute bottom-0 start-0 w-100 p-3 d-flex justify-content-between align-items-center" style="z-index: 10; background: linear-gradient(to top, rgba(7, 10, 24, 0.9) 0%, rgba(7, 10, 24, 0) 100%);">
-                                <div class="cyber-hud-label text-cyan" style="font-size: 0.65rem;">
-                                    <i class="mdi mdi-circle-medium text-danger animate-pulse"></i> FACE DETECT ACTIVE
-                                </div>
-                                <div class="text-white-50" style="font-size: 0.62rem; font-family: monospace;">
-                                    CAM_SYS_v2.5
-                                </div>
-                            </div>
-
-                            <!-- Video Shell Container -->
-                            <div class="video-shell" style="min-height: 280px; height: 360px;">
-                                <!-- LOADER -->
-                                <div id="ai-loader-{{ cam.id }}" class="ai-loader-overlay">
-                                    <div class="ai-loader-container">
-                                        <div class="ai-loader-ring-outer"></div>
-                                        <div class="ai-loader-ring-mid"></div>
-                                        <div class="ai-loader-ring-inner"></div>
-                                        <div class="ai-loader-core">
-                                            <div class="ai-loader-pulse"></div>
-                                            <div class="ai-loader-wave"></div>
+                {% if camera_pairs_list %}
+                    <div id="checkpointsContainer">
+                        {% for pair in camera_pairs_list %}
+                            <div class="checkpoint-block mb-4" id="checkpoint-pair-{{ pair.id }}">
+                                <!-- Checkpoint Header Card -->
+                                <div class="card mb-2 border shadow-sm rounded-3 bg-white" style="border-left: 4px solid #556ee6 !important;">
+                                    <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="avatar-xs rounded-circle bg-soft-primary text-primary d-flex align-items-center justify-content-center">
+                                                <i class="mdi mdi-office-building font-size-18"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold text-dark font-size-14">{{ pair.name }}</h6>
+                                                <small class="text-muted font-size-11">
+                                                    {% if pair.building_name %}<span class="badge bg-soft-info text-info me-1">{{ pair.building_name }}</span>{% endif %}
+                                                    {{ pair.description|default:"Nazorat o'tish eshiklari" }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 font-size-11">
+                                            <span class="badge bg-soft-success text-success border border-success border-opacity-25 px-2 py-1">
+                                                <i class="mdi mdi-login me-1"></i>Kirishlar: <strong>{{ pair.entry_count_today }}</strong>
+                                            </span>
+                                            <span class="badge bg-soft-danger text-danger border border-danger border-opacity-25 px-2 py-1">
+                                                <i class="mdi mdi-logout me-1"></i>Chiqishlar: <strong>{{ pair.exit_count_today }}</strong>
+                                            </span>
+                                            <span class="badge bg-soft-primary text-primary border border-primary border-opacity-25 px-2 py-1">
+                                                <i class="mdi mdi-account-multiple-check me-1"></i>Binoda: <strong>{{ pair.inside_count_today }}</strong>
+                                            </span>
                                         </div>
                                     </div>
-                                    <div class="ai-loader-text-main">Kamera yuklanmoqda…</div>
-                                    <div class="ai-loader-metrics">
-                                        <span class="d-flex align-items-center gap-1">
-                                            <span class="ai-loader-dot"></span> RTSP Live
-                                        </span>
-                                        <span>Face tracking</span>
+                                </div>
+
+                                <!-- Paired Dual Stream Row -->
+                                <div class="row g-3">
+                                    <!-- Kirish Eshigi (IN) -->
+                                    <div class="col-md-6">
+                                        {% if pair.entry_camera %}
+                                            {% with cam=pair.entry_camera %}
+                                            <div class="camera-card" id="camera-card-{{ cam.id }}" data-camera-id="{{ cam.id }}" style="border-top: 3px solid #10b981 !important;">
+                                                <div class="cyber-bracket top-left" style="border-color: #10b981;"></div>
+                                                <div class="cyber-bracket top-right" style="border-color: #10b981;"></div>
+                                                <div class="cyber-bracket bottom-left"></div>
+                                                <div class="cyber-bracket bottom-right"></div>
+                                                <div class="cyber-grid-overlay"></div>
+                                                <div class="cyber-scanline"></div>
+
+                                                <!-- HUD Top Bar -->
+                                                <div class="position-absolute top-0 start-0 w-100 p-2 d-flex justify-content-between align-items-center" style="z-index: 10; background: linear-gradient(to bottom, rgba(7, 10, 24, 0.9) 0%, rgba(7, 10, 24, 0) 100%);">
+                                                    <div>
+                                                        <span class="badge bg-success font-size-10 px-2 py-1 me-1 shadow-sm"><i class="mdi mdi-login me-1"></i>KIRISH (IN)</span>
+                                                        <span class="text-white fw-bold shadow-sm font-size-12">{{ cam.name }}</span>
+                                                        <div class="text-white-50 font-monospace font-size-10">IP: {{ cam.ip }}</div>
+                                                    </div>
+                                                    <div class="ai-pill bg-dark bg-opacity-75 border-secondary" id="connection-pill-{{ cam.id }}">
+                                                        <span class="ai-pill-dot" id="connection-dot-{{ cam.id }}"></span>
+                                                        <span id="connection-text-{{ cam.id }}" class="text-white" style="font-size: 0.65rem;">Ulanmoqda...</span>
+                                                    </div>
+                                                </div>
+
+                                                <!-- HUD Bottom Info -->
+                                                <div class="position-absolute bottom-0 start-0 w-100 p-2 d-flex justify-content-between align-items-center" style="z-index: 10; background: linear-gradient(to top, rgba(7, 10, 24, 0.9) 0%, rgba(7, 10, 24, 0) 100%);">
+                                                    <div class="cyber-hud-label text-success font-size-10 fw-bold">
+                                                        <i class="mdi mdi-circle-medium text-success animate-pulse"></i> AI DAVOMAT (KIRISH)
+                                                    </div>
+                                                    <div class="text-white-50 font-monospace font-size-10">
+                                                        {{ cam.device_model }}
+                                                    </div>
+                                                </div>
+
+                                                <!-- Video Shell Container -->
+                                                <div class="video-shell" style="min-height: 260px; height: 300px; position: relative;">
+                                                    <div id="ai-loader-{{ cam.id }}" class="ai-loader-overlay">
+                                                        <div class="ai-loader-container">
+                                                            <div class="ai-loader-ring-outer"></div>
+                                                            <div class="ai-loader-ring-mid"></div>
+                                                            <div class="ai-loader-ring-inner"></div>
+                                                            <div class="ai-loader-core">
+                                                                <div class="ai-loader-pulse"></div>
+                                                                <div class="ai-loader-wave"></div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="ai-loader-text-main">Kamera yuklanmoqda…</div>
+                                                        <div class="ai-loader-metrics">
+                                                            <span class="d-flex align-items-center gap-1"><span class="ai-loader-dot"></span> Kirish Oqimi</span>
+                                                            <span>Face Tracking</span>
+                                                        </div>
+                                                    </div>
+                                                    <canvas id="video-canvas-{{ cam.id }}" class="w-100 h-100 object-fit-contain" style="display: block; background: #000;"></canvas>
+                                                    <img id="video-fallback-{{ cam.id }}" class="w-100 h-100 object-fit-contain" style="display: none; background: #000;" alt="{{ cam.name }}">
+                                                </div>
+                                            </div>
+                                            {% endwith %}
+                                        {% else %}
+                                            <div class="p-4 border rounded bg-light text-center text-muted">
+                                                <i class="mdi mdi-camera-off font-size-24 d-block mb-1"></i>
+                                                Kirish kamerasi biriktirilmagan
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Chiqish Eshigi (OUT) -->
+                                    <div class="col-md-6">
+                                        {% if pair.exit_camera %}
+                                            {% with cam=pair.exit_camera %}
+                                            <div class="camera-card" id="camera-card-{{ cam.id }}" data-camera-id="{{ cam.id }}" style="border-top: 3px solid #ef4444 !important;">
+                                                <div class="cyber-bracket top-left" style="border-color: #ef4444;"></div>
+                                                <div class="cyber-bracket top-right" style="border-color: #ef4444;"></div>
+                                                <div class="cyber-bracket bottom-left"></div>
+                                                <div class="cyber-bracket bottom-right"></div>
+                                                <div class="cyber-grid-overlay"></div>
+                                                <div class="cyber-scanline"></div>
+
+                                                <!-- HUD Top Bar -->
+                                                <div class="position-absolute top-0 start-0 w-100 p-2 d-flex justify-content-between align-items-center" style="z-index: 10; background: linear-gradient(to bottom, rgba(7, 10, 24, 0.9) 0%, rgba(7, 10, 24, 0) 100%);">
+                                                    <div>
+                                                        <span class="badge bg-danger font-size-10 px-2 py-1 me-1 shadow-sm"><i class="mdi mdi-logout me-1"></i>CHIQISH (OUT)</span>
+                                                        <span class="text-white fw-bold shadow-sm font-size-12">{{ cam.name }}</span>
+                                                        <div class="text-white-50 font-monospace font-size-10">IP: {{ cam.ip }}</div>
+                                                    </div>
+                                                    <div class="ai-pill bg-dark bg-opacity-75 border-secondary" id="connection-pill-{{ cam.id }}">
+                                                        <span class="ai-pill-dot" id="connection-dot-{{ cam.id }}"></span>
+                                                        <span id="connection-text-{{ cam.id }}" class="text-white" style="font-size: 0.65rem;">Ulanmoqda...</span>
+                                                    </div>
+                                                </div>
+
+                                                <!-- HUD Bottom Info -->
+                                                <div class="position-absolute bottom-0 start-0 w-100 p-2 d-flex justify-content-between align-items-center" style="z-index: 10; background: linear-gradient(to top, rgba(7, 10, 24, 0.9) 0%, rgba(7, 10, 24, 0) 100%);">
+                                                    <div class="cyber-hud-label text-danger font-size-10 fw-bold">
+                                                        <i class="mdi mdi-circle-medium text-danger animate-pulse"></i> AI DAVOMAT (CHIQISH)
+                                                    </div>
+                                                    <div class="text-white-50 font-monospace font-size-10">
+                                                        {{ cam.device_model }}
+                                                    </div>
+                                                </div>
+
+                                                <!-- Video Shell Container -->
+                                                <div class="video-shell" style="min-height: 260px; height: 300px; position: relative;">
+                                                    <div id="ai-loader-{{ cam.id }}" class="ai-loader-overlay">
+                                                        <div class="ai-loader-container">
+                                                            <div class="ai-loader-ring-outer"></div>
+                                                            <div class="ai-loader-ring-mid"></div>
+                                                            <div class="ai-loader-ring-inner"></div>
+                                                            <div class="ai-loader-core">
+                                                                <div class="ai-loader-pulse"></div>
+                                                                <div class="ai-loader-wave"></div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="ai-loader-text-main">Kamera yuklanmoqda…</div>
+                                                        <div class="ai-loader-metrics">
+                                                            <span class="d-flex align-items-center gap-1"><span class="ai-loader-dot"></span> Chiqish Oqimi</span>
+                                                            <span>Face Tracking</span>
+                                                        </div>
+                                                    </div>
+                                                    <canvas id="video-canvas-{{ cam.id }}" class="w-100 h-100 object-fit-contain" style="display: block; background: #000;"></canvas>
+                                                    <img id="video-fallback-{{ cam.id }}" class="w-100 h-100 object-fit-contain" style="display: none; background: #000;" alt="{{ cam.name }}">
+                                                </div>
+                                            </div>
+                                            {% endwith %}
+                                        {% else %}
+                                            <div class="p-4 border rounded bg-light text-center text-muted">
+                                                <i class="mdi mdi-camera-off font-size-24 d-block mb-1"></i>
+                                                Chiqish kamerasi biriktirilmagan
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <!-- Standalone Cameras Grid Fallback -->
+                    <div class="row {% if cameras_list|length == 1 %}row-cols-1{% else %}row-cols-1 row-cols-lg-2{% endif %} g-3" id="cameras-grid">
+                        {% for cam in cameras_list %}
+                        <div class="col">
+                            <div class="camera-card" id="camera-card-{{ cam.id }}" data-camera-id="{{ cam.id }}">
+                                <div class="cyber-bracket top-left"></div>
+                                <div class="cyber-bracket top-right"></div>
+                                <div class="cyber-bracket bottom-left"></div>
+                                <div class="cyber-bracket bottom-right"></div>
+                                <div class="cyber-grid-overlay"></div>
+                                <div class="cyber-scanline"></div>
+
+                                <div class="position-absolute top-0 start-0 w-100 p-3 d-flex justify-content-between align-items-center" style="z-index: 10; background: linear-gradient(to bottom, rgba(7, 10, 24, 0.9) 0%, rgba(7, 10, 24, 0) 100%);">
+                                    <div>
+                                        <h6 class="mb-0 text-white fw-bold shadow-sm font-size-13">{{ cam.name }}</h6>
+                                        <span class="badge bg-dark bg-opacity-70 text-white-50 font-size-10 shadow-sm">IP: {{ cam.ip }}</span>
+                                    </div>
+                                    <div class="ai-pill bg-dark bg-opacity-75 border-secondary" id="connection-pill-{{ cam.id }}">
+                                        <span class="ai-pill-dot" id="connection-dot-{{ cam.id }}"></span>
+                                        <span id="connection-text-{{ cam.id }}" class="text-white" style="font-size: 0.65rem;">Ulanmoqda...</span>
                                     </div>
                                 </div>
 
-                                <!-- VIDEO STREAM IMAGE -->
-                                <img id="video-stream-{{ cam.id }}"
-                                     src="{{ cam.local_mjpeg_url }}"
-                                     alt="AI camera stream"
-                                     class="w-100 h-100 object-fit-contain"
-                                     style="display: block; background: #000;">
-
-                                <!-- HIGH PERFORMANCE VIDEO CANVAS -->
-                                <canvas id="video-canvas-{{ cam.id }}"
-                                        class="w-100 h-100 object-fit-contain"
-                                        style="display: none; background: #000;"></canvas>
+                                <div class="video-shell" style="min-height: 280px; height: 340px; position: relative;">
+                                    <div id="ai-loader-{{ cam.id }}" class="ai-loader-overlay">
+                                        <div class="ai-loader-container">
+                                            <div class="ai-loader-ring-outer"></div>
+                                            <div class="ai-loader-ring-mid"></div>
+                                            <div class="ai-loader-ring-inner"></div>
+                                            <div class="ai-loader-core">
+                                                <div class="ai-loader-pulse"></div>
+                                                <div class="ai-loader-wave"></div>
+                                            </div>
+                                        </div>
+                                        <div class="ai-loader-text-main">Kamera yuklanmoqda…</div>
+                                    </div>
+                                    <canvas id="video-canvas-{{ cam.id }}" class="w-100 h-100 object-fit-contain" style="display: block; background: #000;"></canvas>
+                                    <img id="video-fallback-{{ cam.id }}" class="w-100 h-100 object-fit-contain" style="display: none; background: #000;" alt="{{ cam.name }}">
+                                </div>
                             </div>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
-                </div>
+                {% endif %}
             </div>
 
             <!-- RIGHT: LIVE ATTENDANCE PANEL -->
             <div class="col-xl-4 col-lg-5">
-                <div class="card mb-3" style="max-height: 80vh;">
-                    <div class="card-body d-flex flex-column" style="padding: 1.25rem;">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0 text-uppercase fw-bold text-primary" style="font-size: 0.85rem; letter-spacing: .08em;">
-                                <i class="mdi mdi-radar me-1"></i> Jonli Davomat
-                            </h5>
-                            <span class="badge badge-soft px-2 py-1 font-size-11" style="border-radius: 8px;">
-                                Bugun · <span id="ai-attendance-count">0</span> faol
-                            </span>
+                <div class="card mb-3 shadow-sm border" style="max-height: 88vh; border-radius: 10px;">
+                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="d-inline-block rounded-circle bg-success" style="width: 8px; height: 8px;"></span>
+                            <h6 class="mb-0 fw-bold text-dark font-size-13">Jonli Davomat Jurnali</h6>
                         </div>
-                        <div class="flex-grow-1 overflow-auto pe-1" id="attendance-list" style="max-height: 68vh;">
+                        <span class="badge bg-soft-primary text-primary border border-primary border-opacity-25 px-2 py-1 font-size-11">
+                            Bugun · <span id="ai-attendance-count" class="fw-bold">0</span> faol
+                        </span>
+                    </div>
+                    <div class="card-body p-2 d-flex flex-column" style="overflow: hidden;">
+                        <div class="flex-grow-1 overflow-auto px-1 py-1" id="attendance-list" style="max-height: 75vh;">
                             <div class="ai-side-empty">
-                                <i class="mdi mdi-timer-sand"></i>
-                                Jonli ma'lumotlar yuklanmoqda…
+                                <i class="mdi mdi-account-clock-outline font-size-24 text-muted"></i>
+                                <span>Jonli ma'lumotlar kutilmoqda…</span>
                             </div>
                         </div>
                     </div>
@@ -643,6 +735,9 @@
         {{ cam.camera_stream_urls|json_script:cam.id }}
     {% endfor %}
 
+    <!-- JMUXER NATIVE HARDWARE GPU H.264 DECODER -->
+    <script src="/static/assets/js/jmuxer.min.js"></script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
@@ -650,51 +745,8 @@
 
             const attendanceListEl = document.getElementById('attendance-list');
             const attendanceCountEl = document.getElementById('ai-attendance-count');
-            const aiToggle = document.getElementById('ai-toggle');
-
             const enableWs = {{ enable_ws|yesno:"true,false" }};
             const enableCameraWs = {{ camera_ws_enabled|yesno:"true,false" }};
-
-            if (!enableCameraWs && aiToggle) {
-                aiToggle.checked = false;
-                aiToggle.disabled = true;
-                aiToggle.title = "Kamera WebSocket uchun ffmpeg topilmadi. go2rtc relay ishlatilmoqda.";
-            }
-
-            // High-fidelity Contain fit function for canvases
-            function drawBitmapWithContain(ctx, canvas, bitmap) {
-                const cw = canvas.clientWidth || canvas.width || 640;
-                const ch = canvas.clientHeight || canvas.height || 480;
-                
-                if (canvas.width !== cw || canvas.height !== ch) {
-                    canvas.width = cw;
-                    canvas.height = ch;
-                }
-                
-                ctx.clearRect(0, 0, cw, ch);
-                
-                const bw = bitmap.width;
-                const bh = bitmap.height;
-                const imgRatio = bw / bh;
-                const canvasRatio = cw / ch;
-                
-                let dx, dy, dw, dh;
-                if (imgRatio > canvasRatio) {
-                    // image is wider than canvas
-                    dw = cw;
-                    dh = cw / imgRatio;
-                    dx = 0;
-                    dy = (ch - dh) / 2;
-                } else {
-                    // image is taller than canvas
-                    dw = ch * imgRatio;
-                    dh = ch;
-                    dx = (cw - dw) / 2;
-                    dy = 0;
-                }
-                
-                ctx.drawImage(bitmap, 0, 0, bw, bh, dx, dy, dw, dh);
-            }
 
             // Camera connection coordinator class
             class CameraController {
@@ -702,179 +754,148 @@
                     this.id = camInfo.id;
                     this.name = camInfo.name;
                     this.ip = camInfo.ip;
-                    this.relayUrls = camInfo.relayUrls;
-                    
-                    this.videoStreamEl = document.getElementById(`video-stream-${this.id}`);
+                    this.relayUrls = camInfo.relayUrls || [];
+                    this.previewUrl = camInfo.previewUrl || `/settings/isup/api/camera/stream-preview/?ip=${this.ip}&camera_id=${this.id}`;
+
                     this.videoCanvasEl = document.getElementById(`video-canvas-${this.id}`);
+                    this.fallbackImgEl = document.getElementById(`video-fallback-${this.id}`);
                     this.loaderEl = document.getElementById(`ai-loader-${this.id}`);
                     this.connectionDot = document.getElementById(`connection-dot-${this.id}`);
                     this.connectionText = document.getElementById(`connection-text-${this.id}`);
-                    
+
                     this.enableCameraWs = enableCameraWs;
                     this.wsScheme = wsScheme;
                     this.host = host;
-                    
-                    this.pendingBitmap = null;
-                    this.activeFrameUrl = null;
-                    this.urlsToRevoke = [];
-                    
+
                     this.camSocket = null;
                     this.shouldReconnect = true;
-                    this.relayIndex = 0;
-                    this.relayTimer = null;
-                    this.hasVideoFrame = false;
-                    this.usingWsFrames = false;
-                    
+                    this.hasReceivedFrames = false;
+
                     this.init();
                 }
-                
+
                 init() {
-                    this.videoStreamEl.addEventListener('load', () => {
-                        while (this.urlsToRevoke.length > 0) {
-                            const url = this.urlsToRevoke.shift();
-                            URL.revokeObjectURL(url);
-                        }
-
-                        if (this.usingWsFrames) {
-                            if (this.loaderEl.style.display !== 'none') this.hideLoader();
-                        } else {
-                            this.hasVideoFrame = true;
-                            this.clearRelayTimer();
-                            this.setConnectionState('online');
-                            this.hideLoader();
-                        }
-                    });
-
-                    this.videoStreamEl.addEventListener('error', () => {
-                        if (!this.usingWsFrames) this.tryNextRelay();
-                    });
-                    
-                    this.setRelaySource(0);
-                    if (this.enableCameraWs) this.connectCamera();
+                    // Dastlab kutish rejimida bo'ladi; filterCheckpointView chaqirilganda faol kameralar ulanadi
+                    this.showLoader();
+                    this.setConnectionState('offline');
                 }
-                
+
                 hideLoader() { if (this.loaderEl) this.loaderEl.style.display = 'none'; }
                 showLoader() { if (this.loaderEl) this.loaderEl.style.display = 'flex'; }
 
                 setConnectionState(state) {
                     if (state === 'online') {
-                        this.connectionDot.className = 'ai-pill-dot online';
-                        this.connectionText.textContent = 'Online';
+                        if (this.connectionDot) this.connectionDot.className = 'ai-pill-dot online';
+                        if (this.connectionText) this.connectionText.textContent = 'Online';
                     } else if (state === 'offline') {
-                        this.connectionDot.className = 'ai-pill-dot offline';
-                        this.connectionText.textContent = 'Offline';
+                        if (this.connectionDot) this.connectionDot.className = 'ai-pill-dot offline';
+                        if (this.connectionText) this.connectionText.textContent = 'Offline';
                     } else {
-                        this.connectionDot.className = 'ai-pill-dot';
-                        this.connectionText.textContent = 'Ulanmoqda...';
+                        if (this.connectionDot) this.connectionDot.className = 'ai-pill-dot';
+                        if (this.connectionText) this.connectionText.textContent = 'Ulanmoqda...';
                     }
                 }
 
-                clearRelayTimer() {
-                    if (this.relayTimer) {
-                        clearTimeout(this.relayTimer);
-                        this.relayTimer = null;
-                    }
-                }
-
-                setRelaySource(index) {
-                    if (!this.relayUrls.length) { this.setConnectionState('offline'); return; }
-
-                    this.usingWsFrames = false;
-                    this.hasVideoFrame = false;
-                    this.relayIndex = Math.max(0, Math.min(index, this.relayUrls.length - 1));
+                useFallbackHttpStream() {
+                    if (!this.fallbackImgEl) return;
+                    console.log(`[CameraController] Using HTTP preview stream for Camera #${this.id} (${this.ip})`);
                     this.setConnectionState('connecting');
-                    this.showLoader();
 
-                    // Switch display back to standard img element
-                    this.videoCanvasEl.style.display = 'none';
-                    this.videoStreamEl.style.display = 'block';
-
-                    if (this.pendingBitmap) {
-                        this.pendingBitmap.close();
-                        this.pendingBitmap = null;
-                    }
-
-                    if (this.activeFrameUrl) {
-                        this.urlsToRevoke.push(this.activeFrameUrl);
-                        this.activeFrameUrl = null;
-                    }
-                    while (this.urlsToRevoke.length > 0) {
-                        const url = this.urlsToRevoke.shift();
-                        URL.revokeObjectURL(url);
-                    }
-
-                    this.videoStreamEl.src = this.relayUrls[this.relayIndex];
-                    this.clearRelayTimer();
-                    this.relayTimer = setTimeout(() => {
-                        if (!this.hasVideoFrame && !this.usingWsFrames) this.tryNextRelay();
-                    }, 7000);
-                }
-
-                tryNextRelay() {
-                    this.clearRelayTimer();
-                    if (this.relayIndex + 1 < this.relayUrls.length) {
-                        this.setRelaySource(this.relayIndex + 1);
-                        return;
-                    }
-                    this.setConnectionState('offline');
-                    this.showLoader();
+                    const streamUrl = `/settings/isup/api/camera/stream-preview/?ip=${this.ip}&camera_id=${this.id}&t=${Date.now()}`;
+                    this.fallbackImgEl.onload = () => {
+                        this.hasReceivedFrames = true;
+                        this.setConnectionState('online');
+                        this.hideLoader();
+                        if (this.videoCanvasEl) this.videoCanvasEl.style.display = 'none';
+                        this.fallbackImgEl.style.display = 'block';
+                    };
+                    this.fallbackImgEl.onerror = () => {
+                        this.setConnectionState('offline');
+                    };
+                    this.fallbackImgEl.src = streamUrl;
                 }
 
                 connectCamera() {
-                    if (!this.enableCameraWs) { this.setRelaySource(this.relayIndex); return; }
-                    if (this.camSocket) { this.shouldReconnect = false; this.camSocket.close(); }
+                    if (this.camSocket && this.camSocket.readyState === WebSocket.OPEN) return;
+                    if (this.camSocket) { this.shouldReconnect = false; try { this.camSocket.close(); } catch(e){} }
                     this.shouldReconnect = true;
 
-                    const useAi = aiToggle.checked ? '1' : '0';
-                    const url = `${this.wsScheme}://${this.host}/ws/ipcamera/${this.id}/?ai=${useAi}`;
+                    const url = `${this.wsScheme}://${this.host}/ws/ipcamera/${this.id}/?ai=1`;
                     this.setConnectionState('connecting');
 
                     this.camSocket = new WebSocket(url);
                     this.camSocket.binaryType = 'arraybuffer';
 
-                    this.camSocket.onopen = () => this.setConnectionState('online');
-                    this.camSocket.onclose = () => {
-                        if (!this.hasVideoFrame && this.relayUrls.length) this.setRelaySource(this.relayIndex);
-                        else if (!this.hasVideoFrame) { this.setConnectionState('offline'); this.showLoader(); }
-                        if (this.shouldReconnect) setTimeout(() => this.connectCamera(), 2000);
+                    this.camSocket.onopen = () => {
+                        this.setConnectionState('online');
+                        this.hideLoader();
                     };
+                    this.camSocket.onclose = () => {
+                        if (!this.hasReceivedFrames && this.shouldReconnect) {
+                            this.useFallbackHttpStream();
+                        }
+                        if (this.shouldReconnect) setTimeout(() => this.connectCamera(), 3000);
+                    };
+                    this.isDecoding = false;
+                    if (this.videoCanvasEl) {
+                        this.ctx = this.videoCanvasEl.getContext('2d', { alpha: false, desynchronized: true });
+                    }
+
                     this.camSocket.onmessage = async (event) => {
                         if (event.data instanceof ArrayBuffer) {
-                            this.usingWsFrames = true;
-                            this.hasVideoFrame = true;
-                            this.clearRelayTimer();
-                            
+                            this.hasReceivedFrames = true;
+                            if (this.loaderEl && this.loaderEl.style.display !== 'none') this.hideLoader();
+                            if (this.isDecoding) return;
+                            this.isDecoding = true;
+
                             const blob = new Blob([event.data], {type: 'image/jpeg'});
                             try {
                                 const bitmap = await createImageBitmap(blob);
-                                if (this.pendingBitmap) {
-                                    this.pendingBitmap.close();
+                                if (this.videoCanvasEl) {
+                                    if (this.videoCanvasEl.width !== bitmap.width || this.videoCanvasEl.height !== bitmap.height) {
+                                        this.videoCanvasEl.width = bitmap.width;
+                                        this.videoCanvasEl.height = bitmap.height;
+                                    }
+                                    this.ctx.drawImage(bitmap, 0, 0);
                                 }
-                                this.pendingBitmap = bitmap;
+                                bitmap.close();
                             } catch (e) {
                                 console.error("Kadrni dekodlashda xato:", e);
+                            } finally {
+                                this.isDecoding = false;
                             }
                         }
                     };
                 }
-                
-                renderFrame() {
-                    if (this.pendingBitmap) {
-                        if (this.videoCanvasEl.style.display === 'none') {
-                            this.videoStreamEl.style.display = 'none';
-                            this.videoCanvasEl.style.display = 'block';
-                        }
-                        
-                        const ctx = this.videoCanvasEl.getContext('2d');
-                        drawBitmapWithContain(ctx, this.videoCanvasEl, this.pendingBitmap);
-                        
-                        this.pendingBitmap.close();
-                        this.pendingBitmap = null;
-                        
-                        if (this.loaderEl.style.display !== 'none') this.hideLoader();
+
+                disconnectCamera() {
+                    this.shouldReconnect = false;
+                    if (this.camSocket) {
+                        try { this.camSocket.close(); } catch(e){}
+                        this.camSocket = null;
                     }
+                    if (this.fallbackImgEl) {
+                        this.fallbackImgEl.src = "";
+                        this.fallbackImgEl.style.display = 'none';
+                    }
+                    this.hasReceivedFrames = false;
+                    this.setConnectionState('offline');
+                    this.showLoader();
                 }
             }
+
+            // Pairs mapping
+            const cameraPairs = {
+                {% for pair in camera_pairs_list %}
+                "{{ pair.id }}": {
+                    name: "{{ pair.name|escapejs }}",
+                    cameraIds: [
+                        {% if pair.entry_camera %}{{ pair.entry_camera.id }},{% endif %}
+                        {% if pair.exit_camera %}{{ pair.exit_camera.id }},{% endif %}
+                    ]
+                },
+                {% endfor %}
+            };
 
             // Extract camera metadata and stream candidate lists safely
             const cameras = [
@@ -883,30 +904,86 @@
                     id: {{ cam.id }},
                     name: "{{ cam.name|escapejs }}",
                     ip: "{{ cam.ip|escapejs }}",
+                    previewUrl: "{{ cam.preview_url|default:''|escapejs }}",
                     relayUrls: JSON.parse(document.getElementById('{{ cam.id }}').textContent || '[]').filter(Boolean)
                 },
                 {% endfor %}
             ];
 
-            // Initialize connection controller instances
+            // Initialize connection controller instances (idle by default)
             const controllers = cameras.map(camInfo => new CameraController(camInfo, wsScheme, host, enableCameraWs));
 
-            // Single unified high-performance rendering loop
-            function renderAllFrames() {
-                controllers.forEach(ctrl => ctrl.renderFrame());
-                requestAnimationFrame(renderAllFrames);
-            }
-            requestAnimationFrame(renderAllFrames);
+            // Checkpoint filter switcher function (Faqat tanlangan binoning 2 ta kamerasini ulaydi, boshqalarini uzadi)
+            window.filterCheckpointView = function(pairId) {
+                const blocks = document.querySelectorAll('.checkpoint-block');
+                const activeLabel = document.getElementById('activeFilterLabel');
 
-            if (aiToggle) {
-                aiToggle.addEventListener('change', () => {
-                    controllers.forEach(ctrl => {
-                        if (!ctrl.enableCameraWs) return;
-                        if (!ctrl.hasVideoFrame) ctrl.showLoader();
-                        ctrl.connectCamera();
-                    });
+                // If pairId is not in cameraPairs, default to the first one
+                if (!cameraPairs[pairId]) {
+                    const firstKey = Object.keys(cameraPairs)[0];
+                    if (firstKey) pairId = firstKey;
+                }
+
+                document.querySelectorAll('#checkpointFilterGroup .filter-tab-btn').forEach(b => {
+                    b.classList.remove('btn-primary', 'active', 'shadow-sm');
+                    b.classList.add('btn-light', 'text-dark', 'border');
+                    const badge = b.querySelector('.badge');
+                    if (badge) {
+                        badge.classList.remove('bg-white');
+                        badge.classList.add('bg-soft-primary');
+                    }
                 });
+
+                const activeBtn = document.getElementById(`btnFilterPair${pairId}`);
+                if (activeBtn) {
+                    activeBtn.classList.remove('btn-light', 'text-dark', 'border');
+                    activeBtn.classList.add('btn-primary', 'active', 'shadow-sm');
+                    const badge = activeBtn.querySelector('.badge');
+                    if (badge) {
+                        badge.classList.remove('bg-soft-primary');
+                        badge.classList.add('bg-white');
+                    }
+                }
+
+                const pairInfo = cameraPairs[pairId];
+                if (pairInfo && activeLabel) {
+                    activeLabel.innerHTML = `<i class="mdi mdi-check-circle-outline text-success me-1"></i>Hozirda: <strong>${pairInfo.name}</strong> (Faqat 2 ta kamera jonli ulanadi)`;
+                }
+
+                // Show only active pair block, hide others
+                blocks.forEach(b => {
+                    if (b.id === `checkpoint-pair-${pairId}`) {
+                        b.style.display = 'block';
+                    } else {
+                        b.style.display = 'none';
+                    }
+                });
+
+                // Bandwidth optimizer: Faqat faol binoning kameralari ulanadi, qolganlari to'xtatiladi
+                const activeCamIds = pairInfo ? pairInfo.cameraIds : [];
+                controllers.forEach(ctrl => {
+                    if (activeCamIds.includes(ctrl.id)) {
+                        ctrl.connectCamera();
+                    } else {
+                        ctrl.disconnectCamera();
+                    }
+                });
+
+                localStorage.setItem('activeCameraPair', pairId);
+                history.replaceState(null, null, `#pair-${pairId}`);
+            };
+
+            // Dastlabki yuklanganda: saqlangan yoki 1-chi juftlikni ulaymiz
+            const initialHash = window.location.hash;
+            const savedPair = localStorage.getItem('activeCameraPair');
+            let startPairId = Object.keys(cameraPairs)[0] || "1";
+            if (initialHash && initialHash.startsWith('#pair-')) {
+                const pId = initialHash.replace('#pair-', '');
+                if (cameraPairs[pId]) startPairId = pId;
+            } else if (savedPair && cameraPairs[savedPair]) {
+                startPairId = savedPair;
             }
+            filterCheckpointView(startPairId);
 
             // =============== LIVE ATTENDANCE WS ===============
             if (enableWs) {
@@ -916,8 +993,8 @@
                         const data = JSON.parse(event.data);
                         if (data.type === 'live_attendance') {
                             renderAttendance(data);
-                        } else if (data.type === 'face_detected') {
-                            triggerFaceFlyAnimation(data);
+                        } else if (data.type === 'face_detected' || data.type === 'face_detected_event') {
+                            addUserToLiveList(data);
                         }
                     } catch (e) { console.error(e); }
                 };
@@ -939,7 +1016,7 @@
                 attendanceCountEl.textContent = payload.count || users.length;
 
                 if (!users.length) {
-                    attendanceListEl.innerHTML = `<div class="ai-side-empty"><i class="mdi mdi-emoticon-sad-outline"></i> Hozircha hech kim aniqlanmadi</div>`;
+                    attendanceListEl.innerHTML = `<div class="ai-side-empty"><i class="mdi mdi-account-clock-outline font-size-24 text-muted"></i><span>Bugun hali davomat qayd etilmadi</span></div>`;
                     return;
                 }
 
@@ -953,87 +1030,27 @@
                     return `
                         <div class="${rowClass}" data-user-id="${u.id}">
                             <div class="ai-user-avatar-wrap">
-                                <div class="ai-user-avatar-ring">
-                                    ${u.photo ? `<img class="ai-user-avatar" src="${u.photo}">` : `<div class="ai-user-fallback">${initials}</div>`}
-                                </div>
+                                ${u.photo ? `<img class="ai-user-avatar" src="${u.photo}" alt="Avatar">` : `<div class="ai-user-fallback">${initials}</div>`}
                             </div>
                             <div class="ai-user-main">
-                                <div class="ai-user-name">${fullName}</div>
-                                <div class="ai-user-status ${isPresent ? '' : 'offline'}">
-                                    <span class="dot"></span> ${isPresent ? "Binoda (Faol)" : "Ko‘ringan"}
+                                <div class="ai-user-name" title="${fullName}">${fullName}</div>
+                                <div class="ai-user-meta">
+                                    <span class="ai-user-status ${isPresent ? '' : 'offline'}">
+                                        <i class="mdi mdi-${isPresent ? 'check-circle' : 'logout-variant'} me-1"></i>${isPresent ? "Binoda" : "Chiqdi"}
+                                    </span>
+                                    <span class="text-muted font-size-11">${u.role || 'Talaba'}</span>
                                 </div>
                             </div>
                             <div class="ai-user-times">
-                                <div class="ai-time-chip"><span class="label">Kirish</span><span class="value">${item.entry_time || '-'}</span></div>
-                                <div class="ai-time-chip soft"><span class="label">Faollik</span><span class="value">${timeAgo(item.last_seen_iso)}</span></div>
+                                <span class="ai-time-chip">${item.entry_time || '-'}</span>
+                                <span class="ai-time-ago">${timeAgo(item.last_seen_iso)}</span>
                             </div>
                         </div>
                     `;
                 }).join("");
             }
 
-            // AUTOMATIC FLYING FACE ANIMATION & DOM INTEGRATION
-            function triggerFaceFlyAnimation(payload) {
-                const cameraCard = document.getElementById(`camera-card-${payload.camera_id}`);
-                if (!cameraCard) return;
-
-                // 1. Calculate camera card center coordinates
-                const cardRect = cameraCard.getBoundingClientRect();
-                const startX = cardRect.left + cardRect.width / 2;
-                const startY = cardRect.top + cardRect.height / 2;
-
-                // 2. Calculate live attendance destination coordinates
-                const listRect = attendanceListEl.getBoundingClientRect();
-                const endX = listRect.left + 50; 
-                const endY = listRect.top + 40;
-
-                // 3. Create floating circular avatar DOM element
-                const avatar = document.createElement('div');
-                avatar.className = 'flying-avatar';
-                if (payload.photo_url) {
-                    avatar.style.backgroundImage = `url(${payload.photo_url})`;
-                } else {
-                    const initials = payload.full_name.split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase();
-                    avatar.style.display = 'flex';
-                    avatar.style.alignItems = 'center';
-                    avatar.style.justifyContent = 'center';
-                    avatar.style.color = '#ffffff';
-                    avatar.style.fontWeight = '700';
-                    avatar.style.fontSize = '14px';
-                    avatar.textContent = initials;
-                }
-
-                // 4. Set initial position
-                avatar.style.left = `${startX - 27}px`;
-                avatar.style.top = `${startY - 27}px`;
-                avatar.style.transform = 'scale(0.1)';
-                avatar.style.opacity = '0';
-                document.body.appendChild(avatar);
-
-                // 5. Trigger flight animation
-                requestAnimationFrame(() => {
-                    avatar.style.transition = 'all 1.1s cubic-bezier(0.25, 1, 0.5, 1)';
-                    avatar.style.left = `${endX - 27}px`;
-                    avatar.style.top = `${endY - 27}px`;
-                    avatar.style.transform = 'scale(1.2)';
-                    avatar.style.opacity = '1';
-
-                    // 6. Smooth landing animation
-                    setTimeout(() => {
-                        avatar.style.transform = 'scale(0)';
-                        avatar.style.opacity = '0';
-
-                        setTimeout(() => {
-                            avatar.remove();
-                            // Prepend/merge data to the live attendance list
-                            addUserToLiveList(payload);
-                        }, 300);
-                    }, 800);
-                });
-            }
-
             function addUserToLiveList(payload) {
-                // Remove empty placeholder
                 const emptyMsg = attendanceListEl.querySelector('.ai-side-empty');
                 if (emptyMsg) emptyMsg.remove();
 
@@ -1041,41 +1058,31 @@
                 const existingRow = attendanceListEl.querySelector(`[data-user-id="${userIdStr}"]`);
                 
                 if (existingRow) {
-                    // Smoothly remove old entry to allow fresh prepending
-                    existingRow.style.transition = 'all 0.3s ease';
-                    existingRow.style.opacity = '0';
-                    existingRow.style.transform = 'scale(0.8)';
-                    setTimeout(() => {
-                        existingRow.remove();
-                        insertNewRow(payload, userIdStr, true);
-                    }, 300);
-                } else {
-                    insertNewRow(payload, userIdStr, false);
+                    existingRow.remove();
                 }
-            }
 
-            function insertNewRow(payload, userIdStr, isUpdate) {
                 const fullName = payload.full_name || "Noma’lum";
                 const initials = fullName.split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase();
                 const isPresent = payload.is_present === true;
                 const rowClass = isPresent ? "ai-user-row" : "ai-user-row offline";
 
                 const newRowHtml = `
-                    <div class="${rowClass}" data-user-id="${userIdStr}" style="opacity: 0; transform: translateY(-15px); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.15);">
+                    <div class="${rowClass}" data-user-id="${userIdStr}" style="background: #f0fdf4; border-color: #10b981; transition: all 0.3s ease;">
                         <div class="ai-user-avatar-wrap">
-                            <div class="ai-user-avatar-ring">
-                                ${payload.photo_url ? `<img class="ai-user-avatar" src="${payload.photo_url}">` : `<div class="ai-user-fallback">${initials}</div>`}
-                            </div>
+                            ${payload.photo_url ? `<img class="ai-user-avatar" src="${payload.photo_url}" alt="Avatar">` : `<div class="ai-user-fallback">${initials}</div>`}
                         </div>
                         <div class="ai-user-main">
-                            <div class="ai-user-name">${fullName}</div>
-                            <div class="ai-user-status ${isPresent ? '' : 'offline'}">
-                                <span class="dot"></span> ${isPresent ? "Binoda (Faol)" : "Ko‘ringan"}
+                            <div class="ai-user-name" title="${fullName}">${fullName}</div>
+                            <div class="ai-user-meta">
+                                <span class="ai-user-status ${isPresent ? '' : 'offline'}">
+                                    <i class="mdi mdi-${isPresent ? 'check-circle' : 'logout-variant'} me-1"></i>${isPresent ? "Binoda" : "Chiqdi"}
+                                </span>
+                                <span class="text-muted font-size-11">${payload.role || 'Talaba'}</span>
                             </div>
                         </div>
                         <div class="ai-user-times">
-                            <div class="ai-time-chip"><span class="label">Kirish</span><span class="value">${payload.entry_time || '-'}</span></div>
-                            <div class="ai-time-chip soft"><span class="label">Faollik</span><span class="value">hozirgina</span></div>
+                            <span class="ai-time-chip">${payload.entry_time || '-'}</span>
+                            <span class="ai-time-ago">hozirgina</span>
                         </div>
                     </div>
                 `;
@@ -1083,21 +1090,14 @@
                 attendanceListEl.insertAdjacentHTML('afterbegin', newRowHtml);
                 const insertedEl = attendanceListEl.firstElementChild;
 
-                requestAnimationFrame(() => {
-                    insertedEl.style.opacity = '1';
-                    insertedEl.style.transform = 'translateY(0)';
-                });
-
-                // Highlight pulse effect on arrival
-                insertedEl.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.35)';
-                insertedEl.style.borderColor = '#10b981';
                 setTimeout(() => {
-                    insertedEl.style.boxShadow = '';
-                    insertedEl.style.borderColor = '';
-                }, 2000);
+                    if (insertedEl) {
+                        insertedEl.style.background = '#ffffff';
+                        insertedEl.style.borderColor = '#e2e8f0';
+                    }
+                }, 1500);
 
-                // Update today active attendance count if it's a completely new user
-                if (!isUpdate) {
+                if (!existingRow) {
                     const currentCount = parseInt(attendanceCountEl.textContent) || 0;
                     attendanceCountEl.textContent = currentCount + 1;
                 }

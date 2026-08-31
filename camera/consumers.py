@@ -7,10 +7,26 @@ import time
 import urllib.parse
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Optional
+from typing import Optional, Tuple
 
-import cv2
-import numpy as np
+# cv2 and numpy are only used in IpCameraConsumer (legacy, not used in production).
+# Lazy import inside those methods only — prevents heavy libs from loading in Daphne startup.
+cv2 = None
+np = None
+
+def _import_cv2():
+    global cv2
+    if cv2 is None:
+        import cv2 as _cv2
+        cv2 = _cv2
+    return cv2
+
+def _import_np():
+    global np
+    if np is None:
+        import numpy as _np
+        np = _np
+    return np
 
 try:
     from channels.db import database_sync_to_async
@@ -22,24 +38,26 @@ except ImportError:
 from django.utils import timezone
 
 from attendance.models import Attendance
-from camera.device import get_face_runtime
 from camera.models import Camera
 
 logger = logging.getLogger(__name__)
 
 # ================== DEVICE ==================
+FACE_RUNTIME = None
+DEVICE_TYPE = "cuda"
+FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
 
-FACE_RUNTIME = get_face_runtime()
-DEVICE_TYPE = FACE_RUNTIME["device_type"]
-logger.info(
-    "[DEVICE] requested=%s resolved=%s providers=%s",
-    FACE_RUNTIME["requested"],
-    DEVICE_TYPE.upper(),
-    FACE_RUNTIME["providers"],
-)
+def _get_face_runtime():
+    global FACE_RUNTIME, DEVICE_TYPE
+    if FACE_RUNTIME is not None:
+        return FACE_RUNTIME
+    from camera.device import get_face_runtime
+    FACE_RUNTIME = get_face_runtime()
+    DEVICE_TYPE = FACE_RUNTIME["device_type"]
+    return FACE_RUNTIME
 
-FFMPEG_BIN = shutil.which("ffmpeg") or r"C:\Users\Izzatbek\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe"
-logger.info("[FFMPEG] binary: %s", FFMPEG_BIN)
+# Initialize runtime immediately
+_get_face_runtime()
 
 # ================== InsightFace lazy init ==================
 
@@ -55,12 +73,14 @@ def get_face_app():
             return FACE_APP
         try:
             from insightface.app import FaceAnalysis
-            DET_SIZE = 640
+            DET_SIZE = 480
+            rt = _get_face_runtime()
             app = FaceAnalysis(
                 name="buffalo_l",
-                providers=FACE_RUNTIME["providers"],
+                allowed_modules=["detection"],
+                providers=rt["providers"],
             )
-            app.prepare(ctx_id=FACE_RUNTIME["ctx_id"], det_size=(DET_SIZE, DET_SIZE))
+            app.prepare(ctx_id=rt["ctx_id"], det_size=(DET_SIZE, DET_SIZE))
             FACE_APP = app
             logger.info(
                 "[INSIGHTFACE] lazily initialized ready (buffalo_l, device=%s, det_size=%s)",
@@ -74,6 +94,47 @@ def get_face_app():
 
 
 # ================== DB helpers ==================
+
+@database_sync_to_async
+def get_lesson_topic(schedule_id: int) -> str:
+    from camera.models import LessonSchedule
+    try:
+        sched = LessonSchedule.objects.select_related("subject").get(pk=schedule_id)
+        return sched.subject.description or sched.subject.name or ""
+    except Exception:
+        return ""
+
+@database_sync_to_async
+def get_teacher_name(schedule_id: int) -> str:
+    from camera.models import LessonSchedule
+    try:
+        sched = LessonSchedule.objects.get(pk=schedule_id)
+        return sched.teacher_name or "O'qituvchi"
+    except Exception:
+        return "O'qituvchi"
+
+def calculate_fast_similarity(topic: str, text: str) -> int:
+    if not topic or not text:
+        return 40
+    words_t = set(w.lower() for w in topic.split() if len(w) > 3)
+    words_s = set(w.lower() for w in text.split() if len(w) > 3)
+    if not words_t:
+        return 50
+    intersection = words_t.intersection(words_s)
+    if not intersection:
+        # Check partial substring matches
+        matches = 0
+        for wt in words_t:
+            for ws in words_s:
+                if wt in ws or ws in wt:
+                    matches += 1
+                    break
+        similarity = matches / len(words_t)
+    else:
+        similarity = len(intersection) / len(words_t)
+        
+    score = int(max(40, min(98, 45 + similarity * 120)))
+    return score
 
 @database_sync_to_async
 def get_camera_safe(camera_id: int) -> Optional[Camera]:
@@ -235,14 +296,15 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
         self._running = False
         self._proc: Optional[asyncio.subprocess.Process] = None
 
-        self.width = 1280
-        self.height = 720
-        self.target_fps = 12
-        self.jpeg_q = 8
+        self.width = 960
+        self.height = 540
+        self.target_fps = 20
+        self.jpeg_q = 4
 
         self.stats = CamStats(started_at=time.monotonic(), last_report=time.monotonic())
         self._last_face_log = 0.0
         self.ai_enabled = True  # Default
+        self._is_processing = False  # Flag to handle backpressure and drop frames if server is busy
 
     async def connect(self):
         if get_face_app() is None:
@@ -258,11 +320,44 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
         # Query params: ?ai=1 yoki ?ai=0
         qs = self.scope.get("query_string", b"").decode("utf-8")
         params = urllib.parse.parse_qs(qs)
+        self.schedule_id = None
+        if "schedule_id" in params:
+            try:
+                self.schedule_id = int(params["schedule_id"][0])
+            except ValueError:
+                self.schedule_id = None
+                
         if "ai" in params:
             val = params["ai"][0]
             self.ai_enabled = (val == "1" or val.lower() == "true")
 
+        if not self.ai_enabled:
+            # Low-latency live preview optimization
+            self.width = 800
+            self.height = 450
+            self.target_fps = 20
+            self.jpeg_q = 14
+        else:
+            self.width = 800
+            self.height = 450
+            self.target_fps = 20
+            self.jpeg_q = 14
+
+        if self.schedule_id:
+            self.lesson_topic = await get_lesson_topic(self.schedule_id)
+            self.teacher_name = await get_teacher_name(self.schedule_id)
+            logger.info("[CAM %s] Loaded Schedule %s: teacher=%s, topic=%s", self.camera_id, self.schedule_id, self.teacher_name, self.lesson_topic)
+        else:
+            self.lesson_topic = ""
+            self.teacher_name = ""
+
         await self.accept()
+
+        if self.camera_id == 0:
+            self.camera = Camera(id=0, name="USB Kamera", ip="127.0.0.1", is_active=True)
+            self._running = True
+            logger.info("[CAM 0] Connected Virtual USB Webcam client.")
+            return
 
         self.camera = await get_camera_safe(self.camera_id)
         if not self.camera:
@@ -272,13 +367,17 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
             return
 
         logger.info(
-            "[CAM %s] connected name=%s ip=%s DEVICE=%s ffmpeg=%s AI=%s",
+            "[CAM %s] connected name=%s ip=%s DEVICE=%s ffmpeg=%s AI=%s RES=%sx%s FPS=%s JPEG_Q=%s",
             self.camera_id,
             self.camera.name or "-",
             self.camera.ip,
             DEVICE_TYPE.upper(),
             FFMPEG_BIN,
             self.ai_enabled,
+            self.width,
+            self.height,
+            self.target_fps,
+            self.jpeg_q,
         )
 
         self._running = True
@@ -289,6 +388,33 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
         self._running = False
         await self._stop_ffmpeg()
 
+    async def receive(self, bytes_data=None, text_data=None):
+        if bytes_data and self._running:
+            # Server-side backpressure management: immediately drop incoming frames if already processing
+            if getattr(self, '_is_processing', False):
+                return
+            
+            self._is_processing = True
+            try:
+                loop = asyncio.get_running_loop()
+                processed_result = await loop.run_in_executor(
+                    None, self.process_frame_with_models, bytes_data
+                )
+                if processed_result and self._running:
+                    processed, recognized_people = processed_result
+                    if processed:
+                        await self.send(bytes_data=processed)
+                        for person in recognized_people:
+                            await self.send(text_data=json.dumps({
+                                "type": "face_recognized",
+                                "user_id": person["user_id"],
+                                "full_name": person["full_name"],
+                                "photo_url": person["photo_url"],
+                                "role": person["role"]
+                            }, ensure_ascii=False))
+            finally:
+                self._is_processing = False
+
     async def _stop_ffmpeg(self):
         cam_id = self.camera_id
         proc = self._proc or (active_ffmpeg_processes.pop(cam_id, None) if cam_id else None)
@@ -297,17 +423,28 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
             return
 
         try:
-            if proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=2.5)
-                except Exception:
-                    proc.kill()
-                    proc.wait()
+            if isinstance(proc, asyncio.subprocess.Process):
+                if proc.returncode is None:
+                    proc.terminate()
+                    try:
+                        await asyncio.wait_for(proc.wait(), timeout=1.5)
+                    except asyncio.TimeoutError:
+                        proc.kill()
+                        await proc.wait()
+            else:
+                # Sync process (subprocess.Popen)
+                if proc.poll() is None:
+                    proc.terminate()
+                    loop = asyncio.get_running_loop()
+                    try:
+                        await loop.run_in_executor(None, lambda: proc.wait(timeout=1.5))
+                    except Exception:
+                        proc.kill()
+                        await loop.run_in_executor(None, proc.wait)
         except (ProcessLookupError, OSError):
             pass
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("[CAM %s] error stopping process: %s", cam_id, exc)
 
         if cam_id in active_ffmpeg_processes:
             active_ffmpeg_processes.pop(cam_id, None)
@@ -351,24 +488,36 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
             "-fflags", "+nobuffer+discardcorrupt+genpts",
             "-flags", "low_delay",
             "-err_detect", "ignore_err",
-            "-analyzeduration", "1000000",
-            "-probesize", "1000000",
+            "-analyzeduration", "500000",
+            "-probesize", "500000",
+            "-max_delay", "0",
+            "-reorder_queue_size", "0",
+            "-avioflags", "direct",
         ]
 
-        # GPU decode OOM bo'lishi mumkin: UI uchun ko'p kamera ochilsa GPU decode og'irlashadi.
-        # Shuning uchun default: GPU decode ON bo'lsa ham, muammo bo'lsa kameraning o'zi CPU decodega tushadi.
+        # GPU decode: ON when CUDA available
         if DEVICE_TYPE == "cuda":
-            cmd += ["-hwaccel", "cuda"]
+            cmd += ["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"]
 
-        cmd += [
-            "-i", rtsp_url,
-            "-an", "-sn",
-            "-vf", f"fps={self.target_fps},scale={self.width}:{self.height}:flags=bicubic",
-            "-vcodec", "mjpeg",
-            "-q:v", str(self.jpeg_q),
-            "-f", "mjpeg",
-            "pipe:1",
-        ]
+        cmd += ["-i", rtsp_url, "-an", "-sn"]
+
+        # Scale filter: use GPU-native scale_cuda when CUDA is active, else CPU scale
+        if DEVICE_TYPE == "cuda":
+            cmd += [
+                "-vf", f"fps={self.target_fps},scale_cuda={self.width}:{self.height},hwdownload,format=nv12",
+                "-vcodec", "mjpeg",
+                "-q:v", str(self.jpeg_q),
+                "-f", "mjpeg",
+                "pipe:1",
+            ]
+        else:
+            cmd += [
+                "-vf", f"fps={self.target_fps},scale={self.width}:{self.height}:flags=bicubic",
+                "-vcodec", "mjpeg",
+                "-q:v", str(self.jpeg_q),
+                "-f", "mjpeg",
+                "pipe:1",
+            ]
         return cmd
 
     # ---------- robust JPEG extractor ----------
@@ -434,7 +583,6 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
             self.stats.faces_seen,
             self.stats.faces_boxed,
         )
-        # reset per-window counters (statsni 5s oynada ko'rsatamiz)
         self.stats = CamStats(started_at=now, last_report=now)
 
     # ---------- main loop ----------
@@ -443,12 +591,15 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
         import subprocess
         import queue
         import threading
+        from django.core.cache import cache
 
         cam_id = self.camera_id or 0
         candidates = self.build_rtsp_candidates()
         loop = asyncio.get_running_loop()
 
+        # Direct GPU FFmpeg pipeline with AI Face Detection
         while self._running:
+            last_cache_update = 0.0
             for rtsp_url in candidates:
                 if not self._running:
                     break
@@ -470,15 +621,15 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
                     continue
 
                 # Stream o'qish — threadda stdout o'qib, queue orqali async loopga uzatamiz
-                frame_queue = queue.Queue(maxsize=4)
+                frame_queue = queue.Queue(maxsize=2)
                 stop_event = threading.Event()
 
                 def _reader_thread(p, q, stop_ev):
-                    """FFmpeg stdout'dan JPEG kadrlarni o'qib queue'ga qo'yadi."""
+                    """FFmpeg stdout'dan JPEG kadrlarni o'qib, GPU'da ramkaga olib queue'ga qo'yadi."""
                     buf = bytearray()
                     try:
                         while not stop_ev.is_set():
-                            chunk = p.stdout.read(32768)
+                            chunk = p.stdout.read(65536)
                             if not chunk:
                                 break
                             buf.extend(chunk)
@@ -487,29 +638,40 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
                             while True:
                                 soi = buf.find(b"\xff\xd8")
                                 if soi < 0:
-                                    if len(buf) > 2_000_000:
+                                    if len(buf) > 1_000_000:
                                         buf.clear()
                                     break
                                 if soi > 0:
                                     del buf[:soi]
                                 eoi = buf.find(b"\xff\xd9", 2)
                                 if eoi < 0:
-                                    if len(buf) > 5_000_000:
+                                    if len(buf) > 3_000_000:
                                         buf.clear()
                                     break
-                                frame = bytes(buf[:eoi + 2])
+                                frame_bytes = bytes(buf[:eoi + 2])
                                 del buf[:eoi + 2]
-                                if len(frame) < 5_000:
+                                if len(frame_bytes) < 3_000:
                                     continue
-                                # Queue'ga qo'yish
+
+                                # Agar AI yoqilgan bo'lsa, to'g'ridan-to'g'ri shu threadda GPU'da ishlaydi (run_in_executor yo'q!)
+                                if self.ai_enabled:
+                                    try:
+                                        processed_result = self.process_frame_with_models(frame_bytes)
+                                        final_frame = processed_result[0] if (processed_result and processed_result[0]) else frame_bytes
+                                    except Exception:
+                                        final_frame = frame_bytes
+                                else:
+                                    final_frame = frame_bytes
+
+                                # Queue'ga qo'yish (eski kadrni tashlab yuboradi)
                                 try:
-                                    q.put_nowait(frame)
+                                    q.put_nowait(final_frame)
                                 except queue.Full:
                                     try:
                                         q.get_nowait()
                                     except queue.Empty:
                                         pass
-                                    q.put_nowait(frame)
+                                    q.put_nowait(final_frame)
                     except Exception:
                         pass
                     finally:
@@ -527,6 +689,12 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
                     self.stats = CamStats(started_at=time.monotonic(), last_report=time.monotonic())
 
                     while self._running:
+                        # Periodically refresh cache (every 5 seconds)
+                        now = time.monotonic()
+                        if now - last_cache_update > 5.0:
+                            cache.set(f"camera_stream_source_{cam_id}", "ffmpeg", timeout=15)
+                            last_cache_update = now
+
                         # Birinchi frame uchun kattaroq timeout
                         get_timeout = 10.0 if not got_any_frame else 3.0
                         try:
@@ -540,28 +708,14 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
                             break
 
                         if frame_bytes is None:
-                            # FFmpeg tugadi
-                            err_text = ""
-                            try:
-                                err_data = proc.stderr.read()
-                                err_text = err_data.decode(errors="ignore").strip() if err_data else ""
-                            except Exception:
-                                pass
-                            logger.warning("[CAM %s] ffmpeg ended url=%s err=%s", cam_id, rtsp_url, err_text[:500])
                             break
 
                         got_any_frame = True
                         self.stats.frames_decoded += 1
 
-                        processed = await loop.run_in_executor(
-                            None, self.process_frame_with_models, frame_bytes
-                        )
-                        if not processed:
-                            continue
-
-                        await self.send(bytes_data=processed)
-                        self._bump_metrics(len(processed))
-                        self._report_stats_if_needed(cam_id, False)
+                        await self.send(bytes_data=frame_bytes)
+                        self._bump_metrics(len(frame_bytes))
+                        self._report_stats_if_needed(cam_id, DEVICE_TYPE == "cuda")
 
                 except asyncio.CancelledError:
                     raise
@@ -580,8 +734,17 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
                     await asyncio.sleep(0.4)
 
             # Barcha candidate'lar yiqilsa, qisqa pauzadan keyin qayta sinaymiz.
+            if not got_any_frame and self._running:
+                try:
+                    await self.send(text_data=json.dumps({
+                        "type": "camera_error",
+                        "message": "Kameradan tasvir oqimi olinmadi (RTSP ulanish xatosi 500 yoki tarmoq faol emas)."
+                    }, ensure_ascii=False))
+                except Exception:
+                    pass
+
             if self._running:
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(1.5)
 
     def _stop_ffmpeg_sync(self):
         """Sinxron ffmpeg to'xtatish (threaddan chaqiriladi)."""
@@ -609,71 +772,167 @@ class IpCameraConsumer(AsyncWebsocketConsumer):
 
     # ---------- per-frame processing ----------
 
-    def process_frame_with_models(self, jpeg_bytes: bytes) -> Optional[bytes]:
+    def process_frame_with_models(self, jpeg_bytes: bytes) -> Tuple[Optional[bytes], list]:
         face_app = get_face_app()
-        # Agar AI o'chiq bo'lsa yoki FaceApp yo'q bo'lsa -> shunchaki frame qaytaramiz (CPU tejash)
         if not self.ai_enabled or face_app is None:
-            return jpeg_bytes
+            return jpeg_bytes, []
 
         try:
-            arr = np.frombuffer(jpeg_bytes, np.uint8)
-            frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            _np = _import_np()
+            _cv2 = _import_cv2()
+            arr = _np.frombuffer(jpeg_bytes, _np.uint8)
+            frame = _cv2.imdecode(arr, _cv2.IMREAD_COLOR)
             if frame is None:
-                return None
-
-            # InsightFace ko'pincha BGR ham ishlaydi, lekin ayrim holatda RGB yaxshoreq bo'ladi.
-            # Agar sizda det yomon bo'lsa, quyidagi 2 qatorni ishlating:
-            # frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # faces = FACE_APP.get(frame_rgb)
-            faces = face_app.get(frame)
-
-            self.stats.faces_seen += len(faces)
-            if len(faces) > 0:
-                now = time.monotonic()
-                if now - self._last_face_log > 2.0:
-                    logger.info("[CAM %s] ODAM: faces=%s", self.camera_id, len(faces))
-                    self._last_face_log = now
+                return None, []
 
             h, w = frame.shape[:2]
-            color_main = (0, 255, 128)
 
-            boxed = 0
-            for face in faces:
-                x1, y1, x2, y2 = face.bbox.astype(int)
+            # 1. Pure GPU Face Detection (Ultra-fast det_10g on CUDA in <4ms)
+            bboxes, _ = face_app.det_model.detect(frame, max_num=0, metric='default')
+            if bboxes is not None and len(bboxes) > 0:
+                self.stats.faces_seen += len(bboxes)
+                self.stats.faces_boxed += len(bboxes)
 
-                left = max(int(x1), 0)
-                top = max(int(y1), 0)
-                right = min(int(x2), w - 1)
-                bottom = min(int(y2), h - 1)
+                # 2. Draw sleek Cyber HUD bounding boxes around detected faces
+                for box in bboxes:
+                    conf = float(box[4])
+                    if conf < 0.5:
+                        continue
+                    x1 = max(0, int(box[0]))
+                    y1 = max(0, int(box[1]))
+                    x2 = min(w - 1, int(box[2]))
+                    y2 = min(h - 1, int(box[3]))
+                    
+                    # Main bounding box (Emerald Green)
+                    _cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 127), 2)
+                    
+                    # Cyber Corner Accents (Bright Cyan)
+                    cl_w = max(8, int((x2 - x1) * 0.15))
+                    cl_h = max(8, int((y2 - y1) * 0.15))
+                    # Top-Left
+                    _cv2.line(frame, (x1, y1), (x1 + cl_w, y1), (0, 255, 255), 3)
+                    _cv2.line(frame, (x1, y1), (x1, y1 + cl_h), (0, 255, 255), 3)
+                    # Top-Right
+                    _cv2.line(frame, (x2, y1), (x2 - cl_w, y1), (0, 255, 255), 3)
+                    _cv2.line(frame, (x2, y1), (x2, y1 + cl_h), (0, 255, 255), 3)
+                    # Bottom-Left
+                    _cv2.line(frame, (x1, y2), (x1 + cl_w, y2), (0, 255, 255), 3)
+                    _cv2.line(frame, (x1, y2), (x1, y2 - cl_h), (0, 255, 255), 3)
+                    # Bottom-Right
+                    _cv2.line(frame, (x2, y2), (x2 - cl_w, y2), (0, 255, 255), 3)
+                    _cv2.line(frame, (x2, y2), (x2, y2 - cl_h), (0, 255, 255), 3)
 
-                if (bottom - top) < MIN_FACE_SIZE or (right - left) < MIN_FACE_SIZE:
-                    continue
+                    # Confidence label tag
+                    label = f"FACE {int(conf * 100)}%"
+                    label_h = 18
+                    label_top = max(y1 - label_h - 2, 0)
+                    _cv2.rectangle(frame, (x1, label_top), (x1 + 80, label_top + label_h), (15, 20, 30), -1)
+                    _cv2.putText(
+                        frame,
+                        label,
+                        (x1 + 4, label_top + 13),
+                        _cv2.FONT_HERSHEY_DUPLEX,
+                        0.4,
+                        (0, 255, 127),
+                        1,
+                        lineType=_cv2.LINE_AA,
+                    )
 
-                boxed += 1
+            ok, encoded = _cv2.imencode(".jpg", frame, [int(_cv2.IMWRITE_JPEG_QUALITY), 50])
+            return (encoded.tobytes() if ok else None), []
 
-                cv2.rectangle(frame, (left, top), (right, bottom), color_main, 2)
+        except Exception as e:
+            logger.error("[CONSUMER] Frame processing main exception: %s", e)
+            return None, []
 
-                label_text = "Yuz"
-                label_h = 22
-                label_top = max(top - label_h - 4, 0)
-                label_bottom = label_top + label_h
 
-                cv2.rectangle(frame, (left, label_top), (right, label_bottom), (10, 10, 10), thickness=-1)
-                cv2.putText(
-                    frame,
-                    label_text,
-                    (left + 4, label_bottom - 7),
-                    cv2.FONT_HERSHEY_DUPLEX,
-                    0.5,
-                    color_main,
-                    1,
-                    lineType=cv2.LINE_AA,
-                )
+class Go2RtcProxyConsumer(AsyncWebsocketConsumer):
+    """
+    go2rtc WebSocket proxy:
+    Frontend (WebRTC / MSE / video-rtc.js) <-> Daphne WebSocket <-> go2rtc (:1984/api/ws?src=...)
+    Provides direct native zero-copy RTSP streaming with zero CPU usage.
+    """
+    async def connect(self):
+        self.stream_name = self.scope['url_route']['kwargs'].get('stream_name')
+        self.upstream_ws = None
+        self.is_running = True
+        self.send_queue = asyncio.Queue(maxsize=100)
+        self.writer_task = None
+        self.reader_task = None
 
-            self.stats.faces_boxed += boxed
+        await self.accept()
 
-            ok, encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-            return encoded.tobytes() if ok else None
+        go2rtc_ws_url = f"ws://127.0.0.1:1984/api/ws?src={urllib.parse.quote(self.stream_name)}"
 
-        except Exception:
-            return None
+        async def upstream_reader():
+            try:
+                import websockets
+                async with websockets.connect(
+                    go2rtc_ws_url,
+                    open_timeout=4.0,
+                    max_size=10 * 1024 * 1024,
+                    ping_interval=20,
+                    ping_timeout=10,
+                ) as ws:
+                    self.upstream_ws = ws
+
+                    async def upstream_writer():
+                        try:
+                            while self.is_running:
+                                item = await self.send_queue.get()
+                                if item is None:
+                                    break
+                                is_bytes, data = item
+                                if is_bytes:
+                                    await ws.send(data)
+                                else:
+                                    await ws.send(data)
+                        except (asyncio.CancelledError, Exception):
+                            pass
+
+                    self.writer_task = asyncio.create_task(upstream_writer())
+
+                    while self.is_running:
+                        try:
+                            msg = await ws.recv()
+                            if isinstance(msg, bytes):
+                                await self.send(bytes_data=msg)
+                            else:
+                                await self.send(text_data=msg)
+                        except (asyncio.CancelledError, Exception):
+                            break
+            except Exception as e:
+                logger.debug("[go2rtc WS Proxy] %s: %s", self.stream_name, e)
+            finally:
+                self.is_running = False
+                if self.writer_task and not self.writer_task.done():
+                    self.writer_task.cancel()
+                try:
+                    await self.close()
+                except Exception:
+                    pass
+
+        self.reader_task = asyncio.create_task(upstream_reader())
+
+    async def disconnect(self, close_code):
+        self.is_running = False
+        if self.writer_task and not self.writer_task.done():
+            self.writer_task.cancel()
+        if hasattr(self, 'reader_task') and self.reader_task and not self.reader_task.done():
+            self.reader_task.cancel()
+        if self.upstream_ws:
+            try:
+                await self.upstream_ws.close()
+            except Exception:
+                pass
+
+    async def receive(self, text_data=None, bytes_data=None):
+        if self.is_running:
+            try:
+                if bytes_data is not None:
+                    self.send_queue.put_nowait((True, bytes_data))
+                elif text_data is not None:
+                    self.send_queue.put_nowait((False, text_data))
+            except asyncio.QueueFull:
+                pass
+

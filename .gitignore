@@ -90,4 +90,17 @@ staticfiles/
 # Git attributes
 .gitattributes
 .gitignore
+
+# Large model binaries and archives
 yolov8n.pt
+*.pt
+*.onnx
+models/
+whisper_models/
+speechbrain_models/
+caddy
+caddy2
+go2rtc_linux_amd64
+*.zip
+*.log
+

@@ -514,7 +514,261 @@
     })();
 </script>
 
+<!-- Universal In-Page Fullscreen Image Lightbox Overlay -->
+<style>
+    .sg-global-lightbox-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        background: rgba(0, 0, 0, 0.94) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        z-index: 200000 !important;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        animation: sgFadeInUniversalLightbox 0.18s ease-out;
+    }
+    @keyframes sgFadeInUniversalLightbox {
+        from { opacity: 0; transform: scale(0.98); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    .sg-global-lightbox-header {
+        position: absolute !important;
+        top: 16px !important;
+        left: 24px !important;
+        right: 24px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        z-index: 200010 !important;
+    }
+    .sg-global-lightbox-title {
+        color: #f8fafc;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+    .sg-global-lightbox-tools {
+        display: flex;
+        gap: 8px;
+    }
+    .sg-global-lightbox-content {
+        max-width: 94vw;
+        max-height: 86vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .sg-global-lightbox-image {
+        max-width: 100%;
+        max-height: 86vh;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.9);
+        transition: transform 0.2s ease-out;
+        user-select: none;
+    }
+
+</style>
+
+<div id="sgGlobalImageLightbox" class="sg-global-lightbox-overlay" style="display:none;" onclick="closeGlobalImageLightbox(event)">
+    <div class="sg-global-lightbox-header">
+        <span id="sgGlobalLightboxTitle" class="sg-global-lightbox-title">
+            <i class="mdi mdi-image-search-outline me-1"></i>Rasm Ko'rish
+        </span>
+        <div class="sg-global-lightbox-tools" onclick="event.stopPropagation();">
+            <button type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white" onclick="zoomGlobalLightbox(0.25)" title="Kattalashtirish">
+                <i class="mdi mdi-magnify-plus-outline"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white" onclick="zoomGlobalLightbox(-0.25)" title="Kichiklashtirish">
+                <i class="mdi mdi-magnify-minus-outline"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white" onclick="resetGlobalLightboxZoom()" title="Asl o'lchamga qaytarish">
+                <i class="mdi mdi-fit-to-screen-outline"></i>
+            </button>
+            <a id="sgGlobalLightboxDownload" href="#" download class="btn btn-sm btn-dark bg-opacity-75 text-white" title="Rasmni yuklab olish">
+                <i class="mdi mdi-download"></i>
+            </a>
+            <button type="button" class="btn btn-sm btn-danger px-3" onclick="closeGlobalImageLightbox()" title="Yopish (Esc)">
+                <i class="mdi mdi-close"></i>
+            </button>
+        </div>
+    </div>
+    <div class="sg-global-lightbox-content" onclick="event.stopPropagation();">
+        <img id="sgGlobalLightboxImg" src="" alt="Preview" class="sg-global-lightbox-image">
+    </div>
+</div>
+
+<!-- Hidden container for Viewer.js plugin integration -->
+<div id="sgViewerGlobalWrapper" style="display:none;"></div>
+
+<script>
+    // ================= PROFESSIONAL VIEWER.JS PLUGIN INTEGRATION =================
+    let sgActiveViewerInstance = null;
+
+    window.openImageLightbox = function(imgSrc, title = "Rasm Ko'rish") {
+        if (!imgSrc || imgSrc.trim() === '') return;
+
+        // If Viewer.js library is loaded, use Viewer.js
+        if (typeof Viewer !== 'undefined') {
+            const wrapper = document.getElementById('sgViewerGlobalWrapper');
+            if (wrapper) {
+                if (sgActiveViewerInstance) {
+                    try { sgActiveViewerInstance.destroy(); } catch(e) {}
+                    sgActiveViewerInstance = null;
+                }
+                wrapper.innerHTML = `<img id="sgTargetViewerImg" src="${imgSrc}" alt="${title}">`;
+                const targetImg = document.getElementById('sgTargetViewerImg');
+                
+                sgActiveViewerInstance = new Viewer(targetImg, {
+                    inline: false,
+                    button: true,
+                    navbar: false,
+                    title: [true, (image, imageData) => `${title} (${imageData.naturalWidth} × ${imageData.naturalHeight})`],
+                    toolbar: {
+                        zoomIn: 1,
+                        zoomOut: 1,
+                        oneToOne: 1,
+                        reset: 1,
+                        rotateLeft: 1,
+                        rotateRight: 1,
+                        flipHorizontal: 1,
+                        flipVertical: 1,
+                        download: function() {
+                            const a = document.createElement('a');
+                            a.href = imgSrc;
+                            a.download = imgSrc.split('/').pop() || 'image.jpg';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                        },
+                    },
+                    tooltip: true,
+                    movable: true,
+                    zoomable: true,
+                    rotatable: true,
+                    scalable: true,
+                    transition: true,
+                    fullscreen: true,
+                    keyboard: true,
+                    backdrop: true,
+                    zIndex: 200050,
+                    hidden: function() {
+                        if (sgActiveViewerInstance) {
+                            sgActiveViewerInstance.destroy();
+                            sgActiveViewerInstance = null;
+                        }
+                    }
+                });
+
+                sgActiveViewerInstance.show();
+                return;
+            }
+        }
+
+        // Fallback 1: Magnific Popup
+        if (typeof jQuery !== 'undefined' && typeof jQuery.magnificPopup !== 'undefined') {
+            jQuery.magnificPopup.open({
+                items: {
+                    src: imgSrc,
+                    type: 'image',
+                    title: title
+                },
+                type: 'image',
+                closeOnContentClick: true,
+                mainClass: 'mfp-img-mobile mfp-with-zoom',
+                image: {
+                    verticalFit: true,
+                    titleSrc: function() { return title; }
+                },
+                zoom: {
+                    enabled: true,
+                    duration: 250,
+                    easing: 'ease-in-out'
+                }
+            });
+            return;
+        }
+
+        // Fallback 2: Built-in Lightbox Overlay
+        const overlay = document.getElementById('sgGlobalImageLightbox');
+        const img = document.getElementById('sgGlobalLightboxImg');
+        const titleEl = document.getElementById('sgGlobalLightboxTitle');
+        const downloadBtn = document.getElementById('sgGlobalLightboxDownload');
+
+
+        if (!overlay || !img) return;
+
+        img.style.transform = 'scale(1.0)';
+        img.src = imgSrc;
+        if (titleEl) titleEl.innerHTML = `<i class="mdi mdi-image-search-outline me-1"></i>${title}`;
+        if (downloadBtn) downloadBtn.href = imgSrc;
+        
+        overlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.closeGlobalImageLightbox = function(event) {
+        const overlay = document.getElementById('sgGlobalImageLightbox');
+        if (overlay) {
+            overlay.style.display = 'none';
+            document.body.style.overflow = '';
+            const img = document.getElementById('sgGlobalLightboxImg');
+            if (img) img.src = '';
+        }
+    };
+
+    window.zoomGlobalLightbox = function(delta) {
+        const img = document.getElementById('sgGlobalLightboxImg');
+        if (img) {
+            let cur = parseFloat(img.getAttribute('data-zoom') || '1.0');
+            cur = Math.max(0.4, Math.min(3.5, cur + delta));
+            img.setAttribute('data-zoom', cur);
+            img.style.transform = `scale(${cur.toFixed(2)})`;
+        }
+    };
+
+    window.resetGlobalLightboxZoom = function() {
+        const img = document.getElementById('sgGlobalLightboxImg');
+        if (img) {
+            img.setAttribute('data-zoom', '1.0');
+            img.style.transform = 'scale(1.0)';
+        }
+    };
+
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const overlay = document.getElementById('sgGlobalImageLightbox');
+            if (overlay && overlay.style.display === 'flex') {
+                closeGlobalImageLightbox();
+            }
+        }
+    });
+
+    // Auto-intercept any direct links to media images (faces, faces_bg, uploads, etc.)
+    document.addEventListener('click', function(e) {
+        const a = e.target.closest('a');
+        if (!a) return;
+        const href = a.getAttribute('href');
+        if (!href) return;
+        if (href.match(/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i) && (href.includes('/media/') || a.classList.contains('lightbox-link') || a.getAttribute('data-lightbox') !== null)) {
+            e.preventDefault();
+            e.stopPropagation();
+            const title = a.getAttribute('title') || a.getAttribute('data-title') || "Rasm Ko'rish";
+            window.openImageLightbox(href, title);
+        }
+    }, true);
+</script>
 
 {% block scripts %}{% endblock scripts %}
 </body>
 </html>
+
+

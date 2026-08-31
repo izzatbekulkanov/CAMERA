@@ -1,0 +1,342 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block styles %}
+    <link href="{% static 'assets/libs/select2/css/select2.min.css' %}" rel="stylesheet" type="text/css"/>
+    <link href="{% static 'assets/libs/sweetalert2/sweetalert2.min.css' %}" rel="stylesheet">
+    <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css"/>
+
+    <style>
+        /* ====== TOP STATS ====== */
+        .stats-row {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding-bottom: .25rem;
+            scroll-snap-type: x mandatory;
+        }
+
+        .stats-row::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .stats-row::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, .15);
+            border-radius: 8px;
+        }
+
+        .stat-card {
+            min-width: 220px;
+            flex: 1 1 0;
+            scroll-snap-align: start;
+        }
+
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+        }
+
+        .table-responsive {
+            border-radius: 8px;
+        }
+    </style>
+{% endblock styles %}
+
+{% block title %}
+    Akademik guruhlar ro'yxati
+{% endblock title %}
+
+{% block content %}
+    <div class="container-fluid">
+
+        {% include 'includes/breadcrumbs.html' %}
+
+        <!-- ====== TOP STATS ====== -->
+        <div class="mb-4">
+            <div class="stats-row">
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Jami guruhlar</div>
+                                <div class="h3 mb-0 fw-bold text-primary">{{ total_groups }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-primary d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-grid text-primary fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Guruhlardagi talabalar</div>
+                                <div class="h3 mb-0 fw-bold text-success">{{ total_students_in_groups }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-success d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-school text-success fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Fakultetlar soni</div>
+                                <div class="h3 mb-0 fw-bold text-info">{{ total_faculties }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-info d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-home-city text-info fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">O'quv rejalari soni</div>
+                                <div class="h3 mb-0 fw-bold text-warning">{{ total_curriculums }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-warning d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-clipboard-text text-warning fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ====== FILTER VA QIDIRUV ====== -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <form method="GET" class="row g-2 align-items-end">
+                    
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small fw-semibold">Qidiruv</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0"><i class="mdi mdi-magnify text-muted"></i></span>
+                            <input type="text" name="q" class="form-control bg-light border-start-0" 
+                                   placeholder="Guruh nomini kiriting..." value="{{ q }}">
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small fw-semibold">Fakultet</label>
+                        <select name="faculty" class="form-select select2-simple">
+                            <option value="">Hammasi</option>
+                            {% for f in faculties %}
+                                <option value="{{ f.id }}" {% if selected_faculty == f.id|stringformat:"i" %}selected{% endif %}>{{ f.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label text-muted small fw-semibold">O'quv yili (kurs)</label>
+                        <select name="education_year" class="form-select select2-simple">
+                            <option value="">Hammasi</option>
+                            {% for ey in education_years %}
+                                <option value="{{ ey }}" {% if selected_education_year == ey %}selected{% endif %}>{{ ey }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            <i class="mdi mdi-filter-variant me-1"></i> Filtrlash
+                        </button>
+                        <a href="{% url 'academic_groups' %}" class="btn btn-light" title="Filtrni tozalash">
+                            <i class="mdi mdi-refresh"></i>
+                        </a>
+                        <button type="button" id="btn-sync-academic" class="btn btn-soft-success" title="Mavjud talabalar asosida guruhlarni shakllantirish">
+                            <i class="mdi mdi-cached"></i> Sinxronlash
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+
+        <!-- ====== JADVAL ====== -->
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle mb-0">
+                        <thead class="table-light text-muted">
+                            <tr>
+                                <th style="width: 60px;" class="ps-3">#</th>
+                                <th>Guruh nomi</th>
+                                <th>Fakultet</th>
+                                <th>O'quv yili (kurs)</th>
+                                <th class="text-center" style="width: 150px;">Talabalar soni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for group in page_obj %}
+                                <tr>
+                                    <td class="ps-3 fw-medium text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                                    <td>
+                                        <a href="{% url 'academic_group_students' group.id %}" class="fw-bold text-primary fs-5">
+                                            {{ group.name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if group.faculty %}
+                                            <span class="text-dark">{{ group.faculty.name }}</span>
+                                            {% if group.faculty.code %}
+                                                <small class="text-muted d-block">Kod: {{ group.faculty.code }}</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted italic">Yo'q</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if group.education_year %}
+                                            <span class="badge bg-soft-info text-info">{{ group.education_year }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success rounded-pill fs-6 px-3 py-1">{{ group.student_count }}</span>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5 text-muted">
+                                        <i class="mdi mdi-alert-circle-outline fs-1 d-block mb-2 text-warning"></i>
+                                        Hech qanday akademik guruh topilmadi.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- ====== PAGINATION ====== -->
+            {% if page_obj.has_other_pages %}
+                <div class="card-footer bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
+                    <span class="text-muted small">
+                        Ko'rsatilmoqda: {{ page_obj.start_index }}-{{ page_obj.end_index }} (Jami: {{ page_obj.paginator.count }} ta)
+                    </span>
+                    <nav>
+                        <ul class="pagination pagination-rounded mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if selected_faculty %}&faculty={{ selected_faculty }}{% endif %}{% if selected_curriculum %}&curriculum={{ selected_curriculum }}{% endif %}{% if selected_education_year %}&education_year={{ selected_education_year }}{% endif %}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if selected_faculty %}&faculty={{ selected_faculty }}{% endif %}{% if selected_curriculum %}&curriculum={{ selected_curriculum }}{% endif %}{% if selected_education_year %}&education_year={{ selected_education_year }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if selected_faculty %}&faculty={{ selected_faculty }}{% endif %}{% if selected_curriculum %}&curriculum={{ selected_curriculum }}{% endif %}{% if selected_education_year %}&education_year={{ selected_education_year }}{% endif %}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+{% endblock content %}
+
+{% block scripts %}
+    <script src="{% static 'assets/libs/select2/js/select2.min.js' %}"></script>
+    <script src="{% static 'assets/libs/sweetalert2/sweetalert2.all.min.js' %}"></script>
+    <script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
+
+    <script>
+        $(document).ready(function() {
+            $('.select2-simple').select2({
+                minimumResultsForSearch: 5
+            });
+
+            // Get CSRF Token
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            const csrftoken = getCookie('csrftoken');
+
+            // Manual synchronization click handler
+            $('#btn-sync-academic').click(function() {
+                Swal.fire({
+                    title: 'Sinxronizatsiya qilish',
+                    text: "Mavjud talabalarning ma'lumotlaridan foydalanib akademik guruhlar tizimini to'ldirishni istaysizmi?",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Ha, boshlash',
+                    cancelButtonText: 'Bekor qilish',
+                    showLoaderOnConfirm: true,
+                    preConfirm: () => {
+                        return fetch("{% url 'sync_existing_academic' %}", {
+                            method: "POST",
+                            headers: {
+                                "X-CSRFToken": csrftoken,
+                                "Content-Type": "application/json"
+                            }
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(response.statusText)
+                            }
+                            return response.json()
+                        })
+                        .catch(error => {
+                            Swal.showValidationMessage(`Xatolik yuz berdi: ${error}`)
+                        })
+                    },
+                    allowOutsideClick: () => !Swal.isLoading()
+                }).then((result) => {
+                    if (result.isConfirmed && result.value.success) {
+                        Swal.fire({
+                            title: 'Muvaffaqiyatli yakunlandi!',
+                            text: result.value.message,
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else if (result.isConfirmed) {
+                        Swal.fire('Xatolik!', result.value.error || "Tushunarsiz xatolik yuz berdi.", 'error');
+                    }
+                });
+            });
+        });
+    </script>
+{% endblock scripts %}

@@ -1,498 +1,641 @@
 {% extends 'base/base.html' %}
-{% block title %}YouTube Live Dashboard{% endblock %}
+{% block title %}YouTube Live Dashboard – NamDPI{% endblock %}
+{% load static %}
+
+{% block styles %}
+    <link href="{% static 'assets/libs/sweetalert2/sweetalert2.min.css' %}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css" rel="stylesheet">
+    <style>
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .stream-card {
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .stream-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
+        }
+        .mono {
+            font-family: var(--bs-font-monospace);
+        }
+        @keyframes pulse-green {
+            0% {
+                transform: scale(0.9);
+                opacity: 0.6;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0.9);
+                opacity: 0.6;
+            }
+        }
+        .pulse-active {
+            animation: pulse-green 1.5s infinite ease-in-out;
+        }
+    </style>
+{% endblock styles %}
 
 {% block content %}
-<style>
-  /* Kichik “qiziqarli” styling (Bootstrap ustiga) */
-  .page-hero{
-    background: radial-gradient(1200px 400px at 20% 0%, rgba(220,53,69,.15), transparent 55%),
-                radial-gradient(1000px 380px at 80% 10%, rgba(13,110,253,.12), transparent 55%),
-                linear-gradient(180deg, rgba(248,249,250,1), rgba(255,255,255,1));
-    border: 1px solid rgba(0,0,0,.06);
-    border-radius: 1rem;
-  }
-  .stat-card{
-    border-radius: 1rem;
-    border: 1px solid rgba(0,0,0,.06);
-  }
-  .stream-card{
-    border-radius: 1rem;
-    border: 1px solid rgba(0,0,0,.06);
-    transition: transform .12s ease, box-shadow .12s ease;
-  }
-  .stream-card:hover{
-    transform: translateY(-1px);
-    box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.06);
-  }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-  .badge-dot{
-    width:.5rem; height:.5rem; border-radius:50%;
-    display:inline-block; margin-right:.4rem;
-  }
-</style>
+    <div class="container-fluid pb-4">
 
-<div class="container-fluid py-4">
+        {% include 'includes/breadcrumbs.html' %}
 
-  <!-- HERO / HEADER -->
-  <div class="page-hero p-4 p-md-5 mb-4">
-    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-      <div>
-        <h1 class="h4 mb-1">YouTube Live Dashboard</h1>
-        <div class="text-secondary small">Kameralardan YouTube Live’ga translatsiyani boshqarish</div>
-      </div>
-
-      <div class="d-flex flex-wrap gap-2">
-        <button class="btn btn-outline-dark rounded-pill" data-bs-toggle="modal" data-bs-target="#ytProfileModal">
-          <span class="me-1">＋</span> Profil qo‘shish
-        </button>
-
-        <a class="btn btn-danger rounded-pill" href="https://studio.youtube.com/channel/UC/livestreaming" target="_blank">
-          YouTube Studio
-        </a>
-      </div>
-    </div>
-
-    <!-- WS + quick hint -->
-    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
-      <span id="wsBadge" class="badge text-bg-secondary rounded-pill px-3 py-2">
-        <span id="wsDot" class="badge-dot bg-light"></span>
-        <span id="wsText">connecting…</span>
-      </span>
-
-      <span class="text-secondary small">
-        Real-time holat WebSocket orqali yangilanadi.
-      </span>
-    </div>
-  </div>
-
-  <!-- Django messages -->
-  {% if messages %}
-    <div class="mb-3">
-      {% for m in messages %}
-        <div class="alert
-          {% if m.tags == 'success' %}alert-success
-          {% elif m.tags == 'warning' %}alert-warning
-          {% elif m.tags == 'error' %}alert-danger
-          {% else %}alert-secondary{% endif %}
-          alert-dismissible fade show" role="alert">
-          {{ m }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-
-  <!-- STATS -->
-  <div class="row g-3 mb-4">
-    <div class="col-12 col-md-4">
-      <div class="stat-card bg-white p-3">
-        <div class="text-secondary small">WebSocket</div>
-        <div class="d-flex align-items-center justify-content-between mt-1">
-          <div class="fw-semibold">Realtime</div>
-          <span class="text-secondary small">/ws/youtube/</span>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-md-4">
-      <div class="stat-card bg-white p-3">
-        <div class="text-secondary small">Kameralar</div>
-        <div class="fw-semibold fs-5 mt-1">{{ cameras|length }}</div>
-      </div>
-    </div>
-    <div class="col-12 col-md-4">
-      <div class="stat-card bg-white p-3">
-        <div class="text-secondary small">Profil(lar)</div>
-        <div class="fw-semibold fs-5 mt-1">{{ profiles|length }}</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- CREATE / START -->
-  <div class="card border-0 shadow-sm mb-4" style="border-radius:1rem;">
-    <div class="card-body p-4">
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-        <div>
-          <div class="fw-semibold">Yangi translatsiya</div>
-          <div class="text-secondary small">Kamera + profil tanlang va Start bosing</div>
+        {# ==== HEADER ACTIONS ==== #}
+        <div class="row mb-3 align-items-center">
+            <div class="col-sm-6">
+                <h4 class="mb-0 fw-bold">YouTube Live Dashboard</h4>
+                <small class="text-muted">Kameralardan YouTube Live’ga translatsiyani real vaqtda boshqarish</small>
+            </div>
+            <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#ytProfileModal">
+                    <i class="me-1" data-feather="plus-circle"></i> Profil qo‘shish
+                </button>
+                <a class="btn btn-danger" href="https://studio.youtube.com/channel/UC/livestreaming" target="_blank">
+                    <i class="me-1" data-feather="youtube"></i> YouTube Studio
+                </a>
+            </div>
         </div>
 
-        {% if profiles|length == 0 %}
-          <span class="badge text-bg-warning rounded-pill px-3 py-2">
-            Profil yo‘q — avval profil qo‘shing
-          </span>
+        {# ==== STATS CARDS ==== #}
+        <div class="row mb-4">
+            <!-- WebSocket Connection Status -->
+            <div class="col-md-4">
+                <div class="card mini-stats-wid h-100 shadow-sm border">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div id="wsBadge" class="avatar-sm rounded-circle bg-soft-secondary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; transition: all 0.3s ease;">
+                                <i class="text-secondary" data-feather="rss" id="wsIcon"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small fw-semibold">Tizim Aloqasi</p>
+                            <h4 class="mb-0 d-flex align-items-center" id="wsTextContainer">
+                                <span id="wsDot" class="badge-dot bg-secondary me-2"></span>
+                                <span id="wsText" class="fs-5 fw-semibold text-secondary">ulanmoqda...</span>
+                            </h4>
+                            <small class="text-muted">Real-time ma'lumotlar oqimi</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cameras Count -->
+            <div class="col-md-4">
+                <div class="card mini-stats-wid h-100 shadow-sm border">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-info d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                <i class="text-info" data-feather="camera"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small fw-semibold">Jami Kameralar</p>
+                            <h4 class="mb-0 fw-bold">{{ cameras|length }} ta</h4>
+                            <small class="text-muted">Translatsiya qiluvchi IP manbalar</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profiles Count -->
+            <div class="col-md-4">
+                <div class="card mini-stats-wid h-100 shadow-sm border">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-warning d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                <i class="text-warning" data-feather="users"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small fw-semibold">Faol Profillar</p>
+                            <h4 class="mb-0 fw-bold">{{ profiles|length }} ta</h4>
+                            <small class="text-muted">Saqlangan YouTube oqim kalitlari</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ==== DJANGO MESSAGES ==== #}
+        {% if messages %}
+            <div class="row">
+                <div class="col-12">
+                    {% for m in messages %}
+                        <div class="alert {% if m.tags == 'success' %}alert-success{% elif m.tags == 'warning' %}alert-warning{% elif m.tags == 'error' %}alert-danger{% else %}alert-secondary{% endif %} alert-dismissible fade show shadow-sm" role="alert">
+                            <div class="d-flex align-items-center">
+                                <i class="me-2" data-feather="{% if m.tags == 'success' %}check-circle{% elif m.tags == 'warning' %}alert-triangle{% elif m.tags == 'error' %}alert-octagon{% else %}info{% endif %}"></i>
+                                <div>{{ m }}</div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
         {% endif %}
-      </div>
 
-      <form method="post" action="{% url 'youtube_start' %}" class="row g-3 align-items-end mt-2">
-        {% csrf_token %}
-        <div class="col-12 col-md-5">
-          <label class="form-label small text-secondary">Kamera</label>
-          <select name="camera_id" class="form-select" required>
-            <option value="">— Tanlang —</option>
-            {% for c in cameras %}
-              <option value="{{ c.id }}">{{ c }}</option>
-            {% endfor %}
-          </select>
-        </div>
+        {# ==== LAYOUT ROW ==== #}
+        <div class="row">
+            {# LEFT COLUMN: STREAMS MANAGEMENT (8 cols) #}
+            <div class="col-lg-8">
+                <!-- NEW STREAM CREATION -->
+                <div class="card border shadow-sm mb-4">
+                    <div class="card-header bg-light py-2">
+                        <h5 class="card-title mb-0 fw-bold text-dark"><i class="me-2" data-feather="play-circle"></i>Yangi Translatsiyani Boshlash</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if profiles|length == 0 %}
+                            <div class="alert alert-warning d-flex align-items-center mb-0" role="alert">
+                                <i class="me-2" data-feather="alert-triangle"></i>
+                                <div>Tizimda hech qanday faol YouTube profil topilmadi. Translatsiyani boshlashdan oldin yuqoridagi <b>"Profil qo'shish"</b> tugmasi orqali oqim sozlamalarini kiriting.</div>
+                            </div>
+                        {% else %}
+                            <form method="post" action="{% url 'youtube_start' %}" class="row g-3 align-items-end">
+                                {% csrf_token %}
+                                <div class="col-md-5">
+                                    <label class="form-label fw-semibold">Translatsiya qilinadigan Kamera</label>
+                                    <select name="camera_id" class="form-select" required>
+                                        <option value="">-- Kameralar ro'yxati --</option>
+                                        {% for c in cameras %}
+                                            <option value="{{ c.id }}">{{ c.name|default:c.ip }} ({{ c.ip }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
 
-        <div class="col-12 col-md-5">
-          <label class="form-label small text-secondary">Profil</label>
-          <select name="profile_id" class="form-select" required {% if profiles|length == 0 %}disabled{% endif %}>
-            <option value="">— Tanlang —</option>
-            {% for p in profiles %}
-              <option value="{{ p.id }}">{{ p.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fw-semibold">YouTube Stream Profili</label>
+                                    <select name="profile_id" class="form-select" required>
+                                        <option value="">-- YouTube Profillari --</option>
+                                        {% for p in profiles %}
+                                            <option value="{{ p.id }}">{{ p.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
 
-        <div class="col-12 col-md-2 d-grid">
-          <button class="btn btn-danger fw-semibold" type="submit" {% if profiles|length == 0 %}disabled{% endif %}>
-            Start
-          </button>
+                                <div class="col-md-2 d-grid">
+                                    <button class="btn btn-danger fw-bold" type="submit">
+                                        <i class="me-1" data-feather="play"></i> Start
+                                    </button>
+                                </div>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- ACTIVE & PAST STREAMS LIST -->
+                <div class="row g-3 mb-4">
+                    {% for s in streams %}
+                        <div class="col-md-6" id="stream-block-{{ s.id }}">
+                            <div id="card{{ s.id }}" class="card stream-card border shadow-sm h-100">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                                        <div class="min-w-0">
+                                            <h5 class="card-title text-dark fw-bold text-truncate mb-1">{{ s.camera.name|default:s.camera.ip }}</h5>
+                                            <small class="text-muted d-block text-truncate">IP: {{ s.camera.ip }}</small>
+                                            <small class="text-muted">Profil: <span class="text-dark fw-semibold">{{ s.profile.name }}</span></small>
+                                        </div>
+
+                                        <span id="badge{{ s.id }}" class="badge rounded-pill p-1 px-3 border d-flex align-items-center
+                                            {% if s.status == 'running' %}bg-soft-success text-success border-success border-opacity-10
+                                            {% elif s.status == 'starting' %}bg-soft-warning text-warning border-warning border-opacity-10
+                                            {% elif s.status == 'failed' %}bg-soft-danger text-danger border-danger border-opacity-10
+                                            {% else %}bg-soft-secondary text-secondary border-secondary border-opacity-10{% endif %}">
+                                            <span id="spin{{ s.id }}" class="spinner-border spinner-border-sm me-1 {% if s.status != 'starting' %}d-none{% endif %}" role="status" style="width: 10px; height: 10px;"></span>
+                                            <span id="pulse{{ s.id }}" class="badge-dot bg-success me-1 pulse-active {% if s.status != 'running' %}d-none{% endif %}"></span>
+                                            <span id="statusText{{ s.id }}" class="text-uppercase font-size-11">{{ s.status }}</span>
+                                        </span>
+                                    </div>
+
+                                    <hr class="my-2">
+
+                                    <div class="row g-2 text-center py-2 bg-light border rounded mb-3">
+                                        <div class="col-6 border-end">
+                                            <span class="text-muted d-block font-size-12">FFmpeg PID</span>
+                                            <span id="pid{{ s.id }}" class="fw-semibold text-dark mono">{{ s.ffmpeg_pid|default:"—" }}</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="text-muted d-block font-size-12">Boshlangan Vaqti</span>
+                                            <span id="st{{ s.id }}" class="fw-semibold text-dark font-size-13">{{ s.started_at|date:"H:i:s (d-M)"|default:"—" }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Last Log / Error Box -->
+                                    <div class="p-2 border rounded-3 bg-light bg-opacity-50 mb-3">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="small fw-semibold text-muted"><i class="me-1 text-secondary" data-feather="terminal" style="width: 12px; height: 12px;"></i>Holat / Log xabari</span>
+                                            <button class="btn btn-xs btn-outline-dark p-0 px-2 font-size-11 rounded" type="button" onclick="openInfo({{ s.id }})">
+                                                Tafsilotlar
+                                            </button>
+                                        </div>
+                                        <div id="err{{ s.id }}" class="small mt-1 text-muted text-truncate font-size-12 mono">
+                                            {% if s.last_error %}
+                                                {{ s.last_error }}
+                                            {% else %}
+                                                {% if s.status == 'running' %}Stream muvaffaqiyatli ishlamoqda.{% elif s.status == 'starting' %}YouTube serveri bilan bog'lanilmoqda...{% elif s.status == 'failed' %}Stream ishga tushirishda xatolik yuz berdi.{% else %}Translatsiya to'xtatilgan.{% endif %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <!-- Stream Actions -->
+                                    <div class="d-flex flex-wrap gap-2 pt-1">
+                                        <!-- Start/Restart Form -->
+                                        <form id="btnStartWrap{{ s.id }}" method="post" action="{% url 'youtube_start' %}"
+                                              class="{% if s.status == 'running' or s.status == 'starting' %}d-none{% endif %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="camera_id" value="{{ s.camera.id }}">
+                                            <input type="hidden" name="profile_id" value="{{ s.profile.id }}">
+                                            <button class="btn btn-outline-primary btn-sm" type="submit">
+                                                <i class="me-1" data-feather="play" style="width: 12px; height: 12px;"></i>Start
+                                            </button>
+                                        </form>
+
+                                        <!-- Stop Button -->
+                                        <a id="btnStop{{ s.id }}"
+                                           data-href="{% url 'youtube_stop' s.id %}"
+                                           class="btn btn-outline-warning btn-sm
+                                           {% if s.status != 'running' and s.status != 'starting' %}disabled{% endif %}"
+                                           {% if s.status == 'running' or s.status == 'starting' %}href="{% url 'youtube_stop' s.id %}"{% endif %}>
+                                            <i class="me-1" data-feather="square" style="width: 12px; height: 12px;"></i>Stop
+                                        </a>
+
+                                        <!-- YouTube Studio link -->
+                                        <a class="btn btn-outline-danger btn-sm" href="https://studio.youtube.com/channel/UC/livestreaming" target="_blank">
+                                            <i class="me-1" data-feather="youtube" style="width: 12px; height: 12px;"></i>YouTube
+                                        </a>
+
+                                        <!-- Delete Button -->
+                                        <button id="btnDel{{ s.id }}"
+                                                data-href="{% url 'youtube_stream_delete' s.id %}"
+                                                class="btn btn-outline-secondary btn-sm ms-auto btn-delete-stream
+                                                {% if s.status != 'stopped' and s.status != 'failed' %}disabled{% endif %}"
+                                                {% if s.status != 'stopped' and s.status != 'failed' %}disabled{% endif %}>
+                                            <i data-feather="trash-2" style="width: 12px; height: 12px;"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="col-12">
+                            <div class="text-center py-5 bg-white border rounded shadow-sm mb-4">
+                                <i class="text-muted mb-3" data-feather="youtube" style="width: 48px; height: 48px;"></i>
+                                <h5 class="text-dark fw-semibold mb-1">Hozircha hech qanday translatsiya mavjud emas</h5>
+                                <p class="text-muted mb-0 font-size-13">Kamera va profilni tanlab, yangi oqimni ishga tushirishingiz mumkin.</p>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# RIGHT COLUMN: PROFILE MANAGEMENT (4 cols) #}
+            <div class="col-lg-4">
+                <div class="card border shadow-sm mb-4">
+                    <div class="card-header bg-light py-2">
+                        <h5 class="card-title mb-0 fw-bold text-dark"><i class="me-2" data-feather="key"></i>YouTube Profillari</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if profiles %}
+                            <div class="list-group list-group-flush">
+                                {% for p in profiles %}
+                                    <div class="list-group-item p-3">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <span class="fw-bold text-dark">{{ p.name }}</span>
+                                            <button class="btn btn-sm btn-soft-danger btn-delete-profile border-0"
+                                                    data-href="{% url 'youtube_profile_delete' p.id %}"
+                                                    data-name="{{ p.name }}">
+                                                <i data-feather="trash-2" style="width: 14px; height: 14px;"></i>
+                                            </button>
+                                        </div>
+                                        <small class="text-muted d-block text-truncate border p-1 rounded bg-light mono font-size-11 mb-2">{{ p.rtmp_url }}</small>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="badge bg-soft-success text-success p-1 px-2 border border-success border-opacity-10"><i class="me-1" data-feather="check" style="width: 10px; height: 10px;"></i>Faol</span>
+                                            <small class="text-muted font-size-11">Stream Key himoyalangan</small>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="text-muted mb-2" data-feather="lock" style="width: 32px; height: 32px;"></i>
+                                <p class="mb-0 text-muted font-size-13">YouTube profillari kiritilmagan</p>
+                                <button class="btn btn-primary btn-xs mt-2" data-bs-toggle="modal" data-bs-target="#ytProfileModal">Profil qo'shish</button>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
         </div>
-      </form>
     </div>
-  </div>
 
-  <!-- STREAMS -->
-  <div class="row g-3">
-    {% for s in streams %}
-      <div class="col-12 col-lg-6">
-        <div id="card{{ s.id }}" class="stream-card bg-white p-4">
-          <div class="d-flex align-items-start justify-content-between gap-3">
-            <div class="min-w-0">
-              <div class="fw-semibold text-truncate">{{ s.camera }}</div>
-              <div class="text-secondary small">
-                Profil: <span class="text-dark fw-semibold">{{ s.profile.name }}</span>
-              </div>
+    {# ==== MODAL: YouTube Profil Qo'shish ==== #}
+    <div class="modal fade" id="ytProfileModal" tabindex="-1" aria-labelledby="ytProfileModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius:1rem;">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold text-white" id="ytProfileModalLabel"><i class="me-2" data-feather="plus-circle"></i>YouTube Profil Sozlamalari</h5>
+                    <button class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Yopish"></button>
+                </div>
+                <form method="post" action="{% url 'youtube_profile_create' %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Profil Nomi</label>
+                            <input name="name" class="form-control" placeholder="Masalan: Asosiy YouTube Kanal" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">RTMP Server URL</label>
+                            <input name="rtmp_url" class="form-control" value="rtmp://a.rtmp.youtube.com/live2" required>
+                            <div class="form-text">YouTube uchun odatda o'zgarmaydi.</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold">Translatsiya kaliti (Stream Key) <span class="text-danger">*</span></label>
+                            <input name="stream_key" type="password" class="form-control" placeholder="xxxx-xxxx-xxxx-xxxx-xxxx" required>
+                            <div class="form-text text-danger"><i class="me-1" data-feather="alert-circle" style="width: 12px; height: 12px;"></i>Diqqat: Kalitni hech kimga ko'rsatmang!</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Bekor qilish</button>
+                        <button class="btn btn-primary" type="submit">Saqlash</button>
+                    </div>
+                </form>
             </div>
-
-            <span id="badge{{ s.id }}" class="badge rounded-pill px-3 py-2
-              {% if s.status == 'running' %}text-bg-success
-              {% elif s.status == 'starting' %}text-bg-warning
-              {% elif s.status == 'failed' %}text-bg-danger
-              {% else %}text-bg-secondary{% endif %}">
-              <span id="spin{{ s.id }}" class="spinner-border spinner-border-sm me-1 {% if s.status != 'starting' %}d-none{% endif %}" role="status"></span>
-              <span id="pulse{{ s.id }}" class="badge-dot bg-light {% if s.status != 'running' %}d-none{% endif %}"></span>
-              <span id="statusText{{ s.id }}">{{ s.status }}</span>
-            </span>
-          </div>
-
-          <hr class="my-3">
-
-          <div class="row g-3 small">
-            <div class="col-6">
-              <div class="text-secondary">PID</div>
-              <div id="pid{{ s.id }}" class="fw-semibold mono">{{ s.ffmpeg_pid|default:"—" }}</div>
-            </div>
-            <div class="col-6">
-              <div class="text-secondary">Boshlangan</div>
-              <div id="st{{ s.id }}" class="fw-semibold">{{ s.started_at|default:"—" }}</div>
-            </div>
-          </div>
-
-          <div class="mt-3 p-3 bg-light border rounded-3">
-            <div class="d-flex justify-content-between align-items-start gap-2">
-              <div class="small text-secondary">Holat</div>
-              <button class="btn btn-sm btn-outline-dark rounded-pill" type="button" onclick="openInfo({{ s.id }})">
-                Info
-              </button>
-            </div>
-
-            <div id="err{{ s.id }}" class="small mt-1 text-truncate">
-              {% if s.last_error %}
-                {{ s.last_error }}
-              {% else %}
-                {% if s.status == 'running' %}Stream ishlayapti.{% elif s.status == 'starting' %}Ulanmoqda…{% elif s.status == 'failed' %}Xatolik bor.{% else %}To‘xtagan.{% endif %}
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="d-flex flex-wrap gap-2 mt-3">
-
-            <!-- Start/Restart -->
-            <form id="btnStartWrap{{ s.id }}" method="post" action="{% url 'youtube_start' %}"
-                  class="{% if s.status == 'running' or s.status == 'starting' %}d-none{% endif %}">
-              {% csrf_token %}
-              <input type="hidden" name="camera_id" value="{{ s.camera.id }}">
-              <input type="hidden" name="profile_id" value="{{ s.profile.id }}">
-              <button class="btn btn-outline-primary btn-sm rounded-pill" type="submit">
-                Start
-              </button>
-            </form>
-
-            <!-- Stop -->
-            <a id="btnStop{{ s.id }}"
-               data-href="{% url 'youtube_stop' s.id %}"
-               class="btn btn-outline-dark btn-sm rounded-pill
-               {% if s.status != 'running' and s.status != 'starting' %}disabled{% endif %}"
-               {% if s.status == 'running' or s.status == 'starting' %}href="{% url 'youtube_stop' s.id %}"{% endif %}>
-              Stop
-            </a>
-
-            <a class="btn btn-outline-secondary btn-sm rounded-pill"
-               href="https://studio.youtube.com/channel/UC/livestreaming" target="_blank">
-              YouTube
-            </a>
-
-            <!-- Delete -->
-            <a id="btnDel{{ s.id }}"
-               data-href="{% url 'youtube_stream_delete' s.id %}"
-               class="btn btn-outline-danger btn-sm rounded-pill
-               {% if s.status != 'stopped' and s.status != 'failed' %}disabled{% endif %}"
-               {% if s.status == 'stopped' or s.status == 'failed' %}href="{% url 'youtube_stream_delete' s.id %}"{% endif %}>
-              O‘chirish
-            </a>
-          </div>
         </div>
-      </div>
-    {% empty %}
-      <div class="col-12">
-        <div class="text-center p-5 bg-white border rounded-4">
-          <div class="text-secondary">Stream yo‘q.</div>
-          <div class="mt-1">Yuqoridan kamera + profil tanlab <b>Start</b> bosing.</div>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-</div>
-
-<!-- TOAST (Bootstrap) -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-  <div id="ytToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex">
-      <div id="ytToastBody" class="toast-body">...</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
     </div>
-  </div>
-</div>
 
-<!-- Profile modal -->
-<div class="modal fade" id="ytProfileModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius:1rem;">
-      <form method="post" action="{% url 'youtube_profile_create' %}">
-        {% csrf_token %}
-        <div class="modal-header">
-          <h5 class="modal-title">YouTube profil</h5>
-          <button class="btn-close" data-bs-dismiss="modal"></button>
+    {# ==== OFFCANVAS: Batafsil Stream Ma'lumotlari ==== #}
+    <div class="offcanvas offcanvas-end border-0 shadow-lg" tabindex="-1" id="infoCanvas" aria-labelledby="infoCanvasLabel">
+        <div class="offcanvas-header bg-light">
+            <h5 id="infoCanvasLabel" class="offcanvas-title fw-bold text-dark"><i class="me-2 text-primary" data-feather="info"></i>FFmpeg Stream Tafsilotlari</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Yopish"></button>
         </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Nomi</label>
-            <input name="name" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">RTMP URL</label>
-            <input name="rtmp_url" class="form-control" value="rtmp://a.rtmp.youtube.com/live2">
-            <div class="form-text">Odatda YouTube uchun shu qoladi.</div>
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Stream key</label>
-            <input name="stream_key" class="form-control" required>
-          </div>
+        <div class="offcanvas-body">
+            <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+                <i class="me-2" data-feather="help-circle" style="min-width: 20px;"></i>
+                <div class="font-size-12">Ushbu ma'lumotlar real vaqtda fonda ishlayotgan transkodlash xizmatining texnik holatini ifodalaydi.</div>
+            </div>
+            <pre id="infoText" class="mono small bg-dark text-light border-0 rounded-3 p-3 font-size-11" style="white-space:pre-wrap; max-height: 80vh; overflow-y: auto;"></pre>
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Bekor</button>
-          <button class="btn btn-danger" type="submit">Saqlash</button>
-        </div>
-      </form>
     </div>
-  </div>
-</div>
 
-<!-- INFO OFFCANVAS (modal o‘rniga qulayroq) -->
-<div class="offcanvas offcanvas-end" tabindex="-1" id="infoCanvas" aria-labelledby="infoCanvasLabel">
-  <div class="offcanvas-header">
-    <h5 id="infoCanvasLabel" class="offcanvas-title">Stream ma’lumotlari</h5>
-    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
-  </div>
-  <div class="offcanvas-body">
-    <pre id="infoText" class="mono small bg-light border rounded-3 p-3" style="white-space:pre-wrap;"></pre>
-  </div>
-</div>
+{% endblock content %}
 
-<script>
-  // ---------- Toast ----------
-  const toastEl = document.getElementById("ytToast");
-  const toastBody = document.getElementById("ytToastBody");
-  const bsToast = toastEl ? new bootstrap.Toast(toastEl, { delay: 3000 }) : null;
+{% block scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/toastr.min.js"></script>
+    <script src="{% static 'assets/libs/sweetalert2/sweetalert2.min.js' %}"></script>
 
-  function showToast(type, msg){
-    if(!toastEl || !toastBody || !bsToast) return;
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Feather Icons render
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
 
-    // reset
-    toastEl.className = "toast align-items-center border-0";
-    // theme
-    if(type === "ok")   toastEl.classList.add("text-bg-success");
-    if(type === "warn") toastEl.classList.add("text-bg-warning");
-    if(type === "bad")  toastEl.classList.add("text-bg-danger");
-    if(type === "info") toastEl.classList.add("text-bg-dark");
+            // Toastr global configs
+            toastr.options = {
+                "closeButton": true,
+                "progressBar": true,
+                "positionClass": "toast-top-right",
+                "timeOut": "4000"
+            };
 
-    toastBody.textContent = msg;
-    bsToast.show();
-  }
+            // SweetAlert2 Profile Delete Button Handlers
+            document.querySelectorAll('.btn-delete-profile').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const name = this.dataset.name;
+                    const href = this.dataset.href;
 
-  // ---------- Status UI ----------
-  function setStatusUI(id, status){
-    const badge = document.getElementById("badge"+id);
-    const spin  = document.getElementById("spin"+id);
-    const pulse = document.getElementById("pulse"+id);
-    const stxt  = document.getElementById("statusText"+id);
-    if(!badge || !stxt) return;
+                    Swal.fire({
+                        title: "Ishonchingiz komilmi?",
+                        text: `"${name}" YouTube profilini o‘chirib yubormoqchisiz.`,
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#d33",
+                        cancelButtonColor: "#6c757d",
+                        confirmButtonText: "Ha, o‘chirilsin",
+                        cancelButtonText: "Bekor qilish"
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            location.href = href;
+                        }
+                    });
+                });
+            });
 
-    badge.className = "badge rounded-pill px-3 py-2";
+            // SweetAlert2 Stream Record Delete Button Handlers
+            document.querySelectorAll('.btn-delete-stream').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const href = this.dataset.href;
 
-    if(spin)  spin.classList.add("d-none");
-    if(pulse) pulse.classList.add("d-none");
+                    Swal.fire({
+                        title: "Ishonchingiz komilmi?",
+                        text: "Translatsiya tarixini va unga bog'liq yozuvlarni tizimdan o'chirmoqchisiz.",
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#d33",
+                        cancelButtonColor: "#6c757d",
+                        confirmButtonText: "Ha, o'chirilsin",
+                        cancelButtonText: "Bekor qilish"
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            location.href = href;
+                        }
+                    });
+                });
+            });
+        });
 
-    if(status === "running"){
-      badge.classList.add("text-bg-success");
-      if(pulse) pulse.classList.remove("d-none");
-    } else if(status === "starting"){
-      badge.classList.add("text-bg-warning");
-      if(spin) spin.classList.remove("d-none");
-    } else if(status === "failed"){
-      badge.classList.add("text-bg-danger");
-    } else {
-      badge.classList.add("text-bg-secondary");
-    }
-    stxt.textContent = status;
-  }
+        // ---------- Status UI ----------
+        function setStatusUI(id, status){
+            const badge = document.getElementById("badge"+id);
+            const spin  = document.getElementById("spin"+id);
+            const pulse = document.getElementById("pulse"+id);
+            const stxt  = document.getElementById("statusText"+id);
+            if(!badge || !stxt) return;
 
-  function setStartVisible(id, status){
-    const wrap = document.getElementById("btnStartWrap"+id);
-    if(!wrap) return;
-    if(status === "stopped" || status === "failed") wrap.classList.remove("d-none");
-    else wrap.classList.add("d-none");
-  }
+            badge.className = "badge rounded-pill p-1 px-3 border d-flex align-items-center";
 
-  function setLinkState(a, enabled){
-    if(!a) return;
-    const href = a.getAttribute("data-href");
-    if(enabled){
-      a.classList.remove("disabled");
-      a.setAttribute("href", href);
-    } else {
-      a.classList.add("disabled");
-      a.removeAttribute("href");
-    }
-  }
+            if(spin)  spin.classList.add("d-none");
+            if(pulse) pulse.classList.add("d-none");
 
-  function updateCard(id, patch){
-    if(patch.status){
-      setStatusUI(id, patch.status);
-      setStartVisible(id, patch.status);
-      setLinkState(document.getElementById("btnStop"+id), (patch.status==="running" || patch.status==="starting"));
-      setLinkState(document.getElementById("btnDel"+id), (patch.status==="stopped" || patch.status==="failed"));
-    }
-    if(patch.pid !== undefined){
-      const el = document.getElementById("pid"+id);
-      if(el) el.textContent = patch.pid || "—";
-    }
-    if(patch.started_at !== undefined){
-      const el = document.getElementById("st"+id);
-      if(el) el.textContent = patch.started_at || "—";
-    }
-    if(patch.msg !== undefined){
-      const el = document.getElementById("err"+id);
-      if(el) el.textContent = patch.msg || "";
-    }
-  }
+            if(status === "running"){
+                badge.className = "badge rounded-pill p-1 px-3 border d-flex align-items-center bg-soft-success text-success border-success border-opacity-10";
+                if(pulse) pulse.classList.remove("d-none");
+            } else if(status === "starting"){
+                badge.className = "badge rounded-pill p-1 px-3 border d-flex align-items-center bg-soft-warning text-warning border-warning border-opacity-10";
+                if(spin) spin.classList.remove("d-none");
+            } else if(status === "failed"){
+                badge.className = "badge rounded-pill p-1 px-3 border d-flex align-items-center bg-soft-danger text-danger border-danger border-opacity-10";
+            } else {
+                badge.className = "badge rounded-pill p-1 px-3 border d-flex align-items-center bg-soft-secondary text-secondary border-secondary border-opacity-10";
+            }
+            stxt.textContent = status;
+        }
 
-  // ---------- WebSocket ----------
-  const wsBadge = document.getElementById("wsBadge");
-  const wsDot   = document.getElementById("wsDot");
-  const wsText  = document.getElementById("wsText");
+        function setStartVisible(id, status){
+            const wrap = document.getElementById("btnStartWrap"+id);
+            if(!wrap) return;
+            if(status === "stopped" || status === "failed") wrap.classList.remove("d-none");
+            else wrap.classList.add("d-none");
+        }
 
-  function wsUrl(){
-    return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/youtube/";
-  }
+        function setLinkState(a, enabled){
+            if(!a) return;
+            const href = a.getAttribute("data-href");
+            if(enabled){
+                a.classList.remove("disabled");
+                a.setAttribute("href", href);
+            } else {
+                a.classList.add("disabled");
+                a.removeAttribute("href");
+            }
+        }
 
-  function setWSState(mode){
-    if(!wsBadge || !wsDot || !wsText) return;
+        function updateCard(id, patch){
+            if(patch.status){
+                setStatusUI(id, patch.status);
+                setStartVisible(id, patch.status);
+                setLinkState(document.getElementById("btnStop"+id), (patch.status==="running" || patch.status==="starting"));
+                // Enable delete only when stopped/failed
+                const delBtn = document.getElementById("btnDel"+id);
+                if(delBtn) {
+                    if (patch.status === "stopped" || patch.status === "failed") {
+                        delBtn.classList.remove("disabled");
+                        delBtn.removeAttribute("disabled");
+                    } else {
+                        delBtn.classList.add("disabled");
+                        delBtn.setAttribute("disabled", "disabled");
+                    }
+                }
+            }
+            if(patch.pid !== undefined){
+                const el = document.getElementById("pid"+id);
+                if(el) el.textContent = patch.pid || "—";
+            }
+            if(patch.started_at !== undefined){
+                const el = document.getElementById("st"+id);
+                if(el) el.textContent = patch.started_at || "—";
+            }
+            if(patch.msg !== undefined){
+                const el = document.getElementById("err"+id);
+                if(el) el.textContent = patch.msg || "";
+            }
+        }
 
-    wsBadge.className = "badge rounded-pill px-3 py-2";
-    if(mode === "ok"){
-      wsBadge.classList.add("text-bg-success");
-      wsDot.className = "badge-dot bg-light";
-      wsText.textContent = "connected";
-    } else if(mode === "bad"){
-      wsBadge.classList.add("text-bg-danger");
-      wsDot.className = "badge-dot bg-light";
-      wsText.textContent = "disconnected";
-    } else {
-      wsBadge.classList.add("text-bg-secondary");
-      wsDot.className = "badge-dot bg-light";
-      wsText.textContent = "connecting…";
-    }
-  }
+        // ---------- WebSocket Status Badge & Connections ----------
+        const wsBadge = document.getElementById("wsBadge");
+        const wsDot   = document.getElementById("wsDot");
+        const wsText  = document.getElementById("wsText");
+        const wsIcon  = document.getElementById("wsIcon");
 
-  let ws = null;
-  let retry = null;
+        function wsUrl(){
+            return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/youtube/";
+        }
 
-  function connectWS(){
-    setWSState("conn");
-    ws = new WebSocket(wsUrl());
+        function setWSState(mode){
+            if(!wsBadge || !wsDot || !wsText || !wsIcon) return;
 
-    ws.onopen = ()=> setWSState("ok");
-    ws.onclose = ()=>{
-      setWSState("bad");
-      if(retry) clearTimeout(retry);
-      retry = setTimeout(connectWS, 1500);
-    };
-    ws.onerror = ()=> setWSState("bad");
+            wsBadge.className = "avatar-sm rounded-circle d-flex align-items-center justify-content-center";
+            wsDot.className = "badge-dot me-2";
 
-    ws.onmessage = (e)=>{
-      const d = JSON.parse(e.data);
-      if(!d.stream_id) return;
+            if(mode === "ok"){
+                wsBadge.classList.add("bg-soft-success");
+                wsIcon.className = "text-success";
+                wsDot.classList.add("bg-success");
+                wsText.className = "fs-5 fw-bold text-success";
+                wsText.textContent = "Bog'langan";
+            } else if(mode === "bad"){
+                wsBadge.classList.add("bg-soft-danger");
+                wsIcon.className = "text-danger";
+                wsDot.classList.add("bg-danger");
+                wsText.className = "fs-5 fw-bold text-danger";
+                wsText.textContent = "Uzilgan";
+            } else {
+                wsBadge.classList.add("bg-soft-secondary");
+                wsIcon.className = "text-secondary";
+                wsDot.classList.add("bg-secondary");
+                wsText.className = "fs-5 fw-semibold text-secondary";
+                wsText.textContent = "Ulanmoqda...";
+            }
+            // re-render feather icon just in case
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        }
 
-      if(d.event === "starting"){
-        showToast("warn", "Starting… " + (d.message || ""));
-        updateCard(d.stream_id, {status:"starting", msg: d.message || "Ulanmoqda…"});
-      }
-      if(d.event === "running"){
-        showToast("ok", "Running ✅ PID: " + (d.pid || ""));
-        updateCard(d.stream_id, {status:"running", pid:d.pid||"—", started_at:d.started_at||"—", msg:"Stream ishlayapti."});
-      }
-      if(d.event === "failed"){
-        showToast("bad", "Failed ❌ " + (d.error || ""));
-        updateCard(d.stream_id, {status:"failed", msg: d.error || "Xatolik"});
-      }
-      if(d.event === "stopped"){
-        showToast("info", "Stopped ⛔");
-        updateCard(d.stream_id, {status:"stopped", pid:"—", msg:"To‘xtagan."});
-      }
-      if(d.event === "auto_stopped"){
-        showToast("info", "Auto-stopped ℹ️ " + (d.message || ""));
-        updateCard(d.stream_id, {status:"stopped", pid:"—", msg:d.message || "Auto-stopped"});
-      }
-    };
-  }
-  connectWS();
+        let ws = null;
+        let retry = null;
 
-  // ---------- Info (Offcanvas) ----------
-  async function openInfo(id){
-    const r = await fetch("/youtube/stream/info/" + id + "/");
-    const j = await r.json();
-    document.getElementById("infoText").textContent =
+        function connectWS(){
+            setWSState("conn");
+            ws = new WebSocket(wsUrl());
+
+            ws.onopen = () => setWSState("ok");
+            ws.onclose = () => {
+                setWSState("bad");
+                if(retry) clearTimeout(retry);
+                retry = setTimeout(connectWS, 2000);
+            };
+            ws.onerror = () => setWSState("bad");
+
+            ws.onmessage = (e) => {
+                const d = JSON.parse(e.data);
+                if(!d.stream_id) return;
+
+                if(d.event === "starting"){
+                    toastr.warning(d.message || "Ulanmoqda...", "Translatsiya boshlanmoqda");
+                    updateCard(d.stream_id, {status:"starting", msg: d.message || "Ulanmoqda…"});
+                }
+                if(d.event === "running"){
+                    toastr.success("Translatsiya muvaffaqiyatli ishga tushdi!", "Faol Oqim");
+                    updateCard(d.stream_id, {status:"running", pid:d.pid||"—", started_at:d.started_at||"—", msg:"Stream ishlayapti."});
+                }
+                if(d.event === "failed"){
+                    toastr.error(d.error || "Ulanishda xatolik", "Translatsiya ishlamadi");
+                    updateCard(d.stream_id, {status:"failed", msg: d.error || "Xatolik"});
+                }
+                if(d.event === "stopped"){
+                    toastr.info("Translatsiya to'xtatildi.", "Stream To'xtatildi");
+                    updateCard(d.stream_id, {status:"stopped", pid:"—", msg:"To‘xtagan."});
+                }
+                if(d.event === "auto_stopped"){
+                    toastr.info(d.message || "Translatsiya avtomatik to'xtatildi.", "Auto-Stop");
+                    updateCard(d.stream_id, {status:"stopped", pid:"—", msg:d.message || "Avtomatik to'xtatildi"});
+                }
+            };
+        }
+        connectWS();
+
+        // ---------- Info (Offcanvas) ----------
+        async function openInfo(id){
+            const r = await fetch("/youtube/stream/info/" + id + "/");
+            const j = await r.json();
+            document.getElementById("infoText").textContent =
 `ID: ${j.id}
-Status: ${j.status}
-PID: ${j.pid}
-Camera: ${j.camera}
-Profile: ${j.profile}
-RTMP: ${j.rtmp_url}
+Holati: ${j.status.toUpperCase()}
+FFmpeg PID: ${j.pid || "Noma'lum"}
+Kamera manbasi: ${j.camera}
+Kanal profili: ${j.profile}
+RTMP URL manzili: ${j.rtmp_url}
 
-Started: ${j.started_at}
-Stopped: ${j.stopped_at}
+Boshlangan vaqti: ${j.started_at || "Noma'lum"}
+To'xtatilgan vaqti: ${j.stopped_at || "Ishlamoqda (yoki to'xtatilmagan)"}
 
-Last error:
-${j.last_error}
+Oxirgi xatolik xabari:
+${j.last_error || "Xatoliklar yo'q."}
 
-FFmpeg cmd:
-${j.last_cmd}
+FFmpeg Translatsiya Buyrug'i:
+${j.last_cmd || "Mavjud emas."}
 `;
-    new bootstrap.Offcanvas(document.getElementById("infoCanvas")).show();
-  }
-</script>
+            new bootstrap.Offcanvas(document.getElementById("infoCanvas")).show();
+        }
+    </script>
 {% endblock %}

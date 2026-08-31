@@ -1,0 +1,447 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block styles %}
+    <link href="{% static 'assets/libs/select2/css/select2.min.css' %}" rel="stylesheet" type="text/css"/>
+    <link href="{% static 'assets/libs/sweetalert2/sweetalert2.min.css' %}" rel="stylesheet">
+    <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css">
+
+    <style>
+        /* ====== TOP STATS (1 qatorda, scroll) ====== */
+        .stats-row {
+            display: flex;
+            gap: .75rem;
+            overflow-x: auto;
+            padding-bottom: .25rem;
+            scroll-snap-type: x mandatory;
+        }
+
+        .stats-row::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .stats-row::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, .15);
+            border-radius: 8px;
+        }
+
+        .stat-card {
+            min-width: 210px;
+            flex: 0 0 auto;
+            scroll-snap-align: start;
+        }
+
+        .stat-icon {
+            width: 42px;
+            height: 42px;
+        }
+    </style>
+{% endblock styles %}
+
+{% block title %}
+    Xodimlar ro'yxati
+{% endblock title %}
+
+{% block content %}
+    <div class="container-fluid">
+
+        {% include 'includes/breadcrumbs.html' %}
+
+        <!-- ====== TOP STATS ====== -->
+        <div class="mb-3">
+            <div class="stats-row">
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Jami xodimlar</div>
+                                <div class="h4 mb-0 fw-bold text-primary">{{ total_count }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-light d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-briefcase-account text-primary fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Face ✅</div>
+                                <div class="h4 mb-0 fw-bold text-success">{{ users_with_face }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-success d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-face-recognition text-success fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Face ❌</div>
+                                <div class="h4 mb-0 fw-bold text-danger">{{ users_without_face }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-danger d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-face-recognition text-danger fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Telegram ✅</div>
+                                <div class="h4 mb-0 fw-bold text-info">{{ users_with_tg }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-info d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-telegram text-info fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Telegram ❌</div>
+                                <div class="h4 mb-0 fw-bold text-warning">{{ users_without_tg }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-warning d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-telegram text-warning fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="small text-muted mt-1">
+                <i class="mdi mdi-swap-horizontal me-1"></i> Kartalarni yon tomonga surib ko‘ring
+            </div>
+        </div>
+        <!-- ====== END TOP STATS ====== -->
+
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+
+                        <!-- ✅ FILTER BAR -->
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+
+                            <!-- ✅ Yagona Form: q -->
+                            <form method="get" class="d-flex align-items-center flex-wrap gap-2">
+
+                                <input type="text"
+                                       name="q"
+                                       class="form-control form-control-sm"
+                                       style="width:240px;"
+                                       placeholder="Qidirish..."
+                                       value="{{ search_query }}">
+
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="mdi mdi-magnify"></i>
+                                </button>
+
+                                {% if search_query %}
+                                    <a href="{% url 'employees_list' %}" class="btn btn-outline-secondary btn-sm">
+                                        <i class="mdi mdi-restore"></i>
+                                    </a>
+                                {% endif %}
+                            </form>
+
+                            <!-- ✅ Tugmalar -->
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <a href="{% url 'import_users' %}" class="btn btn-light btn-sm">
+                                    <i class="mdi mdi-upload me-1"></i> Yuklash
+                                </a>
+                            </div>
+
+                        </div>
+                        <!-- ✅ END FILTER BAR -->
+
+
+                        <!-- ✅ USERS TABLE -->
+                        <div class="table-responsive">
+                            <table class="table table-centered table-nowrap table-striped">
+                                <thead class="table-light">
+                                <tr>
+                                    <th style="width:60px;">#</th>
+                                    <th>Xodim</th>
+                                    <th>Bo'lim</th>
+                                    <th>Lavozim / Mutaxassislik</th>
+                                    <th>Telegram</th>
+                                    <th>Yuz ma’lumoti</th>
+                                    <th>Yaratilgan</th>
+                                    <th>Holat</th>
+                                    <th style="width:90px;">Amallar</th>
+                                </tr>
+                                </thead>
+
+                                <tbody>
+                                {% for user in users %}
+                                    <tr>
+
+                                        <td>
+                                            {% if page_obj %}
+                                                {{ forloop.counter0|add:page_obj.start_index }}
+                                            {% else %}
+                                                {{ forloop.counter }}
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- ✅ User main info -->
+                                        <td class="table-user">
+                                            {% if user.image %}
+                                                <img src="{{ user.image.url }}" class="me-2 rounded-circle" width="40"
+                                                     height="40" alt="user">
+                                            {% else %}
+                                                <img src="{% static 'assets/images/users/default-avatar.png' %}"
+                                                     class="me-2 rounded-circle" width="40" height="40" alt="user">
+                                            {% endif %}
+                                            <span class="text-body fw-semibold">{{ user.full_name|default:user.username }}</span><br>
+                                            {% if user.employee_id_number %}
+                                                <span class="text-muted d-inline-flex align-items-center gap-1 mt-1" style="font-size: 12.5px;">
+                                                    <i class="mdi mdi-account-card-outline me-1"></i> ID: <span class="fw-semibold text-dark font-monospace" id="emp-id-{{ user.id }}">{{ user.employee_id_number }}</span>
+                                                    <button class="btn btn-link p-0 text-primary border-0 ms-1" 
+                                                            onclick="copyToClipboard('{{ user.employee_id_number }}', 'emp-id-{{ user.id }}')"
+                                                            title="ID dan nusxa olish" style="text-decoration: none; background: none; line-height: 1;">
+                                                        <i class="mdi mdi-content-copy fs-6"></i>
+                                                    </button>
+                                                </span>
+                                            {% else %}
+                                                <small class="text-muted">—</small>
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- ✅ Bo'lim -->
+                                        <td>
+                                            {% if user.department_name %}
+                                                <span>{{ user.department_name }}</span>
+                                                {% if user.department_code %}
+                                                    <br><small class="text-muted">Kodi: {{ user.department_code }}</small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- ✅ Lavozim / Mutaxassislik -->
+                                        <td>
+                                            {% if user.position %}
+                                                <div>{{ user.position }}</div>
+                                            {% endif %}
+                                            {% if user.specialty %}
+                                                <small class="text-muted">{{ user.specialty }}</small>
+                                            {% endif %}
+                                            {% if not user.position and not user.specialty %}
+                                                <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- ✅ Telegram status -->
+                                        <td>
+                                            {% if user.has_telegram %}
+                                                <span class="badge bg-soft-success text-success">
+                                                    ✅ Bog‘langan
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-soft-danger text-danger">
+                                                    ❌ Yo‘q
+                                                </span>
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- ✅ Face status -->
+                                        <td>
+                                            {% if user.has_face_encoding %}
+                                                <span class="badge bg-soft-success text-success">✅ Bor</span>
+                                            {% else %}
+                                                <span class="badge bg-soft-danger text-danger">❌ Yo‘q</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>{{ user.created_at|date:"d.m.Y" }}</td>
+
+                                        <td>
+                                            {% if user.active %}
+                                                <span class="badge bg-soft-success text-success">Faol</span>
+                                            {% else %}
+                                                <span class="badge bg-soft-danger text-danger">Nofaol</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            <a href="{% url 'profile' %}?id={{ user.id }}"
+                                               class="action-icon text-primary">
+                                                <i class="mdi mdi-square-edit-outline"></i>
+                                            </a>
+
+                                            <a href="javascript:void(0)"
+                                               class="action-icon text-danger delete-user-btn"
+                                               data-user-id="{{ user.id }}"
+                                               data-user-name="{{ user.full_name|default:user.username|escapejs }}">
+                                                <i class="mdi mdi-delete-forever"></i>
+                                            </a>
+                                        </td>
+
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="10" class="text-center text-muted py-3">
+                                            Xodimlar mavjud emas
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- ✅ PAGINATION -->
+                        {% if page_obj %}
+                            <div class="d-flex justify-content-end mt-3">
+                                <ul class="pagination pagination-rounded mb-0">
+
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?{{ base_qs }}&page={{ page_obj.previous_page_number }}">«</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled"><span class="page-link">«</span></li>
+                                    {% endif %}
+
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if num == page_obj.number %}
+                                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?{{ base_qs }}&page={{ num }}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?{{ base_qs }}&page={{ page_obj.next_page_number }}">»</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled"><span class="page-link">»</span></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                        <!-- ✅ END PAGINATION -->
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block scripts %}
+    <script src="{% static 'assets/libs/sweetalert2/sweetalert2.min.js' %}"></script>
+    <script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/toastr.min.js"></script>
+
+    <script>
+        // Copy to clipboard helper
+        window.copyToClipboard = (text, elementId) => {
+            navigator.clipboard.writeText(text).then(() => {
+                toastr.options = {
+                    "closeButton": true,
+                    "progressBar": true,
+                    "positionClass": "toast-top-right",
+                    "timeOut": "3000"
+                };
+                toastr.success("Xodim ID nusxalandi: " + text);
+                
+                // Visual feedback
+                const el = document.getElementById(elementId);
+                if (el) {
+                    el.classList.add("text-success");
+                    setTimeout(() => { el.classList.remove("text-success"); }, 1000);
+                }
+            }).catch(err => {
+                toastr.error("Nusxalashda xatolik yuz berdi");
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const deleteButtons = document.querySelectorAll('.delete-user-btn');
+
+            deleteButtons.forEach(btn => {
+                const userId = btn.dataset.userId;
+                const userName = btn.dataset.userName;
+
+                btn.addEventListener('click', function () {
+                    Swal.fire({
+                        title: "Diqqat!",
+                        html: `<strong>${userName}</strong> ni butunlay o‘chirmoqchimisiz?`,
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#d33",
+                        cancelButtonColor: "#3085d6",
+                        confirmButtonText: "Ha, o‘chir!",
+                        cancelButtonText: "Bekor qilish",
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (!result.isConfirmed) return;
+
+                        fetch(`/users/delete-permanently/${userId}/`, {
+                            method: "POST",
+                            headers: {
+                                "X-Requested-With": "XMLHttpRequest",
+                                "X-CSRFToken": "{{ csrf_token }}"
+                            }
+                        })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data.success) {
+                                    $.toast({
+                                        heading: "Muvaffaqiyatli",
+                                        text: `${userName} o‘chirildi!`,
+                                        icon: "success",
+                                        position: "top-right",
+                                        hideAfter: 4000
+                                    });
+                                    setTimeout(() => location.reload(), 1200);
+                                } else {
+                                    $.toast({
+                                        heading: "Xato",
+                                        text: data.message || "O‘chirishda xatolik.",
+                                        icon: "error",
+                                        position: "top-right",
+                                        hideAfter: 6000
+                                    });
+                                }
+                            })
+                            .catch(() => {
+                                $.toast({
+                                    heading: "Ulanish xatosi",
+                                    text: "Serverga ulanishda xatolik.",
+                                    icon: "error",
+                                    position: "top-right",
+                                    hideAfter: 6000
+                                });
+                            });
+                    });
+                });
+            });
+
+        });
+    </script>
+{% endblock scripts %}

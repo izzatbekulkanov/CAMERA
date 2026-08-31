@@ -1,0 +1,273 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block styles %}
+    <style>
+        .stat-card {
+            min-width: 220px;
+            flex: 1 1 0;
+        }
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+        }
+        .table-responsive {
+            border-radius: 8px;
+        }
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            object-fit: cover; object-position: top;
+            border-radius: 50%;
+        }
+        .avatar-placeholder {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+    </style>
+{% endblock styles %}
+
+{% block title %}
+    {{ group.name }} talabalari
+{% endblock title %}
+
+{% block content %}
+    <div class="container-fluid">
+
+        {% include 'includes/breadcrumbs.html' %}
+
+        <!-- ====== HEADER INFO ====== -->
+        <div class="card shadow-sm border-0 mb-4 bg-primary text-white">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <span class="badge bg-soft-light text-white mb-2 fs-6">Akademik guruh</span>
+                        <h2 class="fw-bold mb-1 text-white">{{ group.name }}</h2>
+                        {% if group.faculty %}
+                            <p class="mb-0 text-white-50 fs-5"><i class="mdi mdi-home-city me-1"></i> Fakultet: {{ group.faculty.name }}</p>
+                        {% endif %}
+                    </div>
+                    {% if group.education_year %}
+                        <div>
+                            <span class="badge bg-soft-warning text-warning fs-5 px-3 py-2 rounded-pill fw-bold">
+                                <i class="mdi mdi-school me-1"></i> {{ group.education_year }}
+                            </span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== TOP STATS ====== -->
+        <div class="mb-4">
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 stat-card mb-0">
+                        <div class="card-body py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-muted small">Jami talabalar</div>
+                                    <div class="h3 mb-0 fw-bold text-dark">{{ total_students }}</div>
+                                </div>
+                                <div class="stat-icon rounded bg-soft-primary d-flex align-items-center justify-content-center">
+                                    <i class="mdi mdi-account-group text-primary fs-3"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 stat-card mb-0">
+                        <div class="card-body py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-muted small">O'g'il bolalar</div>
+                                    <div class="h3 mb-0 fw-bold text-info">{{ male_count }}</div>
+                                </div>
+                                <div class="stat-icon rounded bg-soft-info d-flex align-items-center justify-content-center">
+                                    <i class="mdi mdi-gender-male text-info fs-3"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 stat-card mb-0">
+                        <div class="card-body py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-muted small">Qizlar</div>
+                                    <div class="h3 mb-0 fw-bold text-danger">{{ female_count }}</div>
+                                </div>
+                                <div class="stat-icon rounded bg-soft-danger d-flex align-items-center justify-content-center">
+                                    <i class="mdi mdi-gender-female text-danger fs-3"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ====== SEARCH ====== -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body py-3">
+                <form method="GET" class="row g-2 align-items-center">
+                    <div class="col-md-9">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0"><i class="mdi mdi-magnify text-muted"></i></span>
+                            <input type="text" name="q" class="form-control bg-light border-start-0" 
+                                   placeholder="Talaba ismi, username yoki ID raqami orqali qidirish..." value="{{ q }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            <i class="mdi mdi-magnify me-1"></i> Qidirish
+                        </button>
+                        <a href="." class="btn btn-light">
+                            <i class="mdi mdi-refresh"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ====== JADVAL ====== -->
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle mb-0">
+                        <thead class="table-light text-muted">
+                            <tr>
+                                <th style="width: 60px;" class="ps-3">#</th>
+                                <th>Talaba (F.I.SH)</th>
+                                <th>Talaba ID</th>
+                                <th>GPA</th>
+                                <th>Jinsi</th>
+                                <th class="text-center">Face encoding</th>
+                                <th class="text-center">Telegram</th>
+                                <th class="text-end pe-3">Yaratilgan vaqt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in page_obj %}
+                                <tr>
+                                    <td class="ps-3 fw-medium text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-3">
+                                            {% if student.image %}
+                                                <img src="{{ student.image.url }}" alt="{{ student.full_name }}" class="user-avatar shadow-sm border border-light">
+                                            {% else %}
+                                                <div class="avatar-placeholder bg-soft-primary text-primary">
+                                                    {{ student.full_name|slice:":1" }}
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <a href="{% url 'profile' %}?id={{ student.id }}" class="fw-bold text-dark fs-5 hover-underline d-block">
+                                                    {{ student.full_name|default:student.username }}
+                                                </a>
+                                                <small class="text-muted">@{{ student.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-soft-secondary text-secondary fs-6">{{ student.student_id_number|default:"-" }}</span>
+                                    </td>
+                                    <td>
+                                        {% if student.gpa %}
+                                            <span class="fw-bold text-dark">{{ student.gpa }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if student.gender == "Erkak" %}
+                                            <span class="badge bg-soft-info text-info"><i class="mdi mdi-gender-male me-1"></i> Erkak</span>
+                                        {% elif student.gender == "Ayol" %}
+                                            <span class="badge bg-soft-danger text-danger"><i class="mdi mdi-gender-female me-1"></i> Ayol</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if student.has_face_encoding %}
+                                            <span class="badge bg-soft-success text-success fs-6 rounded-pill px-3 py-1"><i class="mdi mdi-check-circle me-1"></i> Mavjud</span>
+                                        {% else %}
+                                            <span class="badge bg-soft-danger text-danger fs-6 rounded-pill px-3 py-1"><i class="mdi mdi-close-circle me-1"></i> Kiritilmagan</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if student.has_telegram %}
+                                            <span class="badge bg-soft-success text-success fs-6 rounded-pill px-3 py-1"><i class="mdi mdi-check-circle me-1"></i> Bog'langan</span>
+                                        {% else %}
+                                            <span class="badge bg-soft-warning text-warning fs-6 rounded-pill px-3 py-1"><i class="mdi mdi-alert-circle me-1"></i> Yo'q</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-3 text-muted small">
+                                        {{ student.created_at|date:"d.m.Y H:i" }}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-5 text-muted">
+                                        <i class="mdi mdi-alert-circle-outline fs-1 d-block mb-2 text-warning"></i>
+                                        Guruhda hech qanday talaba topilmadi.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ====== PAGINATION ====== -->
+            {% if page_obj.has_other_pages %}
+                <div class="card-footer bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
+                    <span class="text-muted small">
+                        Ko'rsatilmoqda: {{ page_obj.start_index }}-{{ page_obj.end_index }} (Jami: {{ page_obj.paginator.count }} ta)
+                    </span>
+                    <nav>
+                        <ul class="pagination pagination-rounded mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+{% endblock content %}

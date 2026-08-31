@@ -10,7 +10,7 @@ except ImportError:
             return func
         return decorator
 
-from users.models import CustomUser, FaceEncoding
+from users.models import CustomUser, FaceEncoding, Faculty, Curriculum, AcademicGroup
 
 try:
     import numpy as np
@@ -534,6 +534,50 @@ def hemis_sync_students_task(self, payload: dict):
                     if not sid:
                         continue
 
+                    group_name = (st.get("group") or {}).get("name")
+                    education_year = (st.get("educationYear") or {}).get("name")
+                    dept_name = (st.get("department") or {}).get("name")
+                    dept_code = (st.get("department") or {}).get("code")
+                    specialty_name = (st.get("specialty") or {}).get("name")
+
+                    academic_group = None
+                    if group_name:
+                        faculty_obj = None
+                        if dept_name:
+                            faculty_obj, _ = Faculty.objects.get_or_create(
+                                name=dept_name,
+                                defaults={"code": dept_code}
+                            )
+                            if dept_code and faculty_obj.code != dept_code:
+                                faculty_obj.code = dept_code
+                                faculty_obj.save(update_fields=['code'])
+
+                        curriculum_obj = None
+                        if specialty_name:
+                            curriculum_obj, _ = Curriculum.objects.get_or_create(name=specialty_name)
+
+                        academic_group, _ = AcademicGroup.objects.get_or_create(
+                            name=group_name,
+                            defaults={
+                                "faculty": faculty_obj,
+                                "curriculum": curriculum_obj,
+                                "education_year": education_year
+                            }
+                        )
+                        # Agar mavjud bo'lsa va yangilanishlar bo'lsa
+                        updated_fields = False
+                        if academic_group.faculty != faculty_obj:
+                            academic_group.faculty = faculty_obj
+                            updated_fields = True
+                        if academic_group.curriculum != curriculum_obj:
+                            academic_group.curriculum = curriculum_obj
+                            updated_fields = True
+                        if education_year and academic_group.education_year != education_year:
+                            academic_group.education_year = education_year
+                            updated_fields = True
+                        if updated_fields:
+                            academic_group.save()
+
                     defaults = {
                         "username": f"s_{sid}",
                         "role": CustomUser.Role.STUDENT,
@@ -545,11 +589,12 @@ def hemis_sync_students_task(self, payload: dict):
                         "gender": (st.get("gender") or {}).get("name"),
                         "birth_date": _ts_to_date(st.get("birth_date")),
                         "student_id_number": sid,
-                        "department_name": (st.get("department") or {}).get("name"),
-                        "department_code": (st.get("department") or {}).get("code"),
-                        "specialty": (st.get("specialty") or {}).get("name"),
-                        "group_name": (st.get("group") or {}).get("name"),
-                        "education_year": (st.get("educationYear") or {}).get("name"),
+                        "department_name": dept_name,
+                        "department_code": dept_code,
+                        "specialty": specialty_name,
+                        "group_name": group_name,
+                        "education_year": education_year,
+                        "academic_group": academic_group,
                         "gpa": st.get("avg_gpa"),
                         "year_of_enter": st.get("year_of_enter"),
                         "active": True,

@@ -1,5 +1,87 @@
 {% load static i18n %}
 
+<style>
+    html:not([data-layout="horizontal"]) .app-menu {
+        max-height: 100vh !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+    html:not([data-layout="horizontal"]) .app-menu::-webkit-scrollbar {
+        width: 6px;
+    }
+    html:not([data-layout="horizontal"]) .app-menu::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+    }
+    html:not([data-layout="horizontal"]) .app-menu::-webkit-scrollbar-thumb {
+        background: rgba(150, 150, 150, 0.2);
+        border-radius: 3px;
+    }
+    html:not([data-layout="horizontal"]) .app-menu::-webkit-scrollbar-thumb:hover {
+        background: rgba(150, 150, 150, 0.4);
+    }
+    .brand-logo-img {
+        height: 32px;
+        width: 32px;
+        border-radius: 6px;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+    .brand-text {
+        font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+        white-space: nowrap;
+        user-select: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+    }
+    .brand-text .brand-title {
+        color: #1e293b;
+        font-weight: 700;
+    }
+    .brand-text .brand-highlight {
+        color: #556ee6;
+        font-weight: 700;
+    }
+    .logo-dark .brand-text .brand-title {
+        color: #1e293b !important;
+    }
+    .logo-dark .brand-text .brand-highlight {
+        color: #556ee6 !important;
+    }
+    .logo-light .brand-text .brand-title {
+        color: #ffffff !important;
+    }
+    .logo-light .brand-text .brand-highlight {
+        color: #93c5fd !important;
+    }
+    .logo-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .logo-box a {
+        text-decoration: none !important;
+    }
+    .logo-box .logo-lg {
+        display: inline-flex !important;
+        align-items: center;
+        gap: 8px;
+        height: auto;
+    }
+    .logo-box .logo-sm {
+        display: none !important;
+    }
+    html[data-sidenav-size="condensed"]:not([data-layout="horizontal"]) .logo-box .logo-lg {
+        display: none !important;
+    }
+    html[data-sidenav-size="condensed"]:not([data-layout="horizontal"]) .logo-box .logo-sm {
+        display: inline-flex !important;
+    }
+</style>
+
 <div class="app-menu">
 
     <!-- Brand Logo -->
@@ -7,54 +89,30 @@
 
         <!-- LIGHT LOGO -->
         <a href="{% url 'dashboard' %}" class="logo-light">
-
-            {# LARGE LOGO #}
-            {% if global_site_settings and global_site_settings.logo_large %}
-                <img src="{{ global_site_settings.logo_large.url }}"
-                     alt="{{ global_site_settings.site_name }}"
-                     class="logo-lg">
-            {% else %}
-                <img src="{% static 'assets/images/logo-light.png' %}"
-                     alt="logo"
-                     class="logo-lg">
-            {% endif %}
-
-            {# SMALL LOGO #}
-            {% if global_site_settings and global_site_settings.logo_small %}
-                <img src="{{ global_site_settings.logo_small.url }}"
-                     alt="{{ global_site_settings.site_name }}"
-                     class="logo-sm">
-            {% else %}
-                <img src="{% static 'assets/images/logo-sm.png' %}"
-                     alt="small logo"
-                     class="logo-sm">
-            {% endif %}
+            <div class="logo-lg">
+                <img src="{% static 'assets/images/apple-touch-icon.png' %}" class="brand-logo-img" alt="Aqlli Darvoza">
+                <span class="brand-text">
+                    <span class="brand-title">Aqlli</span>
+                    <span class="brand-highlight">Darvoza</span>
+                </span>
+            </div>
+            <div class="logo-sm">
+                <img src="{% static 'assets/images/apple-touch-icon.png' %}" class="brand-logo-img" alt="AD">
+            </div>
         </a>
 
-
-
-        <!-- DARK LOGO (fallback; theme bo‘lmasa ham qoladi) -->
+        <!-- DARK LOGO -->
         <a href="{% url 'dashboard' %}" class="logo-dark">
-
-            {% if global_site_settings and global_site_settings.logo_large %}
-                <img src="{{ global_site_settings.logo_large.url }}"
-                     alt="{{ global_site_settings.site_name }}"
-                     class="logo-lg">
-            {% else %}
-                <img src="{% static 'assets/images/logo-dark.png' %}"
-                     alt="dark logo"
-                     class="logo-lg">
-            {% endif %}
-
-            {% if global_site_settings and global_site_settings.logo_small %}
-                <img src="{{ global_site_settings.logo_small.url }}"
-                     alt="{{ global_site_settings.site_name }}"
-                     class="logo-sm">
-            {% else %}
-                <img src="{% static 'assets/images/logo-sm.png' %}"
-                     alt="small logo"
-                     class="logo-sm">
-            {% endif %}
+            <div class="logo-lg">
+                <img src="{% static 'assets/images/apple-touch-icon.png' %}" class="brand-logo-img" alt="Aqlli Darvoza">
+                <span class="brand-text">
+                    <span class="brand-title">Aqlli</span>
+                    <span class="brand-highlight">Darvoza</span>
+                </span>
+            </div>
+            <div class="logo-sm">
+                <img src="{% static 'assets/images/apple-touch-icon.png' %}" class="brand-logo-img" alt="AD">
+            </div>
         </a>
 
     </div>
@@ -79,9 +137,15 @@
                             </a>
                         </li>
                         <li class="menu-item">
-                            <a href="{% url 'users_list' %}" class="menu-link">
+                            <a href="{% url 'students_list' %}" class="menu-link">
                                 <span class="menu-icon"><i data-feather="users"></i></span>
-                                <span class="menu-text">{% trans "Foydalanuvchilar" %}</span>
+                                <span class="menu-text">{% trans "Talabalar" %}</span>
+                            </a>
+                        </li>
+                        <li class="menu-item">
+                            <a href="{% url 'employees_list' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="briefcase"></i></span>
+                                <span class="menu-text">{% trans "Xodimlar" %}</span>
                             </a>
                         </li>
                         <li class="menu-item">
@@ -90,52 +154,37 @@
                                 <span class="menu-text">{% trans "Yuz ma’lumotlari" %}</span>
                             </a>
                         </li>
+                        <li class="menu-item">
+                            <a href="{% url 'unknown_clusters_list' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="help-circle"></i></span>
+                                <span class="menu-text">{% trans "Noma'lum yuzlar" %}</span>
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </li>
 
-            <!-- Kameralar -->
+            <!-- Akademik Bo'lim -->
             <li class="menu-item">
-                <a href="#menuCameras" data-bs-toggle="collapse" class="menu-link">
-                    <span class="menu-icon"><i data-feather="camera"></i></span>
-                    <span class="menu-text">{% trans "Kameralar" %}</span>
+                <a href="#menuAcademic" data-bs-toggle="collapse" class="menu-link">
+                    <span class="menu-icon"><i data-feather="layers"></i></span>
+                    <span class="menu-text">{% trans "Akademik bo'lim" %}</span>
                     <span class="menu-arrow"></span>
                 </a>
-                <div class="collapse" id="menuCameras">
+                <div class="collapse" id="menuAcademic">
                     <ul class="sub-menu">
                         <li class="menu-item">
-                            <a href="{% url 'view_cameras' %}" class="menu-link">
-                                <span class="menu-icon"><i data-feather="eye"></i></span>
-                                <span class="menu-text">{% trans "Kameralarni ko‘rish" %}</span>
-                            </a>
-                        </li>
-
-                        <!-- ✅ IP kameralar menyusi -->
-                        <li class="menu-item">
-                            <a href="{% url 'ip_camera_view' %}" class="menu-link">
-                                <span class="menu-icon"><i data-feather="wifi"></i></span>
-                                <span class="menu-text">{% trans "IP Kamerani ko'rish" %}</span>
-                            </a>
-                        </li>
-
-                        <li class="menu-item">
-                            <a href="{% url 'add_camera_view' %}" class="menu-link">
-                                <span class="menu-icon"><i data-feather="plus-circle"></i></span>
-                                <span class="menu-text">{% trans "Kamera qo‘shish" %}</span>
+                            <a href="{% url 'academic_groups' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="grid"></i></span>
+                                <span class="menu-text">{% trans "Akademik guruhlar" %}</span>
                             </a>
                         </li>
                         <li class="menu-item">
-                            <a href="{% url 'camera_list_view' %}" class="menu-link">
-                                <span class="menu-icon"><i data-feather="list"></i></span>
-                                <span class="menu-text">{% trans "Kameralar ro‘yxati" %}</span>
+                            <a href="{% url 'faculties_list' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="home"></i></span>
+                                <span class="menu-text">{% trans "Fakultetlar" %}</span>
                             </a>
                         </li>
-{#                        <li class="menu-item">#}
-{#                            <a href="{% url 'usb_camera_view' %}" class="menu-link">#}
-{#                                <span class="menu-icon"><i data-feather="camera-off"></i></span>#}
-{#                                <span class="menu-text">{% trans "USB Kamera" %}</span>#}
-{#                            </a>#}
-{#                        </li>#}
                     </ul>
                 </div>
             </li>
@@ -155,39 +204,84 @@
                                 <span class="menu-text">{% trans "Umumiy sozlamalar" %}</span>
                             </a>
                         </li>
+                        <li class="menu-item">
+                            <a href="{% url 'isup_dashboard' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="cloud-lightning"></i></span>
+                                <span class="menu-text">{% trans "ISUP Sozlamalari" %}</span>
+                            </a>
+                        </li>
+                        <li class="menu-item">
+                            <a href="{% url 'service_logs' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="terminal"></i></span>
+                                <span class="menu-text">{% trans "Servis loglari" %}</span>
+                            </a>
+                        </li>
+
+                        <li class="menu-item">
+                            <a href="{% url 'feedback_list' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="message-square"></i></span>
+                                <span class="menu-text">{% trans "Xabarlar" %}</span>
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </li>
 
-            <!-- Davomat -->
+            <!-- Davomat va Tahlillar -->
             <li class="menu-item">
-                <a href="{% url 'attendance' %}" class="menu-link">
+                <a href="#menuAttendance" data-bs-toggle="collapse" class="menu-link">
                     <span class="menu-icon"><i data-feather="check-circle"></i></span>
-                    <span class="menu-text">{% trans "Davomat" %}</span>
+                    <span class="menu-text">{% trans "Davomat va Tahlillar" %}</span>
+                    <span class="menu-arrow"></span>
                 </a>
+                <div class="collapse" id="menuAttendance">
+                    <ul class="sub-menu">
+                        <li class="menu-item">
+                            <a href="{% url 'attendance' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="check-square"></i></span>
+                                <span class="menu-text">{% trans "Davomat" %}</span>
+                            </a>
+                        </li>
+                        <li class="menu-item">
+                            <a href="{% url 'ip_camera_view' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="camera"></i></span>
+                                <span class="menu-text">{% trans "Davomat kameralari" %}</span>
+                            </a>
+                        </li>
+                        <li class="menu-item">
+                            <a href="{% url 'attendance_psychology' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="heart"></i></span>
+                                <span class="menu-text">{% trans "Psixologik holati" %}</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </li>
 
-            <!-- Psixologik holati -->
-            <li class="menu-item">
-                <a href="{% url 'attendance_psychology' %}" class="menu-link">
-                    <span class="menu-icon"><i data-feather="heart"></i></span>
-                    <span class="menu-text">{% trans "Psixologik holati" %}</span>
-                </a>
-            </li>
 
-            <!-- 🔥 Servis Loglari -->
+            <!-- Plaginlar -->
             <li class="menu-item">
-                <a href="{% url 'service_logs' %}" class="menu-link">
-                    <span class="menu-icon"><i data-feather="terminal"></i></span>
-                    <span class="menu-text">{% trans "Servis loglari" %}</span>
+                <a href="#menuPlugins" data-bs-toggle="collapse" class="menu-link">
+                    <span class="menu-icon"><i data-feather="package"></i></span>
+                    <span class="menu-text">{% trans "Plaginlar" %}</span>
+                    <span class="menu-arrow"></span>
                 </a>
-            </li>
-            <!-- YouTube translatsiya -->
-            <li class="menu-item">
-                <a href="{% url 'youtube_dashboard' %}" class="menu-link">
-                    <span class="menu-icon"><i data-feather="youtube"></i></span>
-                    <span class="menu-text">{% trans "YouTube translatsiya" %}</span>
-                </a>
+                <div class="collapse" id="menuPlugins">
+                    <ul class="sub-menu">
+                        <li class="menu-item">
+                            <a href="{% url 'chatbot_view' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="message-square"></i></span>
+                                <span class="menu-text">{% trans "Gemini Chatbot" %}</span>
+                            </a>
+                        </li>
+                        <li class="menu-item">
+                            <a href="{% url 'youtube_dashboard' %}" class="menu-link">
+                                <span class="menu-icon"><i data-feather="youtube"></i></span>
+                                <span class="menu-text">{% trans "YouTube translatsiya" %}</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </li>
 
         </ul>

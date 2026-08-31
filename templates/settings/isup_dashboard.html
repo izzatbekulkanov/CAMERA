@@ -1,0 +1,2457 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block styles %}
+<style>
+    .mini-kpi small {
+        line-height: 1.2;
+        display: block;
+    }
+    .kpi-title {
+        letter-spacing: .6px;
+        font-size: 0.75rem;
+    }
+    .bg-soft-primary { background: #eef2ff; color: #3b5bfd; }
+    .bg-soft-success { background: #e8f9ef; color: #22c55e; }
+    .bg-soft-warning { background: #fff8eb; color: #f59e0b; }
+    .bg-soft-info { background: #e0f2fe; color: #0284c7; }
+</style>
+{% endblock styles %}
+
+{% block title %}ISUP Sozlamalari – SmartGate{% endblock title %}
+
+{% block content %}
+<div class="container-fluid">
+
+    {% include 'includes/breadcrumbs.html' %}
+
+    <!-- Top Action Bar -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0">ISUP (EHome 5.0) Boshqaruv Markazi</h4>
+            <small class="text-muted">Hikvision aqlli kameralarini ISUP protokoli orqali markazlashgan boshqarish, monitoring va real video oqimi</small>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-info btn-sm d-flex align-items-center gap-1 shadow-sm text-dark fw-medium" onclick="openNetworkDiscoveryModal()">
+                <i class="mdi mdi-radar font-size-14 text-info"></i> Tarmoqdagi Kameralar
+            </button>
+            <button class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm" data-bs-toggle="modal" data-bs-target="#addCameraModal">
+                <i class="mdi mdi-plus-circle font-size-14"></i> Kamera Qo'shish
+            </button>
+            <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onclick="refreshIsupData()">
+                <i class="mdi mdi-refresh font-size-14" id="refreshIcon"></i> Yangilash
+            </button>
+        </div>
+    </div>
+
+    <!-- Mini KPI Stat Cards -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="card h-100 mb-0 shadow-sm border">
+                <div class="card-body mini-kpi">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-success d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-server-network font-size-22"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small kpi-title">ISUP SERVER HOLATI</p>
+                            <h6 class="mb-1 text-success fw-bold d-flex align-items-center gap-1">
+                                <span class="spinner-grow spinner-grow-sm" style="width: 7px; height: 7px;"></span> FAOL (ONLINE)
+                            </h6>
+                            <small class="text-muted font-monospace">Host: {{ health.public_host|default:"10.10.0.40" }}:8660</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card h-100 mb-0 shadow-sm border">
+                <div class="card-body mini-kpi">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-primary d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-video-wireless font-size-22"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small kpi-title">ISUP KAMERALAR</p>
+                            <h5 class="mb-1 fw-bold text-dark" id="totalDevicesCount">{{ total_count }} ta</h5>
+                            <small class="text-muted">
+                                <span class="text-success fw-semibold" id="onlineDevicesCount">{{ online_count }}</span> jonli · 
+                                <span class="text-danger" id="offlineDevicesCount">{{ total_count|add:"-online_count" }}</span> aloqasiz
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card h-100 mb-0 shadow-sm border">
+                <div class="card-body mini-kpi">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-warning d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-tune font-size-22"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small kpi-title">ISUP PORTLAR</p>
+                            <h6 class="mb-1 font-monospace text-dark">SMS: 8660 | DAC: 8661</h6>
+                            <small class="text-muted">Rasm: 8662 · API: 8670</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card h-100 mb-0 shadow-sm border">
+                <div class="card-body mini-kpi">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-info d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-webhook font-size-22"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small kpi-title">DAVOMAT INTEGRATSIYA</p>
+                            <h6 class="mb-1 text-primary text-truncate font-monospace font-size-13">/api/v1/face-capture/</h6>
+                            <small class="text-muted">ISUP 5.0 Webhook Avtomatik</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nazorat Punktlari & Bino Juftliklari (Kirish <-> Chiqish) -->
+    <div class="row g-3 mb-1">
+        <div class="col-12">
+            <div class="card shadow-sm border">
+                <div class="card-header bg-transparent border-bottom py-3 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-xs rounded-circle bg-soft-primary text-primary d-flex align-items-center justify-content-center">
+                            <i class="mdi mdi-transit-transfer font-size-18"></i>
+                        </div>
+                        <div>
+                            <h5 class="card-title mb-0 font-size-15 fw-bold text-dark">Nazorat Punktlari (Bino Kirish & Chiqish Juftliklari)</h5>
+                            <small class="text-muted font-size-11">Binolar va nazorat punktlari bo'yicha bog'langan kirish hamda chiqish kameralari juftliklari</small>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm" onclick="openPairModal()">
+                            <i class="mdi mdi-plus-circle font-size-14"></i> Yangi Juftlik Qo'shish
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-3">
+                    {% if camera_pairs %}
+                        <div class="row g-3" id="cameraPairsContainer">
+                            {% for pair in camera_pairs %}
+                                <div class="col-xl-6 col-lg-12">
+                                    <div class="card h-100 mb-0 border shadow-sm rounded-3 bg-light bg-opacity-25" style="border-left: 4px solid #556ee6 !important;">
+                                        <div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <i class="mdi mdi-office-building text-primary font-size-18"></i>
+                                                <span class="fw-bold text-dark font-size-14">{{ pair.name }}</span>
+                                                {% if pair.building_name %}
+                                                    <span class="badge bg-soft-info text-info font-size-11">{{ pair.building_name }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="d-flex align-items-center gap-1">
+                                                <button class="btn btn-sm btn-outline-primary py-0 px-2 font-size-12" onclick="editPair('{{ pair.id }}', '{{ pair.name|escapejs }}', '{{ pair.building_id|default:'' }}', '{{ pair.entry_camera_id|default:'' }}', '{{ pair.exit_camera_id|default:'' }}', '{{ pair.description|default:''|escapejs }}')" title="Tahrirlash">
+                                                    <i class="mdi mdi-pencil"></i> Tahrirlash
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger py-0 px-2 font-size-12" onclick="deletePair('{{ pair.id }}', '{{ pair.name|escapejs }}')" title="O'chirish">
+                                                    <i class="mdi mdi-trash-can-outline"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="card-body p-3">
+                                            <div class="row align-items-center g-2">
+                                                <!-- Kirish Eshigi (IN) -->
+                                                <div class="col-md-5">
+                                                    <div class="p-2 bg-white rounded border border-success border-opacity-50 h-100">
+                                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                                            <span class="badge bg-soft-success text-success font-size-11 fw-bold">
+                                                                <i class="mdi mdi-login me-1"></i> KIRISH (IN)
+                                                            </span>
+                                                            {% if pair.entry_online %}
+                                                                <span class="badge bg-success bg-opacity-75 text-white font-size-10">Online</span>
+                                                            {% elif pair.entry_camera %}
+                                                                <span class="badge bg-secondary text-white font-size-10">Offline</span>
+                                                            {% else %}
+                                                                <span class="badge bg-light text-muted border font-size-10">Biriktirilmagan</span>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div class="fw-bold text-dark text-truncate font-size-13" title="{{ pair.entry_camera_name }}">
+                                                            {{ pair.entry_camera_name }}
+                                                        </div>
+                                                        <div class="font-monospace text-muted small text-truncate">
+                                                            IP: {{ pair.entry_camera_ip }}
+                                                        </div>
+                                                        {% if pair.entry_camera %}
+                                                            <div class="mt-2 d-flex gap-1">
+                                                                <button class="btn btn-xs btn-outline-success w-100 py-1 font-size-11 d-flex align-items-center justify-content-center gap-1" onclick="openCameraLiveStreamPreview('{{ pair.entry_camera_ip }}', '{{ pair.entry_camera_name|escapejs }}', '{{ pair.entry_camera_model|escapejs }}', '{{ pair.entry_camera_mac|escapejs }}', '{{ pair.entry_camera_id }}')">
+                                                                    <i class="mdi mdi-play-circle"></i> Jonli Ko'rish
+                                                                </button>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+
+                                                <!-- Bog'lanish belgisi (Link) -->
+                                                <div class="col-md-2 text-center py-2">
+                                                    <div class="avatar-xs rounded-circle bg-soft-primary text-primary mx-auto d-flex align-items-center justify-content-center shadow-sm">
+                                                        <i class="mdi mdi-arrow-left-right font-size-16"></i>
+                                                    </div>
+                                                    <small class="text-muted d-block font-size-10 mt-1 fw-bold">JUFTLIK</small>
+                                                </div>
+
+                                                <!-- Chiqish Eshigi (OUT) -->
+                                                <div class="col-md-5">
+                                                    <div class="p-2 bg-white rounded border border-danger border-opacity-50 h-100">
+                                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                                            <span class="badge bg-soft-danger text-danger font-size-11 fw-bold">
+                                                                <i class="mdi mdi-logout me-1"></i> CHIQISH (OUT)
+                                                            </span>
+                                                            {% if pair.exit_online %}
+                                                                <span class="badge bg-success bg-opacity-75 text-white font-size-10">Online</span>
+                                                            {% elif pair.exit_camera %}
+                                                                <span class="badge bg-secondary text-white font-size-10">Offline</span>
+                                                            {% else %}
+                                                                <span class="badge bg-light text-muted border font-size-10">Biriktirilmagan</span>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div class="fw-bold text-dark text-truncate font-size-13" title="{{ pair.exit_camera_name }}">
+                                                            {{ pair.exit_camera_name }}
+                                                        </div>
+                                                        <div class="font-monospace text-muted small text-truncate">
+                                                            IP: {{ pair.exit_camera_ip }}
+                                                        </div>
+                                                        {% if pair.exit_camera %}
+                                                            <div class="mt-2 d-flex gap-1">
+                                                                <button class="btn btn-xs btn-outline-danger w-100 py-1 font-size-11 d-flex align-items-center justify-content-center gap-1" onclick="openCameraLiveStreamPreview('{{ pair.exit_camera_ip }}', '{{ pair.exit_camera_name|escapejs }}', '{{ pair.exit_camera_model|escapejs }}', '{{ pair.exit_camera_mac|escapejs }}', '{{ pair.exit_camera_id }}')">
+                                                                    <i class="mdi mdi-play-circle"></i> Jonli Ko'rish
+                                                                </button>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Mini Stat Footer -->
+                                            <div class="mt-2 pt-2 border-top d-flex justify-content-around align-items-center font-size-11 text-muted bg-white rounded px-2 py-1">
+                                                <span><i class="mdi mdi-account-arrow-right text-success me-1"></i>Kirishlar: <strong class="text-dark">{{ pair.entry_count_today }}</strong></span>
+                                                <span class="text-black-50">|</span>
+                                                <span><i class="mdi mdi-account-arrow-left text-danger me-1"></i>Chiqishlar: <strong class="text-dark">{{ pair.exit_count_today }}</strong></span>
+                                                <span class="text-black-50">|</span>
+                                                <span><i class="mdi mdi-account-multiple-check text-primary me-1"></i>Hozirda ichkarida: <strong class="text-primary">{{ pair.inside_count_today }}</strong></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="mdi mdi-link-variant-off font-size-36 d-block mb-1"></i>
+                            <h6 class="fw-bold mb-1">Hozircha biriktirilgan kamera juftliklari mavjud emas</h6>
+                            <p class="small text-muted mb-2">Bino eshiklarini juftlab bog'lash orqali aniq kirish va chiqish davomatini yuritish mumkin.</p>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="openPairModal()">
+                                <i class="mdi mdi-plus-circle"></i> Juftlik Yaratish
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registered System Cameras List (Primary ISUP Management Table) -->
+    <div class="row g-3">
+        <div class="col-12">
+            <div class="card shadow-sm border">
+                <div class="card-header bg-transparent border-bottom py-3 px-3 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="mdi mdi-cctv text-primary font-size-20"></i>
+                        <div>
+                            <h5 class="card-title mb-0 font-size-15 fw-bold">Tizimdagi Barcha Kameralar va ISUP Holati</h5>
+                            <small class="text-muted font-size-11">Barcha kameralar, ularning bog'langan juftliklari, ISUP 5.0 holati va jonli GPU boshqaruvi</small>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-soft-success text-success border border-success border-opacity-25 font-size-12" id="kpiDbOnlineBadge">
+                            <span class="spinner-grow spinner-grow-sm me-1" style="width: 6px; height: 6px;"></span> Online: {{ online_count }} ta
+                        </span>
+                        <span class="badge bg-light text-muted border font-size-12" id="kpiDbTotalBadge">Jami: {{ total_count }} ta</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-centered table-nowrap table-hover mb-0" id="dbCamerasTable">
+                            <thead class="table-light font-size-13">
+                                <tr>
+                                    <th class="ps-3">Kamera Nomi</th>
+                                    <th>IP Manzili</th>
+                                    <th>MAC Manzili</th>
+                                    <th>Modeli</th>
+                                    <th>Rejimi & Juftlik</th>
+                                    <th style="width: 140px;">ISUP Holati</th>
+                                    <th class="text-center pe-3" style="width: 160px;">Amallar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dbCamerasTbody">
+                                {% for cam in db_cameras %}
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div class="fw-bold text-dark font-size-13">{{ cam.name|default:"Kamera" }}</div>
+                                            <span class="text-muted font-size-11">Port: {{ cam.port|default:80 }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="font-monospace fw-semibold">{{ cam.ip }}</span>
+                                        </td>
+                                        <td>
+                                            {% if cam.mac_address and cam.mac_address != "--" %}
+                                                <span class="badge bg-light text-muted border font-monospace">{{ cam.mac_address }}</span>
+                                            {% else %}
+                                                <span class="text-muted font-size-12">--</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="fw-medium text-dark">{{ cam.device_model|default:"Hikvision" }}</span>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                {% if cam.is_entry_camera %}
+                                                    <span class="badge bg-soft-success text-success">Kirish</span>
+                                                {% endif %}
+                                                {% if cam.is_exit_camera %}
+                                                    <span class="badge bg-soft-danger text-danger">Chiqish</span>
+                                                {% endif %}
+                                                {% if cam.enable_face_detection %}
+                                                    <span class="badge bg-soft-primary text-primary">Davomat</span>
+                                                {% endif %}
+                                                {% if cam.is_lesson_camera %}
+                                                    <span class="badge bg-soft-info text-info">Dars</span>
+                                                {% endif %}
+                                            </div>
+                                            {% if cam.pair_info %}
+                                                <div class="mt-1">
+                                                    <span class="badge bg-soft-primary text-primary font-size-11 border border-primary border-opacity-25" title="Bog'langan juftlik: {{ cam.pair_info.name }} ({{ cam.pair_info.role }})">
+                                                        <i class="mdi mdi-link-variant me-1"></i>{{ cam.pair_info.name }}
+                                                    </span>
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if cam.isup_status == 'online' %}
+                                                <span class="badge bg-soft-success text-success px-2 py-1">
+                                                    <span class="spinner-grow spinner-grow-sm me-1" style="width: 6px; height: 6px;"></span>
+                                                    Online
+                                                </span>
+                                                <div class="small font-monospace text-muted mt-1"><i class="mdi mdi-identifier me-1"></i>{{ cam.isup_device_id }}</div>
+                                            {% elif cam.isup_status == 'offline' %}
+                                                <span class="badge bg-soft-warning text-warning px-2 py-1">
+                                                    <i class="mdi mdi-alert-circle-outline me-1"></i> Offline
+                                                </span>
+                                                <div class="small font-monospace text-muted mt-1"><i class="mdi mdi-identifier me-1"></i>{{ cam.isup_device_id }}</div>
+                                            {% else %}
+                                                <span class="badge bg-light text-muted border px-2 py-1">
+                                                    <i class="mdi mdi-minus-circle-outline me-1"></i> Ulanmagan
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center pe-3">
+                                            {% if cam.isup_status == 'online' %}
+                                                <div class="d-flex justify-content-center gap-1">
+                                                    <button class="btn btn-success btn-sm py-1 px-2 shadow-sm" onclick="openIsupControlCenter('{{ cam.id }}', '{{ cam.isup_device_id }}', '{{ cam.name|default:cam.ip|escapejs }}', '{{ cam.ip }}', 'online', '{{ cam.device_model|default:''|escapejs }}', '{{ cam.serial_number|default:''|escapejs }}', '{{ cam.mac_address|default:''|escapejs }}', {{ cam.is_entry_camera|yesno:'true,false' }}, {{ cam.is_exit_camera|yesno:'true,false' }}, {{ cam.enable_face_detection|yesno:'true,false' }}, {{ cam.is_lesson_camera|yesno:'true,false' }})" title="Jonli Efir & Ko'rish">
+                                                        <i class="mdi mdi-play-circle font-size-15"></i>
+                                                    </button>
+                                                    <a href="{% url 'isup_camera_detail' camera_id=cam.id %}" class="btn btn-outline-info btn-sm py-1 px-2 shadow-sm" title="Kamera Tafsilotlari (Detail)">
+                                                        <i class="mdi mdi-information-outline font-size-15"></i>
+                                                    </a>
+                                                    <button class="btn btn-outline-warning btn-sm py-1 px-2 shadow-sm" onclick="disconnectDevice('{{ cam.isup_device_id }}')" title="ISUP dan uzish">
+                                                        <i class="mdi mdi-lan-disconnect font-size-15"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger btn-sm py-1 px-2 shadow-sm" onclick="deleteCameraFromDatabase('{{ cam.id }}', '{{ cam.name|default:cam.ip|escapejs }}', '{{ cam.ip }}')" title="Kamerani bazadan o'chirish">
+                                                        <i class="mdi mdi-trash-can-outline font-size-15"></i>
+                                                    </button>
+                                                </div>
+                                            {% elif cam.isup_status == 'offline' %}
+                                                <div class="d-flex justify-content-center gap-1">
+                                                    <button class="btn btn-outline-primary btn-sm py-1 px-2 shadow-sm" onclick="quickConnectCamera('{{ cam.id }}', '{{ cam.name|default:cam.ip|escapejs }}')" title="ISUP ga Qayta Ulash">
+                                                        <i class="mdi mdi-refresh font-size-15"></i>
+                                                    </button>
+                                                    <a href="{% url 'isup_camera_detail' camera_id=cam.id %}" class="btn btn-outline-info btn-sm py-1 px-2 shadow-sm" title="Kamera Tafsilotlari (Detail)">
+                                                        <i class="mdi mdi-information-outline font-size-15"></i>
+                                                    </a>
+                                                    <button class="btn btn-outline-warning btn-sm py-1 px-2 shadow-sm" onclick="disconnectDevice('{{ cam.isup_device_id }}')" title="ISUP dan uzish">
+                                                        <i class="mdi mdi-lan-disconnect font-size-15"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger btn-sm py-1 px-2 shadow-sm" onclick="deleteCameraFromDatabase('{{ cam.id }}', '{{ cam.name|default:cam.ip|escapejs }}', '{{ cam.ip }}')" title="Kamerani bazadan o'chirish">
+                                                        <i class="mdi mdi-trash-can-outline font-size-15"></i>
+                                                    </button>
+                                                </div>
+                                            {% else %}
+                                                <div class="d-flex justify-content-center gap-1">
+                                                    <button class="btn btn-outline-success btn-sm py-1 px-2 shadow-sm" onclick="quickConnectCamera('{{ cam.id }}', '{{ cam.name|default:cam.ip|escapejs }}')" title="ISUP ga Ulash">
+                                                        <i class="mdi mdi-lightning-bolt font-size-15"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger btn-sm py-1 px-2 shadow-sm" onclick="deleteCameraFromDatabase('{{ cam.id }}', '{{ cam.name|default:cam.ip|escapejs }}', '{{ cam.ip }}')" title="Kamerani bazadan o'chirish">
+                                                        <i class="mdi mdi-trash-can-outline font-size-15"></i>
+                                                    </button>
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center py-4 text-muted">
+                                            Bazada hozircha kameralar ro'yxatdan o'tmagan.
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal: Yangi Kamera Qo'shish -->
+<div class="modal fade" id="addCameraModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow rounded-3 border-0">
+            <div class="modal-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="modal-title font-size-15 fw-bold mb-0">
+                    <i class="mdi mdi-video-plus text-primary me-1"></i>Yangi Kamera Qo'shish
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addCameraForm">
+                <div class="modal-body p-3">
+                    <div class="alert alert-soft-primary py-2 px-3 font-size-12 mb-3 border-0 d-flex align-items-center gap-2">
+                        <i class="mdi mdi-auto-fix text-primary font-size-18"></i>
+                        <div>
+                            <strong>Avtomatik Ulanish:</strong> Faqat IP manzilini kiritsangiz kifoya. Tizim standart hisob ma'lumotlarini (<code>admin</code> / <code>parol400</code>, <code>Qwerty@12</code>, <code>N@mdu309...</code>) avtomatik sinab, kameraning seriya raqami, modeli va parametrlarini aniqlaydi hamda ISUP ga ulaydi.
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold font-size-13 text-dark">Kamera Nomi <span class="text-danger">*</span></label>
+                            <input type="text" id="addCamName" class="form-control" placeholder="Masalan: Asosiy kirish eshigi" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold font-size-13 text-dark">IP Manzili <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text" id="addCamIp" class="form-control font-monospace" placeholder="10.10.5.55" required>
+                                <button type="button" class="btn btn-primary px-3 d-flex align-items-center gap-1 shadow-sm" id="btnProbeCam" onclick="probeCameraConnection()" title="Kamera bilan aloqa va parolni sinash">
+                                    <i class="mdi mdi-connection font-size-14" id="probeIcon"></i> <span id="probeText">Tekshirish</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Live Probe Result Box (Tekshirish bosilganda chiqadi) -->
+                        <div class="col-12" id="probeResultContainer" style="display: none;">
+                            <!-- Muvaffaqiyatli aniqlangan holat -->
+                            <div id="probeSuccessCard" class="p-3 rounded-3 border border-success bg-soft-success shadow-sm" style="display: none;">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="mdi mdi-check-decagram text-success font-size-20"></i>
+                                        <span class="fw-bold text-success font-size-13">Aloqa o'rnatildi & Ishchi parol aniqlandi!</span>
+                                    </div>
+                                    <span class="badge bg-success font-monospace" id="probeModelBadge">Hikvision IPC</span>
+                                </div>
+                                <div class="row g-2 font-size-12 pt-2 border-top border-success border-opacity-25">
+                                    <div class="col-6 col-md-3">
+                                        <span class="text-muted d-block font-size-11">To'g'ri Parol:</span>
+                                        <span class="badge bg-white text-success border border-success font-monospace font-size-13 px-2 py-1" id="probeWorkingPwd">parol400</span>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <span class="text-muted d-block font-size-11">Model:</span>
+                                        <strong class="text-dark font-monospace" id="probeModelVal">--</strong>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <span class="text-muted d-block font-size-11">Seriya S/N:</span>
+                                        <strong class="font-monospace text-dark" id="probeSnVal">--</strong>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <span class="text-muted d-block font-size-11">MAC Manzili:</span>
+                                        <strong class="font-monospace text-dark" id="probeMacVal">--</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Xatolik holati -->
+                            <div id="probeErrorCard" class="p-3 rounded-3 border border-danger bg-soft-danger shadow-sm" style="display: none;">
+                                <div class="d-flex align-items-start gap-2">
+                                    <i class="mdi mdi-alert-circle-outline text-danger font-size-20 mt-1"></i>
+                                    <div>
+                                        <div class="fw-bold text-danger font-size-13" id="probeErrorTitle">Tekshirishda xatolik</div>
+                                        <div class="text-dark small mt-1" id="probeErrorDesc">--</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Qo'shimcha / Maxsus parollar uchun ixtiyoriy qism -->
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <a class="text-decoration-none font-size-12 text-primary fw-medium" data-bs-toggle="collapse" href="#customAuthCollapse" role="button" aria-expanded="false">
+                                    <i class="mdi mdi-tune me-1"></i>Maxsus login / parol kiritish (ixtiyoriy) <i class="mdi mdi-chevron-down ms-1"></i>
+                                </a>
+                                <span class="badge bg-light text-muted border font-size-11">Standart: admin / parol400</span>
+                            </div>
+                            <div class="collapse mt-2" id="customAuthCollapse">
+                                <div class="p-3 bg-light rounded border">
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <label class="form-label font-size-12 text-muted mb-1">HTTP Port</label>
+                                            <input type="number" id="addCamPort" class="form-control form-control-sm font-monospace" value="80">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label font-size-12 text-muted mb-1">Foydalanuvchi nomi</label>
+                                            <input type="text" id="addCamUsername" class="form-control form-control-sm font-monospace" value="admin">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label font-size-12 text-muted mb-1">Maxsus Parol</label>
+                                            <input type="password" id="addCamPassword" class="form-control form-control-sm" placeholder="Avtomatik aniqlanadi">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold font-size-13 text-dark mb-2">Kamera Vazifalari va Rejimlari</label>
+                            <div class="p-3 bg-light rounded border">
+                                <div class="row g-2 font-size-13">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="addCamIsEntry" checked>
+                                            <label class="form-check-label fw-medium text-dark" for="addCamIsEntry">Kirish Davomat Kamerasimi</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="addCamIsExit">
+                                            <label class="form-check-label fw-medium text-dark" for="addCamIsExit">Chiqish Davomat Kamerasimi</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mt-2">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="addCamEnableFace" checked>
+                                            <label class="form-check-label fw-medium text-dark" for="addCamEnableFace">Yuzni Aniqlash (AI Davomat)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mt-2">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="addCamIsLesson">
+                                            <label class="form-check-label fw-medium text-dark" for="addCamIsLesson">Dars Jarayoni Monitoringi</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="p-3 border rounded bg-soft-primary">
+                                <div class="form-check form-switch d-flex align-items-center gap-2 mb-0">
+                                    <input class="form-check-input" type="checkbox" id="addCamAutoIsup" checked>
+                                    <label class="form-check-label fw-bold text-primary font-size-13 mb-0" for="addCamAutoIsup">
+                                        <i class="mdi mdi-lightning-bolt me-1"></i>Avtomatik tarzda SmartGate ISUP 5.0 (10.10.0.40:8660) ga ulasin
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer py-2 px-3 bg-light border-top d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Bekor qilish</button>
+                    <button type="submit" class="btn btn-primary btn-sm d-flex align-items-center gap-1" id="addCamSubmitBtn">
+                        <i class="mdi mdi-plus-circle font-size-14"></i> Kamera Qo'shish
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Bino / Nazorat Punkti Juftligini Sozlash -->
+<div class="modal fade" id="cameraPairModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow rounded-3 border-0">
+            <div class="modal-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="modal-title font-size-15 fw-bold text-dark" id="pairModalTitle">
+                    <i class="mdi mdi-transit-transfer text-primary me-1"></i>Kamera Juftligini Bog'lash
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="pairConfigForm" onsubmit="event.preventDefault(); saveCameraPair();">
+                <input type="hidden" id="pairId" value="">
+                <div class="modal-body p-3">
+                    <div class="mb-3">
+                        <label class="form-label font-size-12 fw-bold text-dark">Nazorat Punkti / Bino Nomi <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="pairName" placeholder="Masalan: Asosiy Bino Kirish-Chiqish yoki TTJ Binosi" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-size-12 fw-bold text-dark">Bino (Ixtiyoriy)</label>
+                        <select class="form-select form-select-sm" id="pairBuilding">
+                            <option value="">-- Binoni tanlang --</option>
+                            {% for b in buildings %}
+                                <option value="{{ b.id }}">{{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label font-size-12 fw-bold text-success">
+                                <i class="mdi mdi-login me-1"></i>Kirish Kamerasi (IN)
+                            </label>
+                            <select class="form-select form-select-sm border-success border-opacity-50" id="pairEntryCam">
+                                <option value="">-- Kirish kamerasini tanlang --</option>
+                                {% for c in all_cameras %}
+                                    <option value="{{ c.id }}">{{ c.name|default:c.ip }} ({{ c.ip }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-size-12 fw-bold text-danger">
+                                <i class="mdi mdi-logout me-1"></i>Chiqish Kamerasi (OUT)
+                            </label>
+                            <select class="form-select form-select-sm border-danger border-opacity-50" id="pairExitCam">
+                                <option value="">-- Chiqish kamerasini tanlang --</option>
+                                {% for c in all_cameras %}
+                                    <option value="{{ c.id }}">{{ c.name|default:c.ip }} ({{ c.ip }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label font-size-12 fw-bold text-dark">Tavsif / Joylashuv izohi</label>
+                        <input type="text" class="form-control form-control-sm" id="pairDesc" placeholder="Masalan: 1-qavat markaziy eshiklar">
+                    </div>
+                </div>
+                <div class="modal-footer py-2 px-3 bg-light border-top d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Bekor qilish</button>
+                    <button type="submit" class="btn btn-primary btn-sm d-flex align-items-center gap-1" id="pairSaveBtn">
+                        <i class="mdi mdi-content-save font-size-14"></i> Saqlash
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Tarmoqdagi Kameralar (Universal Multi-Protocol Skaner) -->
+<div class="modal fade" id="networkDiscoveryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow rounded-3 border-0">
+            <div class="modal-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <h5 class="modal-title font-size-15 fw-bold mb-0 text-dark">
+                        <i class="mdi mdi-radar text-info me-1"></i>Tarmoqdagi Kameralar (Universal Skaner)
+                    </h5>
+                    <span class="badge bg-soft-info text-info px-2 py-1" id="discCountBadge">
+                        <span class="spinner-grow spinner-grow-sm me-1" style="width: 6px; height: 6px;"></span> Skanerlanmoqda...
+                    </span>
+                    <span class="badge bg-soft-success text-success px-2 py-1" id="discIsupBadge" style="display: none;">0 ta ISUP 5.0</span>
+                    <span class="badge bg-soft-primary text-primary px-2 py-1" id="discNewBadge" style="display: none;">0 yangi</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" id="btnRescan" onclick="loadNetworkDiscoveredCameras()">
+                        <i class="mdi mdi-refresh" id="rescanIcon"></i> Qayta Skanerlash
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+
+            <!-- Fake fields to trap browser password autofill -->
+            <div style="position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px; overflow: hidden;" aria-hidden="true">
+                <input type="text" name="fake_user_trap_for_browser" tabindex="-1" autocomplete="username" />
+                <input type="password" name="fake_pwd_trap_for_browser" tabindex="-1" autocomplete="current-password" />
+            </div>
+
+            <!-- Toolbar & Multi-Protocol Selector -->
+            <div class="px-3 py-2 bg-white border-bottom d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                <div class="input-group input-group-sm" style="max-width: 320px;">
+                    <span class="input-group-text bg-light border-end-0"><i class="mdi mdi-magnify"></i></span>
+                    <input type="text" id="discSearchInput" name="disc_search_filter_query_unique" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');" class="form-control border-start-0 bg-white" placeholder="IP, Model yoki MAC bo'yicha qidirish..." oninput="filterDiscoveredCameras()" value="">
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <div class="d-flex align-items-center gap-1">
+                        <label class="form-label mb-0 text-muted font-size-12 fw-medium">Protokol:</label>
+                        <select class="form-select form-select-sm font-size-12" id="discProtocolSelect" style="min-width: 170px;" onchange="loadNetworkDiscoveredCameras()">
+                            <option value="all" selected>Barchasi (SADP + ONVIF + Dahua)</option>
+                            <option value="sadp">Hikvision (SADP UDP 37020)</option>
+                            <option value="onvif">ONVIF WS-Discovery (UDP 3702)</option>
+                            <option value="dahua">Dahua / IMOU (NetSDK 37810)</option>
+                        </select>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                        <label class="form-label mb-0 text-muted font-size-12 fw-medium">Filtr:</label>
+                        <select class="form-select form-select-sm font-size-12" id="discFilterSelect" style="min-width: 150px;" onchange="filterDiscoveredCameras()">
+                            <option value="all">Barcha Kameralar</option>
+                            <option value="new" selected>Faqat Yangilar</option>
+                            <option value="in_db">Faqat Bazadagilar</option>
+                            <option value="isup">Faqat ISUP 5.0 Qo'llaydiganlar</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-body p-0" style="min-height: 360px;">
+                <!-- Single Clean Loader State -->
+                <div id="discLoadingBox" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status" style="width: 2.5rem; height: 2.5rem;">
+                        <span class="visually-hidden">Yuklanmoqda...</span>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="discEmptyBox" class="text-center py-5" style="display: none;">
+                    <i class="mdi mdi-camera-off text-muted display-4 mb-2"></i>
+                    <h6 class="text-muted fw-bold">Ushbu protokol bo'yicha tarmoqda kamera topilmadi</h6>
+                    <p class="text-muted small">Boshqa protokolni tanlang yoki "Qayta Skanerlash" tugmasini bosing.</p>
+                </div>
+
+                <!-- Table Container -->
+                <div class="table-responsive" id="discTableContainer" style="display: none;">
+                    <table class="table table-hover align-middle mb-0 font-size-13">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th class="ps-3 text-center" style="width: 45px;">#</th>
+                                <th style="width: 140px;">IP Manzil</th>
+                                <th>Ishlab Chiqaruvchi & Model</th>
+                                <th>MAC Manzili</th>
+                                <th>ISUP 5.0 Holati</th>
+                                <th>Qurilma Turi</th>
+                                <th class="text-center pe-3" style="width: 190px;">Amallar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="discTbody">
+                            <!-- Populated via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-footer py-2 px-3 bg-light border-top d-flex justify-content-between align-items-center font-size-12">
+                <span class="text-muted" id="discFooterInfo">SADP (UDP 37020), ONVIF (UDP 3702), Dahua (UDP 37810) protokollari qo'llab-quvvatlanadi</span>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Yopish</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Jonli Kamera Oqimi (Real-Time Live Video Player) -->
+<div class="modal fade" id="cameraStreamPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg rounded-3 border-0 bg-dark text-white">
+            <div class="modal-header border-bottom border-secondary py-2 px-3 d-flex justify-content-between align-items-center bg-black bg-opacity-50">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger d-flex align-items-center gap-1 font-size-11 px-2 py-1">
+                        <span class="spinner-grow spinner-grow-sm" style="width: 6px; height: 6px;"></span> LIVE
+                    </span>
+                    <h5 class="modal-title font-size-14 fw-bold mb-0 text-white" id="liveModalTitle">
+                        Jonli Kamera Oqimi
+                    </h5>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div id="liveModalChannelBox" style="display: none;" class="d-flex align-items-center gap-1 me-2">
+                        <label class="form-label mb-0 text-white font-size-11">Kanal:</label>
+                        <select class="form-select form-select-sm font-size-11 py-1 px-2 bg-dark text-white border-secondary" id="liveModalChannelSelect" style="max-width: 220px;" onchange="onPreviewChannelChanged()">
+                            <!-- dynamic channels populated by JS -->
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-outline-light btn-sm py-0 px-2" onclick="togglePreviewFullscreen()" title="To'liq ekran">
+                        <i class="mdi mdi-fullscreen font-size-14"></i>
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="stopLiveStreamPreview()"></button>
+                </div>
+            </div>
+
+            <div class="modal-body p-0 position-relative bg-black d-flex align-items-center justify-content-center" style="min-height: 400px; max-height: 75vh; overflow: hidden;" id="livePlayerWrapper">
+                <!-- Loading Spinner -->
+                <div id="liveStreamSpinner" class="text-center position-absolute top-50 start-50 translate-middle">
+                    <div class="spinner-border text-info mb-2" role="status" style="width: 3rem; height: 3rem;"></div>
+                    <div class="text-light small fw-medium" id="liveStreamLoadingText">Kameraga ulanmoqda va oqim yuklanmoqda...</div>
+                </div>
+
+                <!-- Live Stream Canvas Element -->
+                <canvas id="liveStreamCanvas" class="w-100 object-fit-contain" style="display: none; max-height: 520px;"></canvas>
+                <!-- Hidden img used only as fallback -->
+                <img id="liveStreamImg" alt="Real-time Stream" class="w-100 h-100 object-fit-contain" style="display: none; max-height: 520px;" />
+
+                <!-- Error Box / Password Prompt -->
+                <div id="liveStreamErrorBox" class="text-center p-4 position-absolute top-50 start-50 translate-middle w-75 bg-dark bg-opacity-75 rounded-3 border border-secondary" style="display: none;">
+                    <i class="mdi mdi-lock-alert text-warning display-4 mb-2"></i>
+                    <h6 class="text-white fw-bold">Kameraning Parolini Kiriting</h6>
+                    <p class="text-muted small mb-3" id="liveStreamErrorMsg">Standart parollar to'g'ri kelmadi. Ushbu kameraning parolini kiriting:</p>
+                    <div class="input-group input-group-sm mb-3 mx-auto" style="max-width: 320px;">
+                        <input type="password" id="liveModalCustomPassword" class="form-control bg-black text-white border-secondary" placeholder="Kamera paroli..." onkeydown="if(event.key==='Enter') retryWithCustomPassword()" />
+                        <button class="btn btn-primary" onclick="retryWithCustomPassword()"><i class="mdi mdi-play"></i> Ochish</button>
+                    </div>
+                    <div class="d-flex justify-content-center gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="retryLiveStreamPreview()"><i class="mdi mdi-refresh"></i> Qayta sinash</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer border-top border-secondary py-2 px-3 bg-black bg-opacity-50 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3 font-size-12 text-muted">
+                    <span id="liveModalMetaIp"><i class="mdi mdi-ip-network me-1"></i>--</span>
+                    <span id="liveModalMetaModel"><i class="mdi mdi-camera me-1"></i>--</span>
+                    <span id="liveModalMetaMac"><i class="mdi mdi-lan me-1"></i>--</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-info btn-sm d-flex align-items-center gap-1" id="btnLiveModalAdd" onclick="addCurrentPreviewCamera()">
+                        <i class="mdi mdi-plus-circle font-size-13"></i> Bazaga Qo'shish
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" onclick="stopLiveStreamPreview()">Yopish</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Mavjud Kamerani Tanlab ISUP ga Ulash -->
+<div class="modal fade" id="connectIsupModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow rounded-3 border-0">
+            <div class="modal-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="modal-title font-size-15 fw-bold mb-0">
+                    <i class="mdi mdi-cloud-upload text-primary me-1"></i>Kamerani SmartGate ISUP ga Ulash
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="connectIsupForm">
+                <div class="modal-body p-3">
+                    <div class="alert alert-info py-2 px-3 font-size-12 mb-3">
+                        <i class="mdi mdi-information-outline me-1"></i> Tizimda mavjud bo'lgan kamerani tanlang. Parol va boshqa parametrlar avtomatik bazadan olinadi va kameraga <strong>ISUP 5.0 (8660 port)</strong> sozlamasi o'rnatiladi.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold font-size-13 text-dark">Mavjud Kamerani Tanlang</label>
+                        <select class="form-select" id="cameraSelect" required onchange="onCameraSelected(this)">
+                            <option value="" disabled selected>-- Kamerani tanlang --</option>
+                            {% for cam in db_cameras %}
+                                <option value="{{ cam.id }}" data-ip="{{ cam.ip }}" data-mac="{{ cam.mac_address }}" data-model="{{ cam.device_model }}" data-sn="{{ cam.serial_number }}">
+                                    {{ cam.name|default:"Kamera" }} — {{ cam.ip }} {% if cam.mac_address %}(MAC: {{ cam.mac_address }}){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Selected Camera Preview Box -->
+                    <div id="camPreviewBox" class="p-3 bg-light rounded border mb-3" style="display: none;">
+                        <h6 class="font-size-13 fw-bold text-primary mb-2"><i class="mdi mdi-cctv me-1"></i>Tanlangan Kamera Parametrlari:</h6>
+                        <div class="row g-2 font-size-12">
+                            <div class="col-6"><span class="text-muted">IP Manzil:</span> <strong id="prevIp" class="font-monospace text-dark">--</strong></div>
+                            <div class="col-6"><span class="text-muted">MAC:</span> <strong id="prevMac" class="font-monospace text-dark">--</strong></div>
+                            <div class="col-6"><span class="text-muted">Model:</span> <strong id="prevModel" class="text-dark">--</strong></div>
+                            <div class="col-6"><span class="text-muted">Seriya S/N:</span> <strong id="prevSn" class="font-monospace text-dark">--</strong></div>
+                        </div>
+                    </div>
+
+                    <div class="p-2 border rounded bg-white">
+                        <div class="d-flex justify-content-between align-items-center font-size-12">
+                            <span class="text-muted">SmartGate ISUP Server:</span>
+                            <span class="badge bg-light text-dark border font-monospace">10.10.0.40:8660</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer py-2 px-3 bg-light border-top d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Bekor qilish</button>
+                    <button type="submit" class="btn btn-primary btn-sm d-flex align-items-center gap-1" id="connectSubmitBtn">
+                        <i class="mdi mdi-check-circle font-size-14"></i> ISUP ga Ulash
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Cinema Modal for Live ISUP Real Video Stream Preview (GPU-Accelerated) & Full Camera Command Center -->
+<div class="modal fade" id="cinemaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content shadow-lg rounded-3 border-0 bg-dark text-white">
+            <!-- Header -->
+            <div class="modal-header bg-dark border-secondary py-2 px-3 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <h5 class="modal-title font-size-15 fw-bold mb-0 text-white" id="cinemaTitle">Kamera</h5>
+                    <code class="small text-muted ms-1 text-light font-monospace" id="cinemaIp"></code>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="closeCinemaModal()"></button>
+            </div>
+
+            <div class="modal-body p-3 bg-black">
+                <!-- Video Canvas -->
+                <div id="cinemaVideoWrapper" class="position-relative w-100 rounded-3 overflow-hidden shadow-sm d-flex align-items-center justify-content-center" style="min-height: 480px; aspect-ratio: 16/9; background: #000000 !important;">
+                    
+                    <div id="cinemaSpinner" class="position-absolute top-50 start-50 translate-middle text-center text-primary" style="z-index: 5;">
+                        <div class="spinner-border mb-2 text-info" role="status" style="width: 3rem; height: 3rem;"></div>
+                        <div class="text-white small fw-bold">Video Oqimi Ishga Tushirilmoqda...</div>
+                    </div>
+
+                    <img id="cinemaStreamImg" class="w-100 h-100 rounded" style="object-fit: contain; display: none; max-height: 70vh;" alt="ISUP Stream" />
+
+                    <div id="cinemaError" class="position-absolute top-50 start-50 translate-middle text-center text-danger p-4" style="display: none; z-index: 6;">
+                        <i class="mdi mdi-video-off-outline display-4 mb-2"></i>
+                        <h5 class="text-white fw-bold" id="cinemaErrorTitle">ISUP Oqim bilan aloqa yo'q</h5>
+                        <p class="text-white-50 small mb-0" id="cinemaErrorDesc">Kamera offline yoki hali ISUP serverga ulanmagan.</p>
+                        <div class="d-flex justify-content-center gap-2 mt-3">
+                            <button class="btn btn-outline-light btn-sm" onclick="retryCinemaStream()">
+                                <i class="mdi mdi-refresh me-1"></i> Qayta urinish
+                            </button>
+                            <button class="btn btn-primary btn-sm" id="modalBtnQuickConnect" onclick="triggerModalConnect()">
+                                <i class="mdi mdi-lightning-bolt me-1"></i> ISUP ga Ulash
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mt-3 pt-2 border-top border-secondary">
+                    <button type="button" class="btn btn-outline-light btn-sm d-flex align-items-center gap-1" onclick="toggleCinemaFullscreen()" title="To'liq ekran">
+                        <i class="mdi mdi-fullscreen" id="fsIcon"></i> To'liq Ekran
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" onclick="closeCinemaModal()">
+                        Yopish
+                    </button>
+                </div>
+                
+                <!-- Hidden placeholders to avoid JS errors -->
+                <div style="display: none;">
+                    <span id="cinemaFpsVal"></span>
+                    <span id="cinemaLatencyVal"></span>
+                    <span id="cinemaQualityVal"></span>
+                    <span id="cinemaModelVal"></span>
+                    <span id="cinemaSnVal"></span>
+                    <span id="cinemaIpPortVal"></span>
+                    <span id="cinemaMacVal"></span>
+                    <span id="cinemaModesVal"></span>
+                    <span id="cinemaDeviceIdBadge"></span>
+                    <span id="cinemaLiveBadge"></span>
+                    <span id="cinemaGpuBadge"></span>
+                    <button id="btnModeTurbo"></button>
+                    <button id="btnModeHd"></button>
+                    <button id="modalBtnConnect"></button>
+                    <button id="modalBtnDisconnect"></button>
+                    <button id="btnAiFaceScan"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    const csrftoken = '{{ csrf_token }}';
+
+    function onCameraSelected(select) {
+        const option = select.options[select.selectedIndex];
+        if (!option || !option.value) return;
+
+        document.getElementById('prevIp').innerText = option.getAttribute('data-ip') || '--';
+        document.getElementById('prevMac').innerText = option.getAttribute('data-mac') || '--';
+        document.getElementById('prevModel').innerText = option.getAttribute('data-model') || '--';
+        document.getElementById('prevSn').innerText = option.getAttribute('data-sn') || '--';
+        document.getElementById('camPreviewBox').style.display = 'block';
+    }
+
+    async function quickConnectCamera(camId, camName) {
+        Swal.fire({
+            title: `'${camName}' kamerasini ISUP ga ulashni xohlaysizmi?`,
+            text: "Kamerada avtomatik ravishda SmartGate ISUP (10.10.0.40:8660) rejimi faollashtiriladi.",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonColor: "#4361ee",
+            cancelButtonColor: "#74788d",
+            confirmButtonText: "Ha, ulash",
+            cancelButtonText: "Bekor qilish"
+        }).then(async (res) => {
+            if (res.isConfirmed) {
+                Swal.fire({
+                    title: "Ulanmoqda...",
+                    text: "Kamera sozlamalari yangilanmoqda, iltimos kuting.",
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+                try {
+                    const resp = await fetch("{% url 'isup_api_connect_camera' %}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                        body: JSON.stringify({ camera_id: camId })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        Swal.fire({ title: "Muvaffaqiyatli!", text: data.message, icon: "success", confirmButtonColor: "#4361ee" })
+                            .then(() => refreshIsupData());
+                    } else {
+                        Swal.fire({ title: "Xatolik!", text: data.message, icon: "error", confirmButtonColor: "#f34e4e" });
+                    }
+                } catch (e) {
+                    Swal.fire({ title: "Xatolik", text: String(e), icon: "error" });
+                }
+            }
+        });
+    }
+
+    async function refreshIsupData() {
+        const icon = document.getElementById('refreshIcon');
+        if (icon) icon.classList.add('mdi-spin');
+        try {
+            const resp = await fetch("{% url 'isup_api_status' %}");
+            if (!resp.ok) return;
+            const text = await resp.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (jsonErr) {
+                return;
+            }
+            if (data && data.success) {
+                document.getElementById('totalDevicesCount').innerText = (data.total_count || 0) + " ta";
+                document.getElementById('onlineDevicesCount').innerText = data.online_count || 0;
+                document.getElementById('offlineDevicesCount').innerText = data.offline_count !== undefined ? data.offline_count : ((data.total_count - data.online_count) || 0);
+                if (data.db_cameras) {
+                    renderDbCamerasTable(data.db_cameras);
+                }
+            }
+        } catch (e) {
+            console.error("ISUP status update error:", e);
+        } finally {
+            if (icon) setTimeout(() => icon.classList.remove('mdi-spin'), 600);
+        }
+    }
+
+    function renderDbCamerasTable(dbCameras) {
+        const tbody = document.getElementById('dbCamerasTbody');
+        if (!tbody || !dbCameras || dbCameras.length === 0) return;
+
+        // Sort: Online (0) -> Offline (1) -> Not connected (2)
+        const sortedCams = [...dbCameras].sort((a, b) => {
+            const order = { 'online': 0, 'offline': 1, 'not_connected': 2 };
+            const aOrder = order[a.isup_status] !== undefined ? order[a.isup_status] : 2;
+            const bOrder = order[b.isup_status] !== undefined ? order[b.isup_status] : 2;
+            if (aOrder !== bOrder) return aOrder - bOrder;
+            return (a.name || '').localeCompare(b.name || '');
+        });
+
+        let onlineCount = 0;
+        let html = '';
+
+        sortedCams.forEach(cam => {
+            const isOnline = cam.isup_status === 'online';
+            const isOffline = cam.isup_status === 'offline';
+            if (isOnline) onlineCount++;
+
+            const camName = (cam.name || cam.ip || 'Kamera').replace(/'/g, "\\'");
+            const isupDevId = String(cam.isup_device_id || '').replace(/'/g, "\\'");
+            const ip = String(cam.ip || '').replace(/'/g, "\\'");
+            const camId = cam.id;
+
+            // Rejim badges
+            let modesHtml = '';
+            if (cam.is_entry_camera) modesHtml += '<span class="badge bg-soft-success text-success me-1">Kirish</span>';
+            if (cam.is_exit_camera) modesHtml += '<span class="badge bg-soft-danger text-danger me-1">Chiqish</span>';
+            if (cam.enable_face_detection) modesHtml += '<span class="badge bg-soft-primary text-primary me-1">Davomat</span>';
+            if (cam.is_lesson_camera) modesHtml += '<span class="badge bg-soft-info text-info me-1">Dars</span>';
+
+            // ISUP Holati badge (3 xil holat: Online, Offline, Ulanmagan)
+            let statusHtml = '';
+            if (isOnline) {
+                statusHtml = `
+                    <span class="badge bg-soft-success text-success px-2 py-1">
+                        <span class="spinner-grow spinner-grow-sm me-1" style="width: 6px; height: 6px;"></span>
+                        Online
+                    </span>
+                    <div class="small font-monospace text-muted mt-1"><i class="mdi mdi-identifier me-1"></i>${cam.isup_device_id}</div>
+                `;
+            } else if (isOffline) {
+                statusHtml = `
+                    <span class="badge bg-soft-warning text-warning px-2 py-1">
+                        <i class="mdi mdi-alert-circle-outline me-1"></i> Offline
+                    </span>
+                    <div class="small font-monospace text-muted mt-1"><i class="mdi mdi-identifier me-1"></i>${cam.isup_device_id}</div>
+                `;
+            } else {
+                statusHtml = `
+                    <span class="badge bg-light text-muted border px-2 py-1">
+                        <i class="mdi mdi-minus-circle-outline me-1"></i> Ulanmagan
+                    </span>
+                `;
+            }
+
+            const modelEsc = (cam.device_model || 'Hikvision IPC').replace(/'/g, "\\'");
+            const snEsc = (cam.serial_number || '--').replace(/'/g, "\\'");
+            const macEsc = (cam.mac_address || '--').replace(/'/g, "\\'");
+            const isupStatus = cam.isup_status || 'not_connected';
+
+            // Action buttons (Icon-only with tooltips)
+            let actionsHtml = '';
+            if (isOnline) {
+                actionsHtml = `
+                    <div class="d-flex justify-content-center gap-1">
+                        <button class="btn btn-success btn-sm py-1 px-2 shadow-sm" onclick="openIsupControlCenter('${camId}', '${isupDevId}', '${camName}', '${ip}', 'online', '${modelEsc}', '${snEsc}', '${macEsc}', ${!!cam.is_entry_camera}, ${!!cam.is_exit_camera}, ${!!cam.enable_face_detection}, ${!!cam.is_lesson_camera})" title="Jonli Efir & Ko'rish">
+                            <i class="mdi mdi-play-circle font-size-15"></i>
+                        </button>
+                        <a href="/settings/isup/camera/${camId}/" class="btn btn-outline-info btn-sm py-1 px-2 shadow-sm" title="Kamera Tafsilotlari (Detail)">
+                            <i class="mdi mdi-information-outline font-size-15"></i>
+                        </a>
+                        <button class="btn btn-outline-warning btn-sm py-1 px-2 shadow-sm" onclick="disconnectDevice('${isupDevId}')" title="ISUP dan uzish">
+                            <i class="mdi mdi-lan-disconnect font-size-15"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm py-1 px-2 shadow-sm" onclick="deleteCameraFromDatabase('${camId}', '${camName}', '${ip}')" title="Kamerani bazadan o'chirish">
+                            <i class="mdi mdi-trash-can-outline font-size-15"></i>
+                        </button>
+                    </div>
+                `;
+            } else if (isOffline) {
+                actionsHtml = `
+                    <div class="d-flex justify-content-center gap-1">
+                        <button class="btn btn-outline-primary btn-sm py-1 px-2 shadow-sm" onclick="quickConnectCamera('${camId}', '${camName}')" title="ISUP ga Qayta Ulash">
+                            <i class="mdi mdi-refresh font-size-15"></i>
+                        </button>
+                        <a href="/settings/isup/camera/${camId}/" class="btn btn-outline-info btn-sm py-1 px-2 shadow-sm" title="Kamera Tafsilotlari (Detail)">
+                            <i class="mdi mdi-information-outline font-size-15"></i>
+                        </a>
+                        <button class="btn btn-outline-warning btn-sm py-1 px-2 shadow-sm" onclick="disconnectDevice('${isupDevId}')" title="ISUP dan uzish">
+                            <i class="mdi mdi-lan-disconnect font-size-15"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm py-1 px-2 shadow-sm" onclick="deleteCameraFromDatabase('${camId}', '${camName}', '${ip}')" title="Kamerani bazadan o'chirish">
+                            <i class="mdi mdi-trash-can-outline font-size-15"></i>
+                        </button>
+                    </div>
+                `;
+            } else {
+                actionsHtml = `
+                    <div class="d-flex justify-content-center gap-1">
+                        <button class="btn btn-outline-success btn-sm py-1 px-2 shadow-sm" onclick="quickConnectCamera('${camId}', '${camName}')" title="ISUP ga Ulash">
+                            <i class="mdi mdi-lightning-bolt font-size-15"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm py-1 px-2 shadow-sm" onclick="deleteCameraFromDatabase('${camId}', '${camName}', '${ip}')" title="Kamerani bazadan o'chirish">
+                            <i class="mdi mdi-trash-can-outline font-size-15"></i>
+                        </button>
+                    </div>
+                `;
+            }
+
+            html += `
+                <tr>
+                    <td class="ps-3">
+                        <div class="fw-bold text-dark font-size-13">${cam.name || 'Kamera'}</div>
+                        <span class="text-muted font-size-11">Port: ${cam.port || 80}</span>
+                    </td>
+                    <td><span class="font-monospace fw-semibold">${cam.ip}</span></td>
+                    <td><span class="badge bg-light text-muted border font-monospace">${cam.mac_address && cam.mac_address !== '--' ? cam.mac_address : '--'}</span></td>
+                    <td><span class="fw-medium text-dark">${cam.device_model || 'Hikvision IPC'}</span></td>
+                    <td>${modesHtml || '<span class="text-muted font-size-11">--</span>'}</td>
+                    <td>${statusHtml}</td>
+                    <td class="text-center pe-3">${actionsHtml}</td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+
+        const onlineBadge = document.getElementById('kpiDbOnlineBadge');
+        if (onlineBadge) {
+            onlineBadge.innerHTML = `<span class="spinner-grow spinner-grow-sm me-1" style="width: 6px; height: 6px;"></span> Online: ${onlineCount} ta`;
+        }
+        const totalBadge = document.getElementById('kpiDbTotalBadge');
+        if (totalBadge) {
+            totalBadge.innerText = `Jami: ${sortedCams.length} ta`;
+        }
+    }
+
+
+
+    // Auto-refresh every 5 seconds
+    setInterval(refreshIsupData, 5000);
+
+    // =========================================================================
+    // Network Discovery Modal & SADP Camera Scanner
+    // =========================================================================
+    let allDiscoveredCameras = [];
+
+    function openNetworkDiscoveryModal() {
+        const searchInput = document.getElementById('discSearchInput');
+        if (searchInput) {
+            searchInput.value = '';
+            searchInput.setAttribute('readonly', 'readonly');
+        }
+        const modalEl = document.getElementById('networkDiscoveryModal');
+        if (!modalEl) return;
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+        loadNetworkDiscoveredCameras();
+        setTimeout(() => {
+            const inp = document.getElementById('discSearchInput');
+            if (inp && (inp.value === 'admin' || inp.value.toLowerCase() === 'admin')) {
+                inp.value = '';
+                filterDiscoveredCameras();
+            }
+        }, 200);
+    }
+
+    async function loadNetworkDiscoveredCameras() {
+        const loadingBox = document.getElementById('discLoadingBox');
+        const emptyBox = document.getElementById('discEmptyBox');
+        const tableContainer = document.getElementById('discTableContainer');
+        const countBadge = document.getElementById('discCountBadge');
+        const isupBadge = document.getElementById('discIsupBadge');
+        const newBadge = document.getElementById('discNewBadge');
+        const rescanIcon = document.getElementById('rescanIcon');
+        const btnRescan = document.getElementById('btnRescan');
+        const protocol = document.getElementById('discProtocolSelect')?.value || 'all';
+
+        if (loadingBox) loadingBox.style.display = 'block';
+        if (emptyBox) emptyBox.style.display = 'none';
+        if (tableContainer) tableContainer.style.display = 'none';
+        if (countBadge) countBadge.innerHTML = `<span class="spinner-grow spinner-grow-sm me-1" style="width: 6px; height: 6px;"></span> Skanerlanmoqda...`;
+        if (rescanIcon) rescanIcon.classList.add('mdi-spin');
+        if (btnRescan) btnRescan.disabled = true;
+
+        try {
+            const resp = await fetch(`{% url 'isup_api_discover_network_cameras' %}?protocol=${protocol}`);
+            const data = await resp.json();
+
+            if (data.success && data.devices && data.devices.length > 0) {
+                allDiscoveredCameras = data.devices;
+                if (countBadge) countBadge.innerText = `${data.count} ta kamera topildi`;
+                if (isupBadge) {
+                    isupBadge.innerText = `${data.isup_count || 0} ta ISUP 5.0`;
+                    isupBadge.style.display = 'inline-block';
+                }
+                if (newBadge) {
+                    newBadge.innerText = `${data.new_count} ta yangi`;
+                    newBadge.style.display = data.new_count > 0 ? 'inline-block' : 'none';
+                }
+                filterDiscoveredCameras();
+            } else {
+                allDiscoveredCameras = [];
+                if (countBadge) countBadge.innerText = `0 ta kamera`;
+                if (isupBadge) isupBadge.style.display = 'none';
+                if (newBadge) newBadge.style.display = 'none';
+                if (loadingBox) loadingBox.style.display = 'none';
+                if (emptyBox) emptyBox.style.display = 'block';
+            }
+        } catch (e) {
+            console.error("Discovery error:", e);
+            if (loadingBox) loadingBox.style.display = 'none';
+            if (emptyBox) emptyBox.style.display = 'block';
+            if (countBadge) countBadge.innerText = `Xatolik`;
+        } finally {
+            if (rescanIcon) rescanIcon.classList.remove('mdi-spin');
+            if (btnRescan) btnRescan.disabled = false;
+        }
+    }
+
+    function filterDiscoveredCameras() {
+        const query = (document.getElementById('discSearchInput')?.value || '').toLowerCase().trim();
+        const filterType = document.getElementById('discFilterSelect')?.value || 'all';
+
+        let filtered = allDiscoveredCameras.filter(dev => {
+            // Filter type
+            if (filterType === 'new' && dev.is_in_db) return false;
+            if (filterType === 'in_db' && !dev.is_in_db) return false;
+            if (filterType === 'isup' && !dev.is_isup_supported) return false;
+
+            // Search query
+            if (!query) return true;
+            return (dev.ip || '').toLowerCase().includes(query) ||
+                   (dev.model || '').toLowerCase().includes(query) ||
+                   (dev.vendor || '').toLowerCase().includes(query) ||
+                   (dev.mac || '').toLowerCase().includes(query) ||
+                   (dev.sn || '').toLowerCase().includes(query) ||
+                   (dev.db_camera_name || '').toLowerCase().includes(query);
+        });
+
+        renderDiscoveredTable(filtered);
+    }
+
+    function renderDiscoveredTable(devices) {
+        const tbody = document.getElementById('discTbody');
+        const loadingBox = document.getElementById('discLoadingBox');
+        const emptyBox = document.getElementById('discEmptyBox');
+        const tableContainer = document.getElementById('discTableContainer');
+
+        if (!tbody) return;
+
+        if (loadingBox) loadingBox.style.display = 'none';
+
+        if (!devices || devices.length === 0) {
+            if (emptyBox) emptyBox.style.display = 'block';
+            if (tableContainer) tableContainer.style.display = 'none';
+            tbody.innerHTML = '';
+            return;
+        }
+
+        if (emptyBox) emptyBox.style.display = 'none';
+        if (tableContainer) tableContainer.style.display = 'block';
+
+        let html = '';
+        devices.forEach((dev, idx) => {
+            const ipEsc = (dev.ip || '').replace(/'/g, "\\'");
+            const modelEsc = (dev.model || 'Hikvision IPC').replace(/'/g, "\\'");
+            const snEsc = (dev.sn || '').replace(/'/g, "\\'");
+            const macEsc = (dev.mac || '').replace(/'/g, "\\'");
+            const vendor = dev.vendor || 'Hikvision';
+            const port = dev.port || 80;
+
+            const isupHtml = dev.is_isup_supported
+                ? `<span class="badge bg-soft-success text-success px-2 py-1"><i class="mdi mdi-check-decagram me-1"></i>ISUP 5.0 (EHome)</span>`
+                : `<span class="badge bg-soft-secondary text-muted px-2 py-1"><i class="mdi mdi-video-outline me-1"></i>RTSP / ONVIF</span>`;
+
+            // Qurilma turi
+            const cat = dev.device_category || { name: 'IP Kamera', badge: 'bg-soft-secondary text-secondary', icon: 'mdi-cctv', is_nvr: false };
+            const isNvr = !!cat.is_nvr || (dev.model && (dev.model.startsWith('DS-96') || dev.model.startsWith('DS-76') || dev.model.startsWith('DS-77') || dev.model.startsWith('DS-86') || dev.model.includes('NVR')));
+
+            const typeHtml = `
+                <span class="badge ${cat.badge} px-2 py-1 font-size-11">
+                    <i class="mdi ${cat.icon} me-1"></i>${cat.name}
+                </span>
+            `;
+
+            let actionHtml = '';
+            if (isNvr) {
+                actionHtml = `<span class="badge bg-light text-muted border font-size-11 px-2 py-1"><i class="mdi mdi-server-network me-1"></i>NVR Server</span>`;
+            } else if (dev.is_in_db) {
+                actionHtml = `
+                    <div class="d-flex justify-content-center gap-1">
+                        <button class="btn btn-outline-success btn-sm py-1 px-2 d-flex align-items-center gap-1 shadow-sm" onclick="openCameraLiveStreamPreview('${ipEsc}', '${modelEsc}', '${macEsc}', ${dev.db_camera_id})" title="Real-time jonli efirni ko'rish">
+                            <i class="mdi mdi-play-circle font-size-13"></i> Ko'rish
+                        </button>
+                        <button class="btn btn-soft-primary btn-sm py-1 px-2 d-flex align-items-center gap-1" onclick="selectDiscoveredCamera('${ipEsc}', ${port}, '${modelEsc}', '${snEsc}', '${macEsc}')" title="Sozlamalarini ko'rish / qayta ulash">
+                            <i class="mdi mdi-tune font-size-13"></i> Sozlash
+                        </button>
+                    </div>
+                `;
+            } else {
+                actionHtml = `
+                    <div class="d-flex justify-content-center gap-1">
+                        <button class="btn btn-outline-info btn-sm py-1 px-2 d-flex align-items-center gap-1 shadow-sm" onclick="openCameraLiveStreamPreview('${ipEsc}', '${modelEsc}', '${macEsc}', null)" title="Real-time jonli efirni ko'rish">
+                            <i class="mdi mdi-play-circle font-size-13"></i> Ko'rish
+                        </button>
+                        <button class="btn btn-primary btn-sm py-1 px-2 d-flex align-items-center gap-1 shadow-sm" onclick="selectDiscoveredCamera('${ipEsc}', ${port}, '${modelEsc}', '${snEsc}', '${macEsc}')" title="Bazaga qo'shish va ISUP ga ulash">
+                            <i class="mdi mdi-plus-circle font-size-13"></i> Qo'shish
+                        </button>
+                    </div>
+                `;
+            }
+
+            html += `
+                <tr>
+                    <td class="ps-3 text-center text-muted font-monospace font-size-12">${idx + 1}</td>
+                    <td>
+                        <strong class="font-monospace text-dark font-size-13">${dev.ip}</strong>
+                        <div class="font-size-11 text-muted">${dev.protocol || 'SADP'}</div>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-1">
+                            <span class="badge bg-light text-dark border font-size-11">${vendor}</span>
+                            <span class="fw-semibold text-dark">${dev.model}</span>
+                        </div>
+                    </td>
+                    <td><span class="font-monospace text-muted small">${dev.mac}</span></td>
+                    <td>${isupHtml}</td>
+                    <td>${typeHtml}</td>
+                    <td class="text-center pe-3">${actionHtml}</td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    let currentPreviewingCamera = null;
+    let previewWatchdogTimer = null;
+
+    async function openCameraLiveStreamPreview(ip, model, mac, camId, customChannel, customPassword) {
+        currentPreviewingCamera = { ip, model, mac, camId, customChannel, customPassword };
+
+        console.group(`%c[SmartGate Live Stream] 🎥 Kamera: ${ip}`, "color: #0284c7; font-weight: bold;");
+        console.log("🔹 Parametrlar:", { ip, model, mac, camId, customChannel, customPassword: customPassword ? '***' : 'auto' });
+
+        const modalEl = document.getElementById('cameraStreamPreviewModal');
+        if (!modalEl) {
+            console.error("❌ cameraStreamPreviewModal elementi topilmadi!");
+            console.groupEnd();
+            return;
+        }
+
+        const titleEl = document.getElementById('liveModalTitle');
+        if (titleEl) titleEl.innerText = `${model || 'Kamera'} (${ip})`;
+
+        const metaIp = document.getElementById('liveModalMetaIp');
+        if (metaIp) metaIp.innerHTML = `<i class="mdi mdi-ip-network me-1"></i> IP: <strong>${ip}</strong>`;
+
+        const metaModel = document.getElementById('liveModalMetaModel');
+        if (metaModel) metaModel.innerHTML = `<i class="mdi mdi-camera me-1"></i> Model: <strong>${model || 'Hikvision'}</strong>`;
+
+        const metaMac = document.getElementById('liveModalMetaMac');
+        if (metaMac) metaMac.innerHTML = `<i class="mdi mdi-lan me-1"></i> MAC: <strong>${mac || '--'}</strong>`;
+
+        const addBtn = document.getElementById('btnLiveModalAdd');
+        if (addBtn) {
+            addBtn.innerHTML = camId ? '<i class="mdi mdi-tune font-size-13"></i> Qayta Sozlash' : '<i class="mdi mdi-plus-circle font-size-13"></i> Bazaga Qo\'shish';
+        }
+
+        const spinner = document.getElementById('liveStreamSpinner');
+        const loadingText = document.getElementById('liveStreamLoadingText');
+        const errorBox = document.getElementById('liveStreamErrorBox');
+        const canvas = document.getElementById('liveStreamCanvas');
+        const channelBox = document.getElementById('liveModalChannelBox');
+        const channelSelect = document.getElementById('liveModalChannelSelect');
+
+        if (channelBox) channelBox.style.display = 'none';
+        if (spinner) {
+            spinner.style.display = 'block';
+            if (loadingText) loadingText.innerText = "Kameraga ulanmoqda va oqim yuklanmoqda...";
+        }
+        if (errorBox) errorBox.style.display = 'none';
+        if (canvas) canvas.style.display = 'none';
+
+        // 1. Stop any previous stream first, BEFORE creating new AbortController
+        if (window._liveStreamAbortCtrl) {
+            window._liveStreamAbortCtrl.abort();
+            window._liveStreamAbortCtrl = null;
+        }
+
+        // 2. Create new AbortController for this stream session
+        const abortCtrl = new AbortController();
+        window._liveStreamAbortCtrl = abortCtrl;
+        const signal = abortCtrl.signal;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        // 3. Build stream URL
+        let streamUrl = `{% url 'isup_camera_live_preview_stream' %}?ip=${encodeURIComponent(ip)}` + (camId ? `&camera_id=${camId}` : '');
+        if (customChannel) streamUrl += `&channel=${encodeURIComponent(customChannel)}`;
+        if (customPassword) streamUrl += `&password=${encodeURIComponent(customPassword)}`;
+        streamUrl += `&t=${Date.now()}`;
+        console.log("🌐 Oqim URL manzili:", streamUrl);
+
+        // 4. Watchdog — only after we have a valid abortCtrl
+        if (previewWatchdogTimer) clearTimeout(previewWatchdogTimer);
+        previewWatchdogTimer = setTimeout(() => {
+            if (!signal.aborted && spinner && spinner.style.display !== 'none') {
+                console.error("[SmartGate Live Stream] ⏱️ Timeout: oqim 15 soniyada javob bermadi.");
+                onLiveStreamError("Oqim javob bermadi. Kamera paroli noto'g'ri yoki RTSP porti (554) bloklangan bo'lishi mumkin.");
+            }
+        }, 15000);
+
+        // 5. Check channels (non-blocking)
+        try {
+            let chUrl = `{% url 'isup_api_camera_channels' %}?ip=${encodeURIComponent(ip)}`;
+            if (customPassword) chUrl += `&password=${encodeURIComponent(customPassword)}`;
+            fetch(chUrl)
+                .then(r => r.json())
+                .then(data => {
+                    console.log("[SmartGate Live Stream] 📡 Kanallar:", data);
+                    if (data.success && data.channels && data.channels.length > 1) {
+                        if (channelSelect && channelBox) {
+                            let optHtml = '';
+                            data.channels.forEach(ch => {
+                                const selected = customChannel ? (ch.id === customChannel ? 'selected' : '') : (ch.is_sub ? 'selected' : '');
+                                optHtml += `<option value="${ch.id}" ${selected}>${ch.name}</option>`;
+                            });
+                            channelSelect.innerHTML = optHtml;
+                            channelBox.style.display = 'flex';
+                        }
+                    }
+                }).catch(() => {});
+        } catch (e) {}
+
+        // 6. Stream via native browser MJPEG img tag
+        const img = document.getElementById('liveStreamImg');
+        if (img) {
+            img.style.display = 'none';
+            img.onload = () => {
+                console.log("%c[SmartGate Live Stream] ✅ Jonli efir muvaffaqiyatli ulandi!", "color: green; font-weight: bold;");
+                if (previewWatchdogTimer) clearTimeout(previewWatchdogTimer);
+                if (spinner) spinner.style.display = 'none';
+                if (errorBox) errorBox.style.display = 'none';
+                img.style.display = 'block';
+            };
+            img.onerror = (e) => {
+                console.warn("[SmartGate Live Stream] ⚠️ Img onerror hodisasi:", e);
+                onLiveStreamError("Kameraga ulanib bo'lmadi. Parol noto'g'ri bo'lishi mumkin.");
+            };
+            img.src = streamUrl;
+        }
+
+        // Hide spinner once stream begins rendering (safety fallback after 1.5s)
+        setTimeout(() => {
+            if (img && img.src && (!errorBox || errorBox.style.display === 'none')) {
+                if (spinner) spinner.style.display = 'none';
+                img.style.display = 'block';
+            }
+        }, 1500);
+
+        console.groupEnd();
+    }
+
+    function onPreviewChannelChanged() {
+        const select = document.getElementById('liveModalChannelSelect');
+        const channel = select ? select.value : '';
+        if (currentPreviewingCamera && channel) {
+            console.log(`[SmartGate Live Stream] 🔄 Kanal o'zgartirildi: ${channel}`);
+            openCameraLiveStreamPreview(
+                currentPreviewingCamera.ip, currentPreviewingCamera.model,
+                currentPreviewingCamera.mac, currentPreviewingCamera.camId,
+                channel, currentPreviewingCamera.customPassword
+            );
+        }
+    }
+
+    function retryWithCustomPassword() {
+        const pwdInput = document.getElementById('liveModalCustomPassword');
+        const pwd = pwdInput ? pwdInput.value.trim() : '';
+        if (!pwd) {
+            Swal.fire({ title: "Diqqat", text: "Iltimos, kamera parolini kiriting!", icon: "warning" });
+            if (pwdInput) pwdInput.focus();
+            return;
+        }
+        if (currentPreviewingCamera) {
+            console.log(`[SmartGate Live Stream] 🔑 Maxsus parol bilan qayta urinish...`);
+            currentPreviewingCamera.customPassword = pwd;
+            openCameraLiveStreamPreview(
+                currentPreviewingCamera.ip, currentPreviewingCamera.model,
+                currentPreviewingCamera.mac, currentPreviewingCamera.camId,
+                currentPreviewingCamera.customChannel, pwd
+            );
+        }
+    }
+
+    function onLiveStreamLoaded() {
+        if (previewWatchdogTimer) clearTimeout(previewWatchdogTimer);
+        const spinner = document.getElementById('liveStreamSpinner');
+        const img = document.getElementById('liveStreamImg');
+        const errorBox = document.getElementById('liveStreamErrorBox');
+        if (spinner) spinner.style.display = 'none';
+        if (errorBox) errorBox.style.display = 'none';
+        if (img) img.style.display = 'block';
+    }
+
+    function onLiveStreamError(customMsg) {
+        if (previewWatchdogTimer) clearTimeout(previewWatchdogTimer);
+        const spinner = document.getElementById('liveStreamSpinner');
+        const img = document.getElementById('liveStreamImg');
+        const errorBox = document.getElementById('liveStreamErrorBox');
+        const errorMsgEl = document.getElementById('liveStreamErrorMsg');
+        if (spinner) spinner.style.display = 'none';
+        if (img) img.style.display = 'none';
+        if (errorMsgEl && customMsg) {
+            errorMsgEl.innerText = customMsg;
+        } else if (errorMsgEl) {
+            errorMsgEl.innerText = "Kameraga ulanib bo'lmadi. Parol noto'g'ri bo'lishi mumkin. Iltimos, uning parolini kiriting:";
+        }
+        if (errorBox) errorBox.style.display = 'block';
+        const pwdInput = document.getElementById('liveModalCustomPassword');
+        if (pwdInput) pwdInput.focus();
+    }
+
+    function retryLiveStreamPreview() {
+        if (currentPreviewingCamera) {
+            console.log(`[SmartGate Live Stream] 🔄 Qayta sinash: ${currentPreviewingCamera.ip}`);
+            openCameraLiveStreamPreview(
+                currentPreviewingCamera.ip, currentPreviewingCamera.model,
+                currentPreviewingCamera.mac, currentPreviewingCamera.camId,
+                currentPreviewingCamera.customChannel, currentPreviewingCamera.customPassword
+            );
+        }
+    }
+
+    function stopLiveStreamPreview() {
+        if (previewWatchdogTimer) { clearTimeout(previewWatchdogTimer); previewWatchdogTimer = null; }
+        if (window._liveStreamAbortCtrl) {
+            window._liveStreamAbortCtrl.abort();
+            window._liveStreamAbortCtrl = null;
+        }
+        const img = document.getElementById('liveStreamImg');
+        if (img) {
+            img.onload = null;
+            img.onerror = null;
+            img.src = '';
+            img.style.display = 'none';
+        }
+        const spinner = document.getElementById('liveStreamSpinner');
+        if (spinner) spinner.style.display = 'none';
+        const errorBox = document.getElementById('liveStreamErrorBox');
+        if (errorBox) errorBox.style.display = 'none';
+        console.log("[SmartGate Live Stream] 🛑 Oqim to'xtatildi.");
+    }
+
+    // Expose to window scope
+    window.openCameraLiveStreamPreview = openCameraLiveStreamPreview;
+    window.onPreviewChannelChanged = onPreviewChannelChanged;
+    window.retryWithCustomPassword = retryWithCustomPassword;
+    window.onLiveStreamLoaded = onLiveStreamLoaded;
+    window.onLiveStreamError = onLiveStreamError;
+    window.retryLiveStreamPreview = retryLiveStreamPreview;
+    window.stopLiveStreamPreview = stopLiveStreamPreview;
+
+
+
+
+
+
+
+
+    function togglePreviewFullscreen() {
+        const wrapper = document.getElementById('livePlayerWrapper');
+        if (!wrapper) return;
+        if (!document.fullscreenElement) {
+            wrapper.requestFullscreen().catch(err => console.error(err));
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    function addCurrentPreviewCamera() {
+        if (!currentPreviewingCamera) return;
+        const customPwd = currentPreviewingCamera.customPassword;
+        stopLiveStreamPreview();
+        const modalEl = document.getElementById('cameraStreamPreviewModal');
+        if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        selectDiscoveredCamera(
+            currentPreviewingCamera.ip,
+            80,
+            currentPreviewingCamera.model,
+            '',
+            currentPreviewingCamera.mac,
+            customPwd
+        );
+    }
+
+    function selectDiscoveredCamera(ip, port, model, sn, mac, customPwd) {
+        // Close discovery modal
+        const discModalEl = document.getElementById('networkDiscoveryModal');
+        if (discModalEl) {
+            bootstrap.Modal.getOrCreateInstance(discModalEl).hide();
+        }
+
+        // Open Add Camera Modal
+        const addModalEl = document.getElementById('addCameraModal');
+        if (addModalEl) {
+            bootstrap.Modal.getOrCreateInstance(addModalEl).show();
+
+            const ipInput = document.getElementById('addCamIp');
+            if (ipInput) ipInput.value = ip;
+
+            const nameInput = document.getElementById('addCamName');
+            if (nameInput && !nameInput.value.trim()) {
+                nameInput.value = model !== 'Hikvision IPC' ? `${model} (${ip})` : `Kamera ${ip}`;
+            }
+
+            const portInput = document.getElementById('addCamPort');
+            if (portInput) portInput.value = port || 80;
+
+            const pwdInput = document.getElementById('addCamPassword');
+            if (pwdInput && customPwd) {
+                pwdInput.value = customPwd;
+            }
+
+            // Automatically trigger probe & test!
+            setTimeout(() => {
+                probeCameraConnection();
+            }, 350);
+        }
+    }
+
+    async function deleteCameraFromDatabase(camId, camName, ip) {
+        const result = await Swal.fire({
+            title: "Kamerani o'chirish",
+            html: `Haqiqatan ham <strong>"${camName}"</strong> (${ip}) kamerasini tizim bazasidan o'chirmoqchimisiz?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: "Ha, o'chirilsin",
+            cancelButtonText: "Bekor qilish"
+        });
+
+        if (!result.isConfirmed) return;
+
+        Swal.fire({
+            title: "O'chirilmoqda...",
+            text: "Kamera bazadan o'chirilmoqda",
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const resp = await fetch(`/settings/isup/api/camera/delete/${camId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await resp.json();
+            if (data.success) {
+                Swal.fire({
+                    title: "O'chirildi!",
+                    text: data.message || "Kamera muvaffaqiyatli o'chirildi.",
+                    icon: "success",
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                refreshIsupData();
+            } else {
+                Swal.fire({
+                    title: "Xatolik",
+                    text: data.message || "Kamerani o'chirishda xatolik yuz berdi.",
+                    icon: "error"
+                });
+            }
+        } catch (e) {
+            Swal.fire({
+                title: "Xatolik",
+                text: "Server bilan bog'lanishda xatolik: " + e.message,
+                icon: "error"
+            });
+        }
+    }
+    window.deleteCameraFromDatabase = deleteCameraFromDatabase;
+
+    // =========================================================================
+    // Real-Time Camera Probe & Credential Discovery (Tekshirish)
+    // =========================================================================
+    let probedCameraInfo = null;
+
+    async function probeCameraConnection() {
+        const ipInput = document.getElementById('addCamIp');
+        const ip = ipInput ? ipInput.value.trim() : '';
+        if (!ip) {
+            Swal.fire({ title: "Diqqat", text: "Iltimos, avval kamera IP manzilini kiriting!", icon: "warning" });
+            if (ipInput) ipInput.focus();
+            return;
+        }
+
+        const btn = document.getElementById('btnProbeCam');
+        const probeIcon = document.getElementById('probeIcon');
+        const probeText = document.getElementById('probeText');
+        const container = document.getElementById('probeResultContainer');
+        const successCard = document.getElementById('probeSuccessCard');
+        const errorCard = document.getElementById('probeErrorCard');
+
+        btn.disabled = true;
+        probeIcon.className = "spinner-border spinner-border-sm me-1";
+        probeText.innerText = "Tekshirilmoqda...";
+        container.style.display = "none";
+        successCard.style.display = "none";
+        errorCard.style.display = "none";
+
+        const customPort = parseInt(document.getElementById('addCamPort')?.value) || 80;
+        const customUser = document.getElementById('addCamUsername')?.value?.trim() || 'admin';
+        const customPwd = document.getElementById('addCamPassword')?.value?.trim() || '';
+
+        try {
+            const resp = await fetch("{% url 'isup_api_probe_camera' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify({ ip: ip, port: customPort, username: customUser, password: customPwd })
+            });
+            const data = await resp.json();
+            container.style.display = "block";
+
+            if (data.success) {
+                probedCameraInfo = data;
+
+                document.getElementById('probeWorkingPwd').innerText = data.working_password || 'parol400';
+                document.getElementById('probeModelBadge').innerText = data.device_model || 'Hikvision IPC';
+                document.getElementById('probeModelVal').innerText = data.device_model || '--';
+                document.getElementById('probeSnVal').innerText = data.serial_number || '--';
+                document.getElementById('probeMacVal').innerText = data.mac_address || '--';
+
+                // Auto-fill channel name if empty
+                const nameInput = document.getElementById('addCamName');
+                if (nameInput && !nameInput.value.trim() && data.channel_name) {
+                    nameInput.value = data.channel_name;
+                }
+
+                // Sync form fields
+                if (document.getElementById('addCamPort')) document.getElementById('addCamPort').value = data.working_port || 80;
+                if (document.getElementById('addCamUsername')) document.getElementById('addCamUsername').value = data.working_username || 'admin';
+                if (document.getElementById('addCamPassword')) document.getElementById('addCamPassword').value = data.working_password || '';
+
+                successCard.style.display = "block";
+                
+                const submitBtn = document.getElementById('addCamSubmitBtn');
+                submitBtn.classList.remove('btn-primary');
+                submitBtn.classList.add('btn-success');
+                submitBtn.innerHTML = `<i class="mdi mdi-check-all font-size-14"></i> Saqlash va ISUP ga Ulash`;
+            } else {
+                probedCameraInfo = null;
+                document.getElementById('probeErrorDesc').innerText = data.message || "Ulanib bo'lmadi";
+                errorCard.style.display = "block";
+            }
+        } catch (e) {
+            container.style.display = "block";
+            document.getElementById('probeErrorDesc').innerText = "Tarmoq xatosi: " + String(e);
+            errorCard.style.display = "block";
+        } finally {
+            btn.disabled = false;
+            probeIcon.className = "mdi mdi-connection font-size-14";
+            probeText.innerText = "Tekshirish";
+        }
+    }
+
+    // Reset probe box on modal close or reset
+    document.getElementById('addCameraModal')?.addEventListener('hidden.bs.modal', function() {
+        document.getElementById('probeResultContainer').style.display = "none";
+        document.getElementById('probeSuccessCard').style.display = "none";
+        document.getElementById('probeErrorCard').style.display = "none";
+        const submitBtn = document.getElementById('addCamSubmitBtn');
+        if (submitBtn) {
+            submitBtn.classList.remove('btn-success');
+            submitBtn.classList.add('btn-primary');
+            submitBtn.innerHTML = `<i class="mdi mdi-plus-circle font-size-14"></i> Kamera Qo'shish`;
+        }
+        probedCameraInfo = null;
+    });
+
+    // Form submit for Yangi Kamera Qo'shish
+    document.getElementById('addCameraForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const submitBtn = document.getElementById('addCamSubmitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Saqlanmoqda va Ulanmoqda...`;
+
+        const payload = {
+            name: document.getElementById('addCamName').value.trim(),
+            ip: document.getElementById('addCamIp').value.trim(),
+            port: parseInt(document.getElementById('addCamPort')?.value) || (probedCameraInfo?.working_port || 80),
+            username: document.getElementById('addCamUsername')?.value?.trim() || (probedCameraInfo?.working_username || 'admin'),
+            password: document.getElementById('addCamPassword')?.value?.trim() || (probedCameraInfo?.working_password || ''),
+            is_entry_camera: document.getElementById('addCamIsEntry').checked,
+            is_exit_camera: document.getElementById('addCamIsExit').checked,
+            enable_face_detection: document.getElementById('addCamEnableFace').checked,
+            is_lesson_camera: document.getElementById('addCamIsLesson').checked,
+            auto_connect_isup: document.getElementById('addCamAutoIsup').checked,
+        };
+
+        try {
+            const resp = await fetch("{% url 'isup_api_add_camera' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (data.success) {
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('addCameraModal')).hide();
+                document.getElementById('addCameraForm').reset();
+                document.getElementById('addCamIsEntry').checked = true;
+                document.getElementById('addCamEnableFace').checked = true;
+                document.getElementById('addCamAutoIsup').checked = true;
+                Swal.fire({ title: "Muvaffaqiyatli!", text: data.message, icon: "success", confirmButtonColor: "#4361ee" })
+                    .then(() => refreshIsupData());
+            } else {
+                Swal.fire({ title: "Xatolik!", text: data.message, icon: "error", confirmButtonColor: "#f34e4e" });
+            }
+        } catch (err) {
+            Swal.fire({ title: "Tarmoq Xatosi", text: String(err), icon: "error" });
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="mdi mdi-plus-circle font-size-14"></i> Kamera Qo'shish`;
+        }
+    });
+
+    // Form submit for Modal Camera select
+    document.getElementById('connectIsupForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const select = document.getElementById('cameraSelect');
+        const camId = select.value;
+        if (!camId) {
+            Swal.fire({ title: "Diqqat", text: "Iltimos, ro'yxatdan kamerani tanlang", icon: "warning" });
+            return;
+        }
+
+        const submitBtn = document.getElementById('connectSubmitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Ulanmoqda...`;
+
+        try {
+            const resp = await fetch("{% url 'isup_api_connect_camera' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify({ camera_id: camId })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('connectIsupModal')).hide();
+                Swal.fire({ title: "Muvaffaqiyatli!", text: data.message, icon: "success", confirmButtonColor: "#4361ee" })
+                    .then(() => refreshIsupData());
+            } else {
+                Swal.fire({ title: "Xatolik!", text: data.message, icon: "error", confirmButtonColor: "#f34e4e" });
+            }
+        } catch (err) {
+            Swal.fire({ title: "Tarmoq Xatosi", text: String(err), icon: "error" });
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="mdi mdi-check-circle font-size-14"></i> ISUP ga Ulash`;
+        }
+    });
+
+    async function disconnectDevice(deviceId) {
+        Swal.fire({
+            title: "Qurilmani uzmoqchimisiz?",
+            text: `'${deviceId}' qurilmasi ISUP serveridan uziladi.`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#f34e4e",
+            cancelButtonColor: "#74788d",
+            confirmButtonText: "Ha, uzish",
+            cancelButtonText: "Bekor qilish"
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const resp = await fetch("{% url 'isup_api_disconnect_device' %}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                        body: JSON.stringify({ device_id: deviceId })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        Swal.fire({ title: "Uzildi!", text: data.message, icon: "success", confirmButtonColor: "#4361ee" })
+                            .then(() => refreshIsupData());
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+        });
+    }
+
+    // =========================================================================
+    // ISUP Command Center & GPU Accelerated Video Stream Engine
+    // =========================================================================
+    let isupStreamController = null;
+    let isStreamActive = false;
+    let activeCinemaDeviceId = null;
+    let currentStreamMode = 'turbo'; // 'turbo' (25 FPS) | 'hd' (4K)
+    let statsPollInterval = null;
+    let activeBlobUrl = null;
+
+    let currentCameraContext = {
+        id: null,
+        deviceId: null,
+        name: '',
+        ip: '',
+        status: 'not_connected',
+        model: '',
+        sn: '',
+        mac: '',
+        isEntry: false,
+        isExit: false,
+        enableFace: false,
+        isLesson: false
+    };
+
+    function openIsupControlCenter(camId, devId, name, ip, status, model, sn, mac, isEntry, isExit, enableFace, isLesson) {
+        currentCameraContext = {
+            id: camId,
+            deviceId: devId || (sn && sn !== '--' ? sn.slice(-9) : ip),
+            name: name || ip || 'Kamera',
+            ip: ip,
+            status: status || 'not_connected',
+            model: model || 'Hikvision IPC',
+            sn: sn || '--',
+            mac: mac || '--',
+            isEntry: !!isEntry,
+            isExit: !!isExit,
+            enableFace: !!enableFace,
+            isLesson: !!isLesson
+        };
+
+        // Header and parameters
+        document.getElementById('cinemaTitle').innerText = currentCameraContext.name;
+        document.getElementById('cinemaIp').innerText = currentCameraContext.ip ? `(${currentCameraContext.ip})` : "";
+        document.getElementById('cinemaDeviceIdBadge').innerText = `Device ID: ${currentCameraContext.deviceId}`;
+        document.getElementById('cinemaModelVal').innerText = currentCameraContext.model;
+        document.getElementById('cinemaSnVal').innerText = currentCameraContext.sn;
+        document.getElementById('cinemaMacVal').innerText = currentCameraContext.mac;
+        document.getElementById('cinemaIpPortVal').innerText = `${currentCameraContext.ip}:80`;
+
+        // Status badge
+        const liveBadge = document.getElementById('cinemaLiveBadge');
+        const cinemaErrorTitle = document.getElementById('cinemaErrorTitle');
+        const cinemaErrorDesc = document.getElementById('cinemaErrorDesc');
+
+        if (currentCameraContext.status === 'online') {
+            liveBadge.className = 'badge bg-success px-2 py-1';
+            liveBadge.innerHTML = '<span class="spinner-grow spinner-grow-sm me-1" style="width: 7px; height: 7px;"></span> ISUP 5.0 LIVE';
+            document.getElementById('modalBtnConnect').innerHTML = '<i class="mdi mdi-refresh me-1"></i> ISUP ni Qayta Sozlash';
+            document.getElementById('modalBtnDisconnect').style.display = 'inline-flex';
+        } else if (currentCameraContext.status === 'offline') {
+            liveBadge.className = 'badge bg-warning px-2 py-1';
+            liveBadge.innerHTML = '<i class="mdi mdi-alert-circle-outline me-1"></i> ISUP OFFLINE';
+            document.getElementById('modalBtnConnect').innerHTML = '<i class="mdi mdi-refresh me-1"></i> Qayta Ulash';
+            document.getElementById('modalBtnDisconnect').style.display = 'inline-flex';
+            if (cinemaErrorTitle) cinemaErrorTitle.innerText = "Kamera Hozirda Offline";
+            if (cinemaErrorDesc) cinemaErrorDesc.innerText = "Kamera elektr tarmog'i yoki tarmoq simini tekshiring.";
+        } else {
+            liveBadge.className = 'badge bg-secondary px-2 py-1';
+            liveBadge.innerHTML = '<i class="mdi mdi-minus-circle-outline me-1"></i> ULANMAGAN';
+            document.getElementById('modalBtnConnect').innerHTML = '<i class="mdi mdi-lightning-bolt me-1"></i> ISUP ga Ulash';
+            document.getElementById('modalBtnDisconnect').style.display = 'none';
+            if (cinemaErrorTitle) cinemaErrorTitle.innerText = "ISUP ga Ulanmagan";
+            if (cinemaErrorDesc) cinemaErrorDesc.innerText = "Kamerani SmartGate ISUP 5.0 ga ulash uchun quyidagi tugmani bosing.";
+        }
+
+        // Modes HTML
+        let modesHtml = '';
+        if (isEntry) modesHtml += '<span class="badge bg-soft-success text-success me-1">Kirish</span>';
+        if (isExit) modesHtml += '<span class="badge bg-soft-danger text-danger me-1">Chiqish</span>';
+        if (enableFace) modesHtml += '<span class="badge bg-soft-primary text-primary me-1">Davomat</span>';
+        if (isLesson) modesHtml += '<span class="badge bg-soft-info text-info me-1">Dars</span>';
+        document.getElementById('cinemaModesVal').innerHTML = modesHtml || '<span class="text-muted">--</span>';
+
+        // Start stream
+        openIsupCinema(currentCameraContext.deviceId, currentCameraContext.name, currentCameraContext.ip);
+    }
+
+    async function openIsupCinema(deviceId, name, ip) {
+        console.log(`%c[ISUP GPU Stream] 🚀 Boshlanmoqda... DevID: ${deviceId}, Nomi: ${name}, IP: ${ip}`, "color: #3b82f6; font-weight: bold; font-size: 13px;");
+
+        const img = document.getElementById('cinemaStreamImg');
+        const spinner = document.getElementById('cinemaSpinner');
+        const error = document.getElementById('cinemaError');
+
+        spinner.style.display = 'block';
+        error.style.display = 'none';
+        img.style.display = 'none';
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('cinemaModal'));
+        modal.show();
+
+        // Oldingi streamni to'xtatish
+        if (activeCinemaDeviceId && activeCinemaDeviceId !== deviceId) {
+            await fetch(`/settings/isup/stream/stop/${activeCinemaDeviceId}/`, { method: 'POST', headers: {'X-CSRFToken': csrftoken} }).catch(() => {});
+        }
+        isStreamActive = false;
+        if (isupStreamController) {
+            isupStreamController.abort();
+            isupStreamController = null;
+        }
+        if (statsPollInterval) {
+            clearInterval(statsPollInterval);
+            statsPollInterval = null;
+        }
+
+        activeCinemaDeviceId = deviceId;
+        isStreamActive = true;
+        isupStreamController = new AbortController();
+
+        // 1-qadam: Serverda GPU stream threadini ishga tushirish
+        try {
+            const startResp = await fetch(`/settings/isup/stream/start/${deviceId}/?mode=${currentStreamMode}`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken },
+                signal: isupStreamController.signal
+            });
+            const startData = await startResp.json();
+            if (startData.gpu) {
+                document.getElementById('cinemaGpuBadge').innerHTML = `<i class="mdi mdi-chip me-1"></i> GPU: ${startData.gpu}`;
+            }
+            console.log(`%c[ISUP GPU Stream] ✅ GPU Stream boshlandi (${startData.gpu || 'NVIDIA L40S'})`, "color: #10b981; font-weight: bold;");
+        } catch (e) {
+            if (e.name === 'AbortError') return;
+            console.warn("[ISUP GPU Stream] stream/start chaqiruvi muvaffaqiyatsiz:", e);
+        }
+
+        // 2-qadam: Jonli HUD statistikasini har 1 soniyada yangilash
+        statsPollInterval = setInterval(async () => {
+            if (!isStreamActive || !activeCinemaDeviceId) return;
+            try {
+                const sResp = await fetch(`/settings/isup/stream/status/${activeCinemaDeviceId}/`);
+                if (sResp.ok) {
+                    const sData = await sResp.json();
+                    if (sData.active) {
+                        document.getElementById('cinemaFpsVal').innerText = sData.fps || '--';
+                        document.getElementById('cinemaLatencyVal').innerText = (sData.gpu_latency_ms || '<5') + ' ms';
+                        if (sData.mode === 'hd') {
+                            document.getElementById('cinemaQualityVal').innerText = "Ultra HD 4K (Mainstream)";
+                        } else {
+                            document.getElementById('cinemaQualityVal').innerText = "Super-Resolution 1080p (GPU CUDA)";
+                        }
+                    }
+                }
+            } catch (err) {}
+        }, 1000);
+
+        let frameCount = 0;
+        let lastFrameTime = performance.now();
+        let consecutiveErrors = 0;
+
+        // 3-qadam: High-Speed Seamless Frame Loop (Zero-flicker dual buffer)
+        while (isStreamActive) {
+            const startFetchTime = performance.now();
+            try {
+                const response = await fetch(`/settings/isup/snapshot/${deviceId}/?mode=${currentStreamMode}&t=${Date.now()}`, {
+                    signal: isupStreamController.signal,
+                    cache: "no-store"
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                if (!isStreamActive) break;
+
+                const newBlobUrl = URL.createObjectURL(blob);
+                img.src = newBlobUrl;
+                if (activeBlobUrl) URL.revokeObjectURL(activeBlobUrl);
+                activeBlobUrl = newBlobUrl;
+
+                frameCount++;
+                consecutiveErrors = 0;
+                const now = performance.now();
+                const latency = Math.round(now - startFetchTime);
+                const fps = frameCount > 1 ? Math.round(1000 / Math.max(now - lastFrameTime, 1)) : 0;
+                lastFrameTime = now;
+
+                if (document.getElementById('cinemaFpsVal').innerText === '--') {
+                    document.getElementById('cinemaFpsVal').innerText = fps > 0 ? fps : '~24';
+                    document.getElementById('cinemaLatencyVal').innerText = latency + ' ms';
+                }
+
+                // Spinner yashirish
+                if (spinner.style.display !== 'none') {
+                    spinner.style.display = 'none';
+                    img.style.display = 'block';
+                    console.log(`%c[ISUP GPU Stream] 🟢 Birinchi kadr olindi! Hajm: ${(blob.size / 1024).toFixed(1)} KB | Kechikish: ${latency}ms`, "color: #10b981; font-weight: bold;");
+                }
+
+                if (frameCount === 1 || frameCount % 30 === 0) {
+                    console.log(
+                        `%c[ISUP GPU Stream] 🎥 Kadr #${frameCount} | Hajm: ${(blob.size / 1024).toFixed(1)} KB | Kechikish: ${latency}ms | FPS: ~${fps}`,
+                        "color: #10b981; font-family: monospace;"
+                    );
+                }
+
+                // Smooth pacing delay: turbo = minimal delay (smooth 25 FPS), hd = 100ms
+                const minDelay = currentStreamMode === 'turbo' ? 30 : 100;
+                await new Promise(r => setTimeout(r, minDelay));
+
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    console.log("%c[ISUP GPU Stream] ⏹️ Oqim to'xtatildi.", "color: #6b7280;");
+                    break;
+                }
+                consecutiveErrors++;
+                if (consecutiveErrors >= 6) {
+                    spinner.style.display = 'none';
+                    img.style.display = 'none';
+                    error.style.display = 'block';
+                }
+                await new Promise(r => setTimeout(r, 1000));
+            }
+        }
+
+        if (activeBlobUrl) {
+            URL.revokeObjectURL(activeBlobUrl);
+            activeBlobUrl = null;
+        }
+    }
+
+    async function switchStreamMode(mode) {
+        if (currentStreamMode === mode) return;
+        currentStreamMode = mode;
+
+        document.getElementById('btnModeTurbo').classList.toggle('active', mode === 'turbo');
+        document.getElementById('btnModeTurbo').classList.toggle('btn-primary', mode === 'turbo');
+        document.getElementById('btnModeTurbo').classList.toggle('btn-outline-secondary', mode !== 'turbo');
+
+        document.getElementById('btnModeHd').classList.toggle('active', mode === 'hd');
+        document.getElementById('btnModeHd').classList.toggle('btn-primary', mode === 'hd');
+        document.getElementById('btnModeHd').classList.toggle('btn-outline-secondary', mode !== 'hd');
+
+        if (activeCinemaDeviceId && isStreamActive) {
+            document.getElementById('cinemaSpinner').style.display = 'block';
+            document.getElementById('cinemaStreamImg').style.display = 'none';
+            // Restart stream with new mode
+            await fetch(`/settings/isup/stream/start/${activeCinemaDeviceId}/?mode=${mode}`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken }
+            }).catch(() => {});
+        }
+    }
+
+    function retryCinemaStream() {
+        if (activeCinemaDeviceId) {
+            const title = document.getElementById('cinemaTitle').innerText;
+            const ip = document.getElementById('cinemaIp').innerText.replace(/[()]/g, '');
+            openIsupCinema(activeCinemaDeviceId, title, ip);
+        }
+    }
+
+    function downloadCurrentSnapshot() {
+        const img = document.getElementById('cinemaStreamImg');
+        if (!img || !img.src) {
+            Swal.fire({ title: "Diqqat", text: "Hozircha kadr mavjud emas", icon: "info" });
+            return;
+        }
+        const a = document.createElement('a');
+        a.href = img.src;
+        a.download = `ISUP_Snapshot_${activeCinemaDeviceId || 'camera'}_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '_')}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    async function triggerAiFaceScan() {
+        if (!currentCameraContext.id && !activeCinemaDeviceId) return;
+        const btn = document.getElementById('btnAiFaceScan');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> AI Tahlil...';
+        }
+        try {
+            const resp = await fetch("{% url 'isup_api_detect_face' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify({
+                    camera_id: currentCameraContext.id,
+                    device_id: activeCinemaDeviceId
+                })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                Swal.fire({
+                    title: "AI Yuz Tahlili Natijasi",
+                    text: data.message,
+                    icon: "info",
+                    confirmButtonColor: "#4361ee"
+                });
+            } else {
+                Swal.fire({ title: "AI Xatosi", text: data.message, icon: "warning" });
+            }
+        } catch (e) {
+            Swal.fire({ title: "Xatolik", text: String(e), icon: "error" });
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="mdi mdi-face-recognition font-size-14"></i> AI Yuzni Tanish';
+            }
+        }
+    }
+
+    async function triggerModalReboot() {
+        if (!currentCameraContext.id) {
+            Swal.fire({ title: "Diqqat", text: "Kamera identifikatori aniqlanmadi", icon: "warning" });
+            return;
+        }
+        Swal.fire({
+            title: "Kamerani qayta yuklaysizmi?",
+            text: `'${currentCameraContext.name}' (${currentCameraContext.ip}) kamerasi masofadan ISAPI orqali qayta o't oldiriladi.`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#f59e0b",
+            cancelButtonColor: "#74788d",
+            confirmButtonText: "Ha, qayta yuklash",
+            cancelButtonText: "Bekor qilish"
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                Swal.fire({ title: "Qayta yuklanmoqda...", text: "Iltimos kuting...", allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                try {
+                    const resp = await fetch("{% url 'isup_api_reboot_camera' %}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                        body: JSON.stringify({ camera_id: currentCameraContext.id })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        Swal.fire({ title: "Bajarildi!", text: data.message, icon: "success", confirmButtonColor: "#4361ee" });
+                    } else {
+                        Swal.fire({ title: "Xatolik!", text: data.message, icon: "error" });
+                    }
+                } catch (err) {
+                    Swal.fire({ title: "Tarmoq Xatosi", text: String(err), icon: "error" });
+                }
+            }
+        });
+    }
+
+    async function triggerModalConnect() {
+        if (!currentCameraContext.id) return;
+        await quickConnectCamera(currentCameraContext.id, currentCameraContext.name);
+    }
+
+    async function triggerModalDisconnect() {
+        if (!currentCameraContext.deviceId) return;
+        await disconnectDevice(currentCameraContext.deviceId);
+    }
+
+    function toggleCinemaFullscreen() {
+        const wrapper = document.getElementById('cinemaVideoWrapper');
+        const icon = document.getElementById('fsIcon');
+        if (!document.fullscreenElement) {
+            wrapper.requestFullscreen().then(() => {
+                if (icon) icon.className = "mdi mdi-fullscreen-exit";
+            }).catch(() => {});
+        } else {
+            document.exitFullscreen().then(() => {
+                if (icon) icon.className = "mdi mdi-fullscreen";
+            }).catch(() => {});
+        }
+    }
+
+    async function closeCinemaModal() {
+        console.log("%c[ISUP GPU Stream] 🔴 Cinema oynasi yopildi.", "color: #f59e0b;");
+        isStreamActive = false;
+        if (isupStreamController) {
+            isupStreamController.abort();
+            isupStreamController = null;
+        }
+        if (statsPollInterval) {
+            clearInterval(statsPollInterval);
+            statsPollInterval = null;
+        }
+        // Serverda fon threadni to'xtatish (GPU va tarmoq resurslarini tejash)
+        if (activeCinemaDeviceId) {
+            await fetch(`/settings/isup/stream/stop/${activeCinemaDeviceId}/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken }
+            }).catch(() => {});
+            activeCinemaDeviceId = null;
+        }
+        const img = document.getElementById('cinemaStreamImg');
+        if (img) {
+            img.removeAttribute('src');
+            img.style.display = 'none';
+        }
+        if (activeBlobUrl) {
+            URL.revokeObjectURL(activeBlobUrl);
+            activeBlobUrl = null;
+        }
+    }
+
+    // ==========================================
+    // 🏢 NAZORAT PUNKTLARI & BINO JUFTLIKLARI (JS)
+    // ==========================================
+    function openPairModal() {
+        document.getElementById('pairId').value = '';
+        document.getElementById('pairName').value = '';
+        document.getElementById('pairBuilding').value = '';
+        document.getElementById('pairEntryCam').value = '';
+        document.getElementById('pairExitCam').value = '';
+        document.getElementById('pairDesc').value = '';
+        document.getElementById('pairModalTitle').innerHTML = '<i class="mdi mdi-plus-circle text-primary me-1"></i>Yangi Kamera Juftligini Qo\'shish';
+        new bootstrap.Modal(document.getElementById('cameraPairModal')).show();
+    }
+
+    function editPair(id, name, buildingId, entryCamId, exitCamId, desc) {
+        document.getElementById('pairId').value = id;
+        document.getElementById('pairName').value = name;
+        document.getElementById('pairBuilding').value = buildingId || '';
+        document.getElementById('pairEntryCam').value = entryCamId || '';
+        document.getElementById('pairExitCam').value = exitCamId || '';
+        document.getElementById('pairDesc').value = desc || '';
+        document.getElementById('pairModalTitle').innerHTML = '<i class="mdi mdi-pencil text-primary me-1"></i>Kamera Juftligini Tahrirlash';
+        new bootstrap.Modal(document.getElementById('cameraPairModal')).show();
+    }
+
+    async function saveCameraPair() {
+        const btn = document.getElementById('pairSaveBtn');
+        const pairId = document.getElementById('pairId').value;
+        const name = document.getElementById('pairName').value.trim();
+        const buildingId = document.getElementById('pairBuilding').value;
+        const entryCamId = document.getElementById('pairEntryCam').value;
+        const exitCamId = document.getElementById('pairExitCam').value;
+        const desc = document.getElementById('pairDesc').value.trim();
+
+        if (!name) {
+            Swal.fire({ icon: 'warning', title: 'Diqqat', text: 'Juftlik yoki bino nomi kiritilishi shart!' });
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saqlanmoqda...';
+
+        try {
+            const resp = await fetch('{% url "isup_api_save_pair" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify({
+                    id: pairId,
+                    name: name,
+                    building_id: buildingId,
+                    entry_camera_id: entryCamId,
+                    exit_camera_id: exitCamId,
+                    description: desc
+                })
+            });
+            const res = await resp.json();
+            if (res.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Muvaffaqiyatli!',
+                    text: res.message,
+                    timer: 1400,
+                    showConfirmButton: false
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Xatolik', text: res.message || 'Saqlashda xatolik yuz berdi' });
+            }
+        } catch (err) {
+            Swal.fire({ icon: 'error', title: 'Aloqa xatosi', text: err.message });
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="mdi mdi-content-save font-size-14"></i> Saqlash';
+        }
+    }
+
+    async function deletePair(pairId, pairName) {
+        const result = await Swal.fire({
+            title: `"${pairName}" juftligini o'chirishni xohlaysizmi?`,
+            text: "Kameralar o'chirilmaydi, faqat juftlik aloqasi bekor qilinadi.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#74788d',
+            confirmButtonText: 'Ha, o\'chirish',
+            cancelButtonText: 'Bekor qilish'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const resp = await fetch(`/settings/isup/api/pairs/delete/${pairId}/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken }
+                });
+                const res = await resp.json();
+                if (res.success) {
+                    Swal.fire({ icon: 'success', title: 'O\'chirildi!', text: res.message, timer: 1200, showConfirmButton: false })
+                        .then(() => location.reload());
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Xatolik', text: res.message });
+                }
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Xatolik', text: err.message });
+            }
+        }
+    }
+</script>
+{% endblock scripts %}

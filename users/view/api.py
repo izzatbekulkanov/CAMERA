@@ -151,7 +151,7 @@ def get_groups(request):
         groups_all = cache.get(cache_key)
 
         if groups_all is None:
-            params = {"page": 1, "limit": 200}
+            params = {"page": 1, "limit": 100}
             r = requests.get(base_url, headers=headers, params=params, timeout=20)
             r.raise_for_status()
 
@@ -165,8 +165,10 @@ def get_groups(request):
             page_count = int(pagination.get("pageCount") or 1)
 
             all_items = list(items)
+            import time
             for page in range(2, page_count + 1):
                 params["page"] = page
+                time.sleep(0.1)
                 rr = requests.get(base_url, headers=headers, params=params, timeout=20)
                 if rr.status_code != 200:
                     continue
@@ -174,7 +176,7 @@ def get_groups(request):
                 all_items.extend(((dd.get("data") or {}).get("items") or []))
 
             groups_all = [
-                {"id": g.get("id"), "name": (g.get("name") or "").strip()}
+                {"id": g.get("id"), "name": (g.get("name") or "").strip(), "curriculum": g.get("_curriculum")}
                 for g in all_items
                 if g.get("id")
             ]
@@ -185,7 +187,7 @@ def get_groups(request):
         if search:
             groups = [g for g in groups_all if search in (g["name"] or "").lower()]
         else:
-            groups = groups_all
+            groups = groups_all[:50]
 
         return JsonResponse({
             "success": True,

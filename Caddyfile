@@ -1,0 +1,16 @@
+:8000 {
+    # Video stream WebSocket
+    handle_path /go2rtc/* {
+        reverse_proxy 127.0.0.1:1984
+    }
+
+    # Video stream WebSocket legacy fallback
+    handle_path /ws/go2rtc/* {
+        reverse_proxy 127.0.0.1:1984
+    }
+
+    # Everything else goes to Daphne
+    handle {
+        reverse_proxy 127.0.0.1:8002
+    }
+}

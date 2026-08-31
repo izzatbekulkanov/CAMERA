@@ -1,0 +1,1788 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{{ page_title|default:"Kamera Boshqaruvi" }} – SmartGate{% endblock title %}
+
+{% block styles %}
+<!-- Toastr CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css">
+<style>
+    /* In-Page Fullscreen Image Lightbox */
+    .sg-lightbox-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.92);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        z-index: 105555;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        animation: sgFadeInLightbox 0.18s ease-out;
+    }
+    @keyframes sgFadeInLightbox {
+        from { opacity: 0; transform: scale(0.98); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    .sg-lightbox-header {
+        position: absolute;
+        top: 16px;
+        left: 24px;
+        right: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 105560;
+    }
+    .sg-lightbox-title {
+        color: #f8fafc;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+    .sg-lightbox-tools {
+        display: flex;
+        gap: 8px;
+    }
+    .sg-lightbox-content {
+        max-width: 94vw;
+        max-height: 86vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .sg-lightbox-image {
+        max-width: 100%;
+        max-height: 86vh;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.9);
+        transition: transform 0.2s ease-out;
+        user-select: none;
+    }
+    .mini-kpi small {
+        line-height: 1.2;
+        display: block;
+    }
+
+    .kpi-title {
+        letter-spacing: 0.5px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .main-video-wrapper {
+        position: relative;
+        background-color: #000000;
+        border-radius: 10px;
+        overflow: hidden;
+        aspect-ratio: 16/9;
+        min-height: 480px;
+        max-height: 72vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .nav-tabs-custom .nav-link {
+        font-weight: 500;
+        font-size: 13px;
+        color: #495057;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 12px 16px;
+    }
+    .nav-tabs-custom .nav-link.active {
+        color: #556ee6;
+        border-bottom-color: #556ee6;
+        background: transparent;
+        font-weight: 600;
+    }
+    .device-info-table th {
+        width: 38%;
+        color: #495057;
+        font-weight: 600;
+        background-color: #f8f9fa;
+    }
+    /* Toastr Custom Styling to Match Theme */
+    #toast-container > div {
+        opacity: 0.95;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        font-size: 13px;
+    }
+</style>
+{% endblock styles %}
+
+{% block content %}
+<div class="container-fluid">
+
+    {% include 'includes/breadcrumbs.html' %}
+
+    <!-- Top Action Bar -->
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h4 class="mb-0 text-dark fw-bold">{{ camera.name|default:camera.ip }}</h4>
+                {% if is_online %}
+                    <span class="badge bg-soft-success text-success px-2 py-1 font-size-12">
+                        <span class="spinner-grow spinner-grow-sm me-1" style="width: 6px; height: 6px;"></span> ISUP 5.0 Online
+                    </span>
+                {% elif isup_status == 'offline' %}
+                    <span class="badge bg-soft-warning text-warning px-2 py-1 font-size-12">
+                        <i class="mdi mdi-alert-circle-outline me-1"></i> ISUP Offline
+                    </span>
+                {% else %}
+                    <span class="badge bg-light text-muted border px-2 py-1 font-size-12">
+                        <i class="mdi mdi-minus-circle-outline me-1"></i> Ulanmagan
+                    </span>
+                {% endif %}
+            </div>
+            <small class="text-muted">Kameraning apparat darajasidagi yuz qirqish va ISUP 5.0 boshqaruvi</small>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <a href="{% url 'isup_dashboard' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1 shadow-sm">
+                <i class="mdi mdi-arrow-left font-size-14"></i> Orqaga
+            </a>
+
+            <button class="btn btn-outline-info btn-sm d-flex align-items-center gap-1 shadow-sm" onclick="syncCameraTime()" title="Server vaqti bilan sinxronlash">
+                <i class="mdi mdi-clock-sync-outline font-size-14"></i> Vaqtni Sinxronlash
+            </button>
+            <button class="btn btn-outline-warning btn-sm d-flex align-items-center gap-1 shadow-sm" onclick="rebootCameraDetail()">
+                <i class="mdi mdi-restart font-size-14"></i> Qayta Yuklash
+            </button>
+            {% if is_online %}
+                <button class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1 shadow-sm" onclick="disconnectDetail()">
+                    <i class="mdi mdi-lan-disconnect font-size-14"></i> ISUP dan Uzish
+                </button>
+            {% elif isup_status == 'offline' %}
+                <button class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm" onclick="quickConnectDetail()">
+                    <i class="mdi mdi-refresh font-size-14"></i> Qayta Ulash
+                </button>
+                <button class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1 shadow-sm" onclick="disconnectDetail()">
+                    <i class="mdi mdi-lan-disconnect font-size-14"></i> Uzish
+                </button>
+            {% else %}
+                <button class="btn btn-success btn-sm d-flex align-items-center gap-1 shadow-sm" onclick="quickConnectDetail()">
+                    <i class="mdi mdi-lightning-bolt font-size-14"></i> ISUP ga Ulash
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Mini KPI Stat Cards -->
+    <div class="row g-3 mb-3">
+        <!-- KPI 1: ISUP Status -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 mb-0 shadow-sm border">
+                <div class="card-body mini-kpi">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle {% if is_online %}bg-soft-success text-success{% elif isup_status == 'offline' %}bg-soft-warning text-warning{% else %}bg-soft-secondary text-secondary{% endif %} d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-cctv-wireless font-size-22"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small kpi-title">ISUP 5.0 PROTOKOLI</p>
+                            {% if is_online %}
+                                <h6 class="mb-1 text-success fw-bold d-flex align-items-center gap-1">
+                                    <span class="spinner-grow spinner-grow-sm" style="width: 7px; height: 7px;"></span> ULANGAN (ONLINE)
+                                </h6>
+                                <small class="text-muted font-monospace">Device ID: {{ isup_device_id }}</small>
+                            {% elif isup_status == 'offline' %}
+                                <h6 class="mb-1 text-warning fw-bold d-flex align-items-center gap-1">
+                                    <i class="mdi mdi-alert-circle-outline"></i> OFFLINE
+                                </h6>
+                                <small class="text-muted font-monospace">Device ID: {{ isup_device_id }}</small>
+                            {% else %}
+                                <h6 class="mb-1 text-secondary fw-bold">ULANMAGAN</h6>
+                                <small class="text-muted">ISUP ga ulanmagan</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 2: Network & IP -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 mb-0 shadow-sm border">
+                <div class="card-body mini-kpi">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-primary text-primary d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-ip-network font-size-22"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small kpi-title">TARMOQ MANZILI</p>
+                            <h6 class="mb-1 fw-bold text-dark font-monospace">{{ camera.ip }}:{{ camera.port|default:80 }}</h6>
+                            <small class="text-muted font-monospace">MAC: {{ camera.mac_address|default:"--" }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 3: Device Model -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 mb-0 shadow-sm border">
+                <div class="card-body mini-kpi">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-info text-info d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-camera-iris font-size-22"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small kpi-title">QURILMA MODELI</p>
+                            <h6 class="mb-1 fw-bold text-dark text-truncate">{{ camera.device_model|default:"Hikvision IPC" }}</h6>
+                            <small class="text-muted font-monospace text-truncate d-block" title="{{ camera.serial_number|default:'--' }}">S/N: {{ camera.serial_number|default:"--"|slice:"-14:" }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 4: Edge Face Crop & AI Architecture -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 mb-0 shadow-sm border">
+                <div class="card-body mini-kpi">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="avatar-sm rounded-circle bg-soft-success text-success d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-face-recognition font-size-22"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="text-muted mb-1 text-uppercase small kpi-title">EDGE AI & DAVOMAT</p>
+                            <h6 class="mb-1 fw-bold text-success">Kamera Face Snap</h6>
+                            <small class="text-muted">
+                                {% if camera.enable_face_detection %}<span class="badge bg-soft-primary text-primary">Yuz Qirqish Faol</span>{% endif %}
+                                {% if camera.is_entry_camera %}<span class="badge bg-soft-success text-success">Kirish</span>{% endif %}
+                                {% if camera.is_exit_camera %}<span class="badge bg-soft-danger text-danger">Chiqish</span>{% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ISAPI Auto-Info Dashboard (replaces video stream) -->
+    <div class="row mb-3" id="isapiDashboard">
+
+        <!-- Left Column: Device Info + Network + Security -->
+        <div class="col-xl-6 mb-3">
+
+            <!-- Device Info Card -->
+            <div class="card shadow-sm border mb-3">
+                <div class="card-header bg-transparent border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title font-size-14 fw-bold mb-0 text-dark">
+                        <i class="mdi mdi-information-outline text-primary me-1"></i>Qurilma Ma'lumotlari
+                    </h5>
+                    <span class="badge bg-soft-secondary text-secondary font-size-11" id="isapiInfoBadge">Yuklanmoqda...</span>
+                </div>
+                <div class="card-body p-0">
+                    <div id="deviceInfoLoader" class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        <div class="text-muted small mt-1">ISAPI orqali o'qilmoqda...</div>
+                    </div>
+                    <div class="table-responsive" id="deviceInfoTable" style="display:none;">
+                        <table class="table table-sm table-hover align-middle mb-0 font-size-12 device-info-table">
+                            <tbody id="deviceInfoBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Card -->
+            <div class="card shadow-sm border mb-3">
+                <div class="card-header bg-transparent border-bottom py-2 px-3">
+                    <h5 class="card-title font-size-14 fw-bold mb-0 text-dark">
+                        <i class="mdi mdi-ip-network text-info me-1"></i>Tarmoq Sozlamalari
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="networkInfoLoader" class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-info" role="status"></div>
+                    </div>
+                    <div class="table-responsive" id="networkInfoTable" style="display:none;">
+                        <table class="table table-sm table-hover align-middle mb-0 font-size-12 device-info-table">
+                            <tbody id="networkInfoBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HTTP Notification Host Card -->
+            <div class="card shadow-sm border mb-3">
+                <div class="card-header bg-transparent border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title font-size-14 fw-bold mb-0 text-dark">
+                        <i class="mdi mdi-webhook text-warning me-1"></i>Yuz Rasmi Yuborish Manzili (HTTP Host)
+                    </h5>
+                    <button class="btn btn-outline-warning btn-sm py-0 px-2 font-size-11" onclick="toggleHttpHostEdit()">
+                        <i class="mdi mdi-pencil me-1"></i>Tahrirlash
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div id="httpHostLoader" class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-warning" role="status"></div>
+                    </div>
+                    <div class="table-responsive" id="httpHostTable" style="display:none;">
+                        <table class="table table-sm table-hover align-middle mb-0 font-size-12 device-info-table">
+                            <tbody id="httpHostBody"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Inline Edit Form (hidden by default) -->
+                    <div id="httpHostEditForm" style="display:none;" class="p-3 border-top bg-light">
+                        <div class="d-flex align-items-center justify-content-between mb-3 p-2 bg-soft-info rounded border border-info border-opacity-25 flex-wrap gap-2">
+                            <div class="small text-info fw-semibold">
+                                <i class="mdi mdi-information-outline me-1"></i>SmartGate tizimi (<strong>ad.namspi.uz:443</strong>) uchun tayyor yo'naltirish
+                            </div>
+                            <button type="button" class="btn btn-info btn-sm" onclick="setSmartGateDefaults()">
+                                <i class="mdi mdi-lightning-bolt me-1"></i>ad.namspi.uz Parametrlarini O'rnatish
+                            </button>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label fw-semibold font-size-12 text-dark">Maqsadli Domen yoki Server IP</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="mdi mdi-domain"></i></span>
+                                    <input type="text" id="httpHostDomain" class="form-control font-monospace" value="ad.namspi.uz" placeholder="ad.namspi.uz">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold font-size-12 text-dark">Port</label>
+                                <input type="number" id="httpHostPort" class="form-control form-control-sm font-monospace" value="443">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold font-size-12 text-dark">URL Yo'li (Event Endpoint)</label>
+                                <input type="text" id="httpHostUrl" class="form-control form-control-sm font-monospace" value="/attendance/api/camera/event/">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold font-size-12 text-dark">Protokol</label>
+                                <select id="httpHostProtocol" class="form-select form-select-sm font-monospace">
+                                    <option value="HTTPS">HTTPS</option>
+                                    <option value="HTTP">HTTP</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold font-size-12 text-dark">Format</label>
+                                <select id="httpHostFormat" class="form-select form-select-sm font-monospace">
+                                    <option value="JSON">JSON</option>
+                                    <option value="XML">XML</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary btn-sm flex-grow-1" onclick="saveFacePushConfig(event)">
+                                <i class="mdi mdi-check-bold me-1"></i>Saqlash
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleHttpHostEdit()">
+                                Bekor qilish
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Time Card (Moved under HTTP Host) -->
+            <div class="card shadow-sm border mb-3">
+                <div class="card-header bg-transparent border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title font-size-14 fw-bold mb-0 text-dark">
+                        <i class="mdi mdi-clock-outline text-secondary me-1"></i>Tizim Vaqti
+                    </h5>
+                    <button class="btn btn-outline-primary btn-sm py-0 px-2 font-size-11" onclick="syncCameraTime()">
+                        <i class="mdi mdi-clock-sync-outline me-1"></i>Sinxronlash
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div id="timeInfoLoader" class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                    </div>
+                    <div class="table-responsive" id="timeInfoTable" style="display:none;">
+                        <table class="table table-sm table-hover align-middle mb-0 font-size-12 device-info-table">
+                            <tbody id="timeInfoBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- Right Column: Streaming + Smart/Face -->
+        <div class="col-xl-6 mb-3">
+
+            <!-- Streaming Channels Card -->
+            <div class="card shadow-sm border mb-3">
+                <div class="card-header bg-transparent border-bottom py-2 px-3">
+                    <h5 class="card-title font-size-14 fw-bold mb-0 text-dark">
+                        <i class="mdi mdi-video-outline text-success me-1"></i>Video Kanallari
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="streamInfoLoader" class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                    </div>
+                    <div id="streamInfoContent" style="display:none;"></div>
+                </div>
+            </div>
+
+            <!-- Face Capture / Smart Card -->
+            <div class="card shadow-sm border mb-3">
+                <div class="card-header bg-transparent border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title font-size-14 fw-bold mb-0 text-dark">
+                        <i class="mdi mdi-face-recognition text-danger me-1"></i>Yuz Qirqish (Face Capture)
+                    </h5>
+                    <span id="faceCaptureStatusBadge" class="badge bg-soft-secondary text-secondary font-size-11">Tekshirilmoqda...</span>
+                </div>
+                <div class="card-body p-0">
+                    <div id="faceInfoLoader" class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-danger" role="status"></div>
+                    </div>
+                    <div class="table-responsive" id="faceInfoTable" style="display:none;">
+                        <table class="table table-sm table-hover align-middle mb-0 font-size-12 device-info-table">
+                            <tbody id="faceInfoBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Kameradan kelgan so'nggi Yuz Rasmlari (Face Snapshots Gallery with Tabs) -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm border">
+                <div class="card-header bg-transparent border-bottom py-3 px-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="avatar-xs rounded-circle bg-soft-danger text-danger d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-face-recognition font-size-18"></i>
+                            </div>
+                            <div>
+                                <h5 class="card-title font-size-15 fw-bold mb-0 text-dark">
+                                    Yuz Qirqish (Face Capture) Rasmlari
+                                </h5>
+                                <small class="text-muted">
+                                    <b>{{ face_date_str }}</b> sanasi uchun —
+                                    Jami: <b>{{ face_page_obj.paginator.count }}</b> ta rasm
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Date Filter -->
+                        <form method="GET" class="d-flex align-items-center gap-2 flex-wrap" id="faceDateForm">
+                            {% for k, v in request.GET.items %}
+                                {% if k != 'face_date' and k != 'face_page' %}
+                                    <input type="hidden" name="{{ k }}" value="{{ v }}">
+                                {% endif %}
+                            {% endfor %}
+                            <input type="date" name="face_date" class="form-control form-control-sm"
+                                   style="width: 155px;" value="{{ face_date_str }}"
+                                   onchange="this.form.submit()">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="mdi mdi-filter-outline me-1"></i>Ko'rsatish
+                            </button>
+                            {% if face_date_str != today_str %}
+                                <a href="?face_date={{ today_str }}" class="btn btn-sm btn-light border">
+                                    <i class="mdi mdi-calendar-today me-1 text-primary"></i>Bugun
+                                </a>
+                            {% endif %}
+                        </form>
+                    </div>
+
+                    <!-- Gallery Filter Tabs -->
+                    <ul class="nav nav-pills card-header-pills gap-1" id="faceGalleryTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active btn-sm px-3 py-1 font-size-12 fw-semibold rounded" id="tab-all-btn" data-bs-toggle="tab" data-bs-target="#pane-all" type="button" role="tab">
+                                <i class="mdi mdi-view-grid-outline me-1"></i> Barchasi
+                                <span class="badge bg-primary ms-1">{{ recent_face_logs|length }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link btn-sm px-3 py-1 font-size-12 fw-semibold rounded" id="tab-matched-btn" data-bs-toggle="tab" data-bs-target="#pane-matched" type="button" role="tab">
+                                <i class="mdi mdi-account-check text-success me-1"></i> Tanilganlar
+                                <span class="badge bg-success ms-1">{{ matched_face_logs|length }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link btn-sm px-3 py-1 font-size-12 fw-semibold rounded" id="tab-unknown-btn" data-bs-toggle="tab" data-bs-target="#pane-unknown" type="button" role="tab">
+                                <i class="mdi mdi-account-question text-secondary me-1"></i> Noma'lumlar (Mehmonlar)
+                                <span class="badge bg-secondary ms-1">{{ unknown_face_logs|length }}</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card-body p-3">
+                    <div class="tab-content" id="faceGalleryTabContent">
+                        
+                        <!-- 1. BARCHASI TAB PANE -->
+                        <div class="tab-pane fade show active" id="pane-all" role="tabpanel">
+                            {% if recent_face_logs %}
+                                <div class="row g-2">
+                                    {% for log in recent_face_logs %}
+                                        <div class="col-6 col-sm-4 col-md-3 col-lg-2 col-xl-1">
+                                            <div class="card h-100 shadow-none mb-0 bg-light position-relative overflow-hidden text-center face-zoom-card {% if log.matched_user %}border-success{% else %}border-danger{% endif %}" 
+                                                 style="border-radius: 6px; border-width: 2px !important; border-style: solid; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;"
+                                                 title="Kattalashtirish uchun bosing"
+                                                 onclick="showFaceDetailModal('{% if log.face_image %}{{ log.face_image.url }}{% endif %}', '{% if log.background_image %}{{ log.background_image.url }}{% endif %}', '{% if log.matched_user %}{{ log.matched_user.get_full_name|default:log.matched_user.username|escapejs }}{% endif %}', '{% if log.matched_user %}{{ log.matched_user.get_role_display|default:''|escapejs }}{% endif %}', '{{ log.confidence|floatformat:2 }}', '{{ log.captured_at|date:'d.m.Y H:i:s' }}', '{{ camera.name|escapejs }}', '{{ log.camera_ip|default:camera.ip|escapejs }}', '{{ log.gender|default:''|escapejs }}', '{{ log.age|default:''|escapejs }}', '{{ log.has_glasses|yesno:'Ha,Yo‘q,Noma‘lum' }}', '{{ log.has_mask|yesno:'Ha,Yo‘q,Noma‘lum' }}', '{% if log.matched_user %}{{ log.matched_user.student_id_number|default:log.matched_user.employee_id_number|default:''|escapejs }}{% endif %}', '{% if log.matched_user %}{% if log.matched_user.role == 'student' %}{{ log.matched_user.academic_group.faculty.name|default:''|escapejs }}{% else %}{{ log.matched_user.department_name|default:''|escapejs }}{% endif %}{% endif %}', '{% if log.matched_user %}{% if log.matched_user.role == 'student' %}{{ log.matched_user.academic_group.name|default:log.matched_user.group_name|default:''|escapejs }}{% else %}{{ log.matched_user.position|default:log.matched_user.specialty|default:''|escapejs }}{% endif %}{% endif %}')">
+                                                <div class="p-1 position-relative">
+                                                    {% if log.face_image %}
+                                                        <img src="{{ log.face_image.url }}" alt="Face" class="rounded img-fluid shadow-sm" style="height: 75px; width: 100%; object-fit: cover; object-position: top; background: #000;">
+                                                    {% else %}
+                                                        <div class="rounded bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center text-muted" style="height: 75px; width: 100%;">
+                                                            <i class="mdi mdi-face-man-profile font-size-20"></i>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="px-1 pb-1">
+                                                    <div class="font-monospace fw-bold text-dark" style="font-size: 10px;">{{ log.captured_at|time:"H:i:s" }}</div>
+                                                    <div class="mt-1">
+                                                        {% if log.matched_user %}
+                                                            <span class="badge bg-soft-success text-success text-truncate d-block" style="font-size: 9px;" title="{{ log.matched_user.get_full_name|default:log.matched_user.username }}">
+                                                                <i class="mdi mdi-check-circle me-1"></i>{{ log.matched_user.last_name|default:log.matched_user.username }}
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="badge bg-soft-danger text-danger text-truncate d-block" style="font-size: 9px;">
+                                                                <i class="mdi mdi-account-question-outline me-1"></i>Noma'lum
+                                                            </span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4 text-muted">
+                                    <i class="mdi mdi-face-recognition font-size-36 text-muted opacity-50 d-block mb-2"></i>
+                                    <h6 class="text-muted fw-normal font-size-13 mb-1">Hozircha ushbu kameradan yuz qirqish rasmlari kelmadi</h6>
+                                    <small class="text-muted font-size-11">Kamera oldidan odam o‘tganda yuzlar bu yerda avtomatik to‘planadi</small>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 2. TANILGANLAR TAB PANE -->
+                        <div class="tab-pane fade" id="pane-matched" role="tabpanel">
+                            {% if matched_face_logs %}
+                                <div class="row g-2">
+                                    {% for log in matched_face_logs %}
+                                        <div class="col-6 col-sm-4 col-md-3 col-lg-2 col-xl-1">
+                                            <div class="card h-100 shadow-none mb-0 bg-light position-relative overflow-hidden text-center face-zoom-card border-success" 
+                                                 style="border-radius: 6px; border-width: 2px !important; border-style: solid; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;"
+                                                 title="Kattalashtirish uchun bosing"
+                                                 onclick="showFaceDetailModal('{% if log.face_image %}{{ log.face_image.url }}{% endif %}', '{% if log.background_image %}{{ log.background_image.url }}{% endif %}', '{% if log.matched_user %}{{ log.matched_user.get_full_name|default:log.matched_user.username|escapejs }}{% endif %}', '{% if log.matched_user %}{{ log.matched_user.get_role_display|default:''|escapejs }}{% endif %}', '{{ log.confidence|floatformat:2 }}', '{{ log.captured_at|date:'d.m.Y H:i:s' }}', '{{ camera.name|escapejs }}', '{{ log.camera_ip|default:camera.ip|escapejs }}', '{{ log.gender|default:''|escapejs }}', '{{ log.age|default:''|escapejs }}', '{{ log.has_glasses|yesno:'Ha,Yo‘q,Noma‘lum' }}', '{{ log.has_mask|yesno:'Ha,Yo‘q,Noma‘lum' }}', '{% if log.matched_user %}{{ log.matched_user.student_id_number|default:log.matched_user.employee_id_number|default:''|escapejs }}{% endif %}', '{% if log.matched_user %}{% if log.matched_user.role == 'student' %}{{ log.matched_user.academic_group.faculty.name|default:''|escapejs }}{% else %}{{ log.matched_user.department_name|default:''|escapejs }}{% endif %}{% endif %}', '{% if log.matched_user %}{% if log.matched_user.role == 'student' %}{{ log.matched_user.academic_group.name|default:log.matched_user.group_name|default:''|escapejs }}{% else %}{{ log.matched_user.position|default:log.matched_user.specialty|default:''|escapejs }}{% endif %}{% endif %}')">
+                                                <div class="p-1 position-relative">
+                                                    {% if log.face_image %}
+                                                        <img src="{{ log.face_image.url }}" alt="Face" class="rounded img-fluid shadow-sm" style="height: 75px; width: 100%; object-fit: cover; object-position: top; background: #000;">
+                                                    {% else %}
+                                                        <div class="rounded bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center text-muted" style="height: 75px; width: 100%;">
+                                                            <i class="mdi mdi-face-man-profile font-size-20"></i>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="px-1 pb-1">
+                                                    <div class="font-monospace fw-bold text-dark" style="font-size: 10px;">{{ log.captured_at|time:"H:i:s" }}</div>
+                                                    <div class="mt-1">
+                                                        {% if log.matched_user %}
+                                                            <span class="badge bg-soft-success text-success text-truncate d-block" style="font-size: 9px;" title="{{ log.matched_user.get_full_name|default:log.matched_user.username }}">
+                                                                <i class="mdi mdi-check-circle me-1"></i>{{ log.matched_user.last_name|default:log.matched_user.username }}
+                                                            </span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4 text-muted">
+                                    <i class="mdi mdi-account-check-outline font-size-36 text-muted opacity-50 d-block mb-2"></i>
+                                    <h6 class="text-muted fw-normal font-size-13 mb-1">Tanilgan shaxslar qaydi topilmadi</h6>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 3. NOMA'LUMLAR TAB PANE -->
+                        <div class="tab-pane fade" id="pane-unknown" role="tabpanel">
+                            {% if unknown_face_logs %}
+                                <div class="row g-2">
+                                    {% for log in unknown_face_logs %}
+                                        <div class="col-6 col-sm-4 col-md-3 col-lg-2 col-xl-1">
+                                            <div class="card h-100 shadow-none mb-0 bg-light position-relative overflow-hidden text-center face-zoom-card border-danger" 
+                                                 style="border-radius: 6px; border-width: 2px !important; border-style: solid; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;"
+                                                 title="Kattalashtirish uchun bosing"
+                                                 onclick="showFaceDetailModal('{% if log.face_image %}{{ log.face_image.url }}{% endif %}', '{% if log.background_image %}{{ log.background_image.url }}{% endif %}', '', '', '{{ log.confidence|floatformat:2 }}', '{{ log.captured_at|date:'d.m.Y H:i:s' }}', '{{ camera.name|escapejs }}', '{{ log.camera_ip|default:camera.ip|escapejs }}', '{{ log.gender|default:''|escapejs }}', '{{ log.age|default:''|escapejs }}', '{{ log.has_glasses|yesno:'Ha,Yo‘q,Noma‘lum' }}', '{{ log.has_mask|yesno:'Ha,Yo‘q,Noma‘lum' }}', '', '', '')">
+                                                <div class="p-1 position-relative">
+                                                    {% if log.face_image %}
+                                                        <img src="{{ log.face_image.url }}" alt="Face" class="rounded img-fluid shadow-sm" style="height: 75px; width: 100%; object-fit: cover; object-position: top; background: #000;">
+                                                    {% else %}
+                                                        <div class="rounded bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center text-muted" style="height: 75px; width: 100%;">
+                                                            <i class="mdi mdi-face-man-profile font-size-20"></i>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="px-1 pb-1">
+                                                    <div class="font-monospace fw-bold text-dark" style="font-size: 10px;">{{ log.captured_at|time:"H:i:s" }}</div>
+                                                    <div class="mt-1">
+                                                        <span class="badge bg-soft-danger text-danger text-truncate d-block" style="font-size: 9px;">
+                                                            <i class="mdi mdi-account-question-outline me-1"></i>Noma'lum
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4 text-muted">
+                                    <i class="mdi mdi-account-question-outline font-size-36 text-muted opacity-50 d-block mb-2"></i>
+                                    <h6 class="text-muted fw-normal font-size-13 mb-1">Noma'lum shaxslar qaydi topilmadi</h6>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Face Logs Pagination -->
+                {% if face_page_obj.has_other_pages %}
+                <div class="card-footer bg-white border-top py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <span class="text-muted font-size-13">
+                        Ko'rsatilmoqda: {{ face_page_obj.start_index }}–{{ face_page_obj.end_index }}
+                        (Jami: {{ face_page_obj.paginator.count }} ta rasm)
+                    </span>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if face_page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?face_date={{ face_date_str }}&face_page=1">&laquo;</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?face_date={{ face_date_str }}&face_page={{ face_page_obj.previous_page_number }}">&lsaquo;</a>
+                            </li>
+                        {% endif %}
+                        {% for pg in face_page_obj.paginator.page_range %}
+                            {% if pg == face_page_obj.number %}
+                                <li class="page-item active"><span class="page-link">{{ pg }}</span></li>
+                            {% elif pg > face_page_obj.number|add:"-3" and pg < face_page_obj.number|add:"3" %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?face_date={{ face_date_str }}&face_page={{ pg }}">{{ pg }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        {% if face_page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?face_date={{ face_date_str }}&face_page={{ face_page_obj.next_page_number }}">&rsaquo;</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?face_date={{ face_date_str }}&face_page={{ face_page_obj.paginator.num_pages }}">&raquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Face Detail Zoom Modal -->
+
+    <div class="modal fade" id="faceDetailModal" tabindex="-1" aria-labelledby="faceDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-3 overflow-hidden">
+                <div class="modal-header bg-light py-2 px-3 border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="mdi mdi-face-recognition text-primary font-size-20"></i>
+                        <h5 class="modal-title font-size-15 fw-bold text-dark mb-0" id="faceDetailModalLabel">
+                            Yuz Qirqish (Face Snapshot) Tafsilotlari
+                        </h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div class="row g-3">
+                        <div class="col-md-5 text-center">
+                            <div class="p-2 bg-dark rounded border shadow-sm mb-2 d-flex align-items-center justify-content-center position-relative" 
+                                 style="min-height: 240px; max-height: 280px; overflow: hidden; cursor: zoom-in;" 
+                                 title="Kattalashtirib ko'rish uchun bosing"
+                                 onclick="openModalFaceInLightbox()">
+                                <img id="modalFaceImg" src="" alt="Face Crop" class="img-fluid rounded shadow" style="max-height: 260px; width: auto; object-fit: contain;">
+                                <span class="position-absolute bottom-0 end-0 m-2 badge bg-dark bg-opacity-75 font-size-11">
+                                    <i class="mdi mdi-magnify-plus-outline me-1"></i>Kattalashtirish
+                                </span>
+                            </div>
+                            <div id="modalBgImgWrap" style="display:none;" class="mt-2 text-start">
+                                <small class="text-muted fw-semibold font-size-11 d-block mb-1">
+                                    <i class="mdi mdi-camera-image me-1"></i>Umumiy kadr surati (Kattalashtirish uchun bosing):
+                                </small>
+                                <div role="button" 
+                                     onclick="openModalBgInLightbox()" 
+                                     class="d-block rounded overflow-hidden border shadow-sm position-relative" 
+                                     style="cursor: zoom-in;"
+                                     title="Umumiy kadr suratini shu sahifada ochish">
+                                    <img id="modalBgImg" src="" alt="Background" class="img-fluid" style="max-height: 110px; width: 100%; object-fit: cover;">
+                                    <span class="position-absolute bottom-0 end-0 m-1 badge bg-dark bg-opacity-75 font-size-10">
+                                        <i class="mdi mdi-magnify-plus-outline"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            <div class="card border bg-light shadow-none mb-0 h-100">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-1">
+                                        <div>
+                                            <span id="modalPersonStatusBadge" class="badge font-size-11 mb-1"></span>
+                                            <h5 class="fw-bold text-dark mb-0 font-size-16" id="modalPersonName"></h5>
+                                            <small class="text-muted font-size-12" id="modalPersonRole"></small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge font-size-12 fw-bold font-monospace" id="modalScoreBadge"></span>
+                                        </div>
+                                    </div>
+                                    
+                                    <hr class="my-2 opacity-25">
+
+                                    <table class="table table-sm table-borderless font-size-12 mb-0">
+                                        <tbody>
+                                            <tr>
+                                               <td class="text-muted py-1" style="width: 140px;"><i class="mdi mdi-clock-outline me-1"></i>Vaqt va Sana:</td>
+                                               <td class="fw-semibold text-dark py-1" id="modalCaptureTime"></td>
+                                            </tr>
+                                            <tr>
+                                               <td class="text-muted py-1"><i class="mdi mdi-cctv me-1"></i>Kamera:</td>
+                                               <td class="fw-semibold text-dark py-1" id="modalCameraName"></td>
+                                            </tr>
+                                            <tr>
+                                               <td class="text-muted py-1"><i class="mdi mdi-ip-network me-1"></i>Kamera IP:</td>
+                                               <td class="font-monospace text-dark py-1" id="modalCameraIp"></td>
+                                            </tr>
+                                            <tr id="modalRowUserId" style="display:none;">
+                                               <td class="text-muted py-1"><i class="mdi mdi-identifier me-1"></i>ID Raqami:</td>
+                                               <td class="fw-semibold text-dark py-1 font-monospace" id="modalUserId"></td>
+                                            </tr>
+                                            <tr id="modalRowUserDept" style="display:none;">
+                                               <td class="text-muted py-1"><i class="mdi mdi-domain me-1"></i>Bo'lim / Fakultet:</td>
+                                               <td class="fw-semibold text-dark py-1" id="modalUserDept"></td>
+                                            </tr>
+                                            <tr id="modalRowUserGroup" style="display:none;">
+                                               <td class="text-muted py-1"><i class="mdi mdi-account-group-outline me-1"></i>Lavozim / Guruh:</td>
+                                               <td class="fw-semibold text-dark py-1" id="modalUserGroup"></td>
+                                            </tr>
+                                            <tr id="modalRowAge" style="display:none;">
+                                               <td class="text-muted py-1"><i class="mdi mdi-account-clock-outline me-1"></i>Taxminiy Yosh:</td>
+                                               <td class="fw-semibold text-dark py-1" id="modalAge"></td>
+                                            </tr>
+                                            <tr id="modalRowGender" style="display:none;">
+                                               <td class="text-muted py-1"><i class="mdi mdi-gender-male-female me-1"></i>Jinsi:</td>
+                                               <td class="fw-semibold text-dark py-1" id="modalGender"></td>
+                                            </tr>
+                                            <tr id="modalRowGlasses" style="display:none;">
+                                               <td class="text-muted py-1"><i class="mdi mdi-glasses me-1"></i>Ko'zoynak:</td>
+                                               <td class="fw-semibold text-dark py-1" id="modalGlasses"></td>
+                                            </tr>
+                                            <tr id="modalRowMask" style="display:none;">
+                                               <td class="text-muted py-1"><i class="mdi mdi-face-mask me-1"></i>Niqob:</td>
+                                               <td class="fw-semibold text-dark py-1" id="modalMask"></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 px-3 border-top d-flex justify-content-between">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openModalFaceInLightbox()">
+                        <i class="mdi mdi-magnify-plus-outline me-1"></i>Shu sahifada to'liq ko'rish
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Yopish</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Attendance Log Removed -->
+
+</div>
+{% endblock content %}
+
+{% block scripts %}
+<!-- Toastr JS -->
+<script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/toastr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    // Toastr Global Settings
+    toastr.options = {
+        "closeButton": true,
+        "debug": false,
+        "newestOnTop": true,
+        "progressBar": true,
+        "positionClass": "toast-top-right",
+        "preventDuplicates": false,
+        "onclick": null,
+        "showDuration": "250",
+        "hideDuration": "400",
+        "timeOut": "3000",
+        "extendedTimeOut": "1000",
+        "showEasing": "swing",
+        "hideEasing": "linear",
+        "showMethod": "fadeIn",
+        "hideMethod": "fadeOut"
+    };
+
+    const csrftoken = '{{ csrf_token }}';
+    const cameraDetailId = '{{ camera.id }}';
+    const isupDeviceId = '{{ isup_device_id }}';
+    const cameraName = '{{ camera.name|default:camera.ip|escapejs }}';
+
+    let statsPollInterval = null;
+    let streamAttemptCount = 0;
+    let streamLogs = [];
+
+    function logStream(level, message, data = null) {
+        const timeStr = new Date().toLocaleTimeString();
+        const entry = { time: timeStr, level, message, data };
+        streamLogs.push(entry);
+        if (streamLogs.length > 100) streamLogs.shift();
+
+        const badgeStyle = 'background: #556ee6; color: #fff; padding: 2px 5px; border-radius: 3px; font-weight: bold;';
+        if (level === 'error') {
+            console.error(`%c[SmartGate Stream Error %c${timeStr}]`, 'background: #f46a6a; color: #fff; padding: 2px 5px; border-radius: 3px; font-weight: bold;', 'color: #f46a6a;', message, data || '');
+        } else if (level === 'warn') {
+            console.warn(`%c[SmartGate Stream %c${timeStr}]`, 'background: #f1b44c; color: #000; padding: 2px 5px; border-radius: 3px; font-weight: bold;', 'color: #f1b44c;', message, data || '');
+        } else if (level === 'info') {
+            console.info(`%c[SmartGate Stream %c${timeStr}]`, badgeStyle, 'color: #556ee6;', message, data || '');
+        } else {
+            console.log(`%c[SmartGate Stream %c${timeStr}]`, badgeStyle, 'color: #556ee6;', message, data || '');
+        }
+    }
+
+    // Console Diagnostic Helper
+    window.SmartGateStreamDebug = {
+        getLogs: () => streamLogs,
+        printSummary: () => {
+            console.table(streamLogs);
+            return "Barcha loglar yuqoridagi jadvalda ko'rsatildi. Nusxalash uchun: copy(SmartGateStreamDebug.getLogs())";
+        },
+        testConnection: async () => {
+            console.info("[SmartGate Diagnostics] Testing backend snapshot endpoint...");
+            try {
+                const res = await fetch(`/settings/isup/snapshot/${isupDeviceId}/?t=${Date.now()}`);
+                console.log(`Snapshot test status: HTTP ${res.status} (${res.statusText})`);
+                if (res.ok) {
+                    const blob = await res.blob();
+                    console.log(`Snapshot size: ${blob.size} bytes, type: ${blob.type}`);
+                } else {
+                    const text = await res.text();
+                    console.error("Snapshot error response:", text);
+                }
+            } catch (err) {
+                console.error("Snapshot test network exception:", err);
+            }
+        }
+    };
+
+    let streamActive = false;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        logStream('info', `ISAPI Dashboard ishga tushdi: Camera ID = ${cameraDetailId}, Device ID = ${isupDeviceId}`);
+        autoLoadIsapiDashboard();
+
+        const methodSelect = document.getElementById('rawIsapiMethod');
+        if (methodSelect) {
+            methodSelect.addEventListener('change', () => {
+                const isPutPost = methodSelect.value === 'PUT' || methodSelect.value === 'POST';
+                document.getElementById('rawIsapiPayload').style.display = isPutPost ? 'block' : 'none';
+            });
+        }
+    });
+
+    // ─── ISAPI Dashboard Auto-Load ───────────────────────────────────────────
+    async function autoLoadIsapiDashboard() {
+        await Promise.allSettled([
+            fetchIsapiSection(
+                '/ISAPI/System/deviceInfo',
+                'deviceInfoLoader', 'deviceInfoTable', 'deviceInfoBody', 'isapiInfoBadge'
+            ),
+            fetchIsapiNetwork(),
+            fetchIsapiSection(
+                '/ISAPI/Event/notification/httpHosts/1',
+                'httpHostLoader', 'httpHostTable', 'httpHostBody'
+            ),
+            fetchIsapiChannels(),
+            fetchIsapiFace(),
+            fetchIsapiSection(
+                '/ISAPI/System/time',
+                'timeInfoLoader', 'timeInfoTable', 'timeInfoBody'
+            ),
+        ]);
+        logStream('info', 'ISAPI Dashboard barcha ma\'lumotlarni yukladi.');
+    }
+
+    async function sendIsapiRaw(path) {
+        const resp = await fetch('/settings/isup/api/isapi/raw/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ camera_id: cameraDetailId, method: 'GET', path, payload: '' })
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.message || `Kamera xatoligi`);
+        const text = data.response_text || '';
+        if (text.includes('Access Error: 404') || text.includes('Document Error: Not Found') || text.toLowerCase().includes('<!doctype html>')) {
+            throw new Error('404 Not Found (Camera returned HTML)');
+        }
+        return text;
+    }
+
+    function xmlToRows(xmlStr) {
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(xmlStr, 'text/xml');
+            const rows = [];
+            function walk(node, prefix) {
+                for (const child of node.children) {
+                    if (child.children.length === 0) {
+                        rows.push([prefix ? `${prefix} › ${child.localName}` : child.localName, child.textContent.trim()]);
+                    } else {
+                        walk(child, prefix ? `${prefix} › ${child.localName}` : child.localName);
+                    }
+                }
+            }
+            walk(doc.documentElement, '');
+            return rows;
+        } catch (e) { return []; }
+    }
+
+    const keyLabels = {
+        'deviceName': { label: 'Qurilma Nomi', icon: 'mdi-cctv' },
+        'deviceID': { label: 'Qurilma ID', icon: 'mdi-identifier' },
+        'deviceDescription': { label: 'Tavsif', icon: 'mdi-card-text-outline' },
+        'deviceLocation': { label: 'Joylashuv', icon: 'mdi-map-marker-outline' },
+        'systemContact': { label: 'Aloqa (Contact)', icon: 'mdi-card-account-phone-outline' },
+        'model': { label: 'Model', icon: 'mdi-tag-outline' },
+        'serialNumber': { label: 'Seriya Raqami', icon: 'mdi-barcode' },
+        'macAddress': { label: 'MAC Manzil', icon: 'mdi-network-outline' },
+        'firmwareVersion': { label: 'Dastur Versiyasi', icon: 'mdi-cellphone-arrow-down' },
+        'firmwareReleasedDate': { label: 'Dastur Sanasi', icon: 'mdi-calendar-clock' },
+        'encoderVersion': { label: 'Koder Versiyasi', icon: 'mdi-code-json' },
+        'encoderReleasedDate': { label: 'Koder Sanasi', icon: 'mdi-calendar-clock' },
+        'bootVersion': { label: 'Boot Versiyasi', icon: 'mdi-power' },
+        'bootReleasedDate': { label: 'Boot Sanasi', icon: 'mdi-calendar-clock' },
+        'hardwareVersion': { label: 'Hardware Versiyasi', icon: 'mdi-memory' },
+        'deviceType': { label: 'Qurilma Turi', icon: 'mdi-desktop-classic' },
+        'telecontrolID': { label: 'Telecontrol ID', icon: 'mdi-remote' },
+        'supportBeep': { label: 'Ovozli signal (Beep)', icon: 'mdi-volume-high' },
+        'supportVideoLoss': { label: 'Video Yo\'qolishida signal', icon: 'mdi-video-off-outline' },
+        'firmwareVersionInfo': { label: 'Dastur Ma\'lumoti', icon: 'mdi-information-outline' },
+        'manufacturer': { label: 'Ishlab chiqaruvchi', icon: 'mdi-factory' },
+        'subSerialNumber': { label: 'Sub-Seriya Raqami', icon: 'mdi-barcode-scan' },
+        'OEMCode': { label: 'OEM Kodi', icon: 'mdi-code-braces' },
+        'ipVersion': { label: 'IP Versiyasi', icon: 'mdi-ip-network' },
+        'addressingType': { label: 'Manzillash (Addressing)', icon: 'mdi-router' },
+        'ipAddress': { label: 'IP Manzil', icon: 'mdi-ip-network' },
+        'subnetMask': { label: 'Tarmoq Niqobi', icon: 'mdi-ip-network-outline' },
+        'ipv6Address': { label: 'IPv6 Manzil', icon: 'mdi-ip-network' },
+        'bitMask': { label: 'Bit Niqobi', icon: 'mdi-numeric' },
+        'DefaultGateway › ipAddress': { label: 'Asosiy Gateway (IP)', icon: 'mdi-router-wireless' },
+        'DefaultGateway › ipv6Address': { label: 'Asosiy Gateway (IPv6)', icon: 'mdi-router-wireless' },
+        'DNS › PrimaryDNS › ipAddress': { label: 'Asosiy DNS', icon: 'mdi-web' },
+        'DNS › SecondaryDNS › ipAddress': { label: 'Qo\'shimcha DNS', icon: 'mdi-web' },
+        'Ipv6Mode › ipV6AddressingType': { label: 'IPv6 Turi', icon: 'mdi-ip-network' },
+        'Ipv6Mode › ipv6AddressList › v6Address › id': { label: 'IPv6 ID', icon: 'mdi-numeric' },
+        'Ipv6Mode › ipv6AddressList › v6Address › type': { label: 'IPv6 Format', icon: 'mdi-format-list-bulleted' },
+        'Ipv6Mode › ipv6AddressList › v6Address › address': { label: 'IPv6 Manzil (List)', icon: 'mdi-ip-network' },
+        'Ipv6Mode › ipv6AddressList › v6Address › bitMask': { label: 'IPv6 Bit Niqobi', icon: 'mdi-numeric' },
+        'id': { label: 'ID', icon: 'mdi-identifier' },
+        'url': { label: 'Yuborish Manzili (URL)', icon: 'mdi-link-variant' },
+        'protocolType': { label: 'Protokol', icon: 'mdi-shield-lock-outline' },
+        'parameterFormatType': { label: 'So\'rov Formati', icon: 'mdi-file-code-outline' },
+        'addressingFormatType': { label: 'Manzillash Turi', icon: 'mdi-map-marker-path' },
+        'hostName': { label: 'Host Nomi / Domen', icon: 'mdi-web' },
+        'portNo': { label: 'Port', icon: 'mdi-lan-connect' },
+        'userName': { label: 'Foydalanuvchi Nomi', icon: 'mdi-account-outline' },
+        'httpAuthenticationMethod': { label: 'Autentifikatsiya (HTTP)', icon: 'mdi-lock-open-outline' },
+        'httpBroken': { label: 'Ulanish Holati (Broken)', icon: 'mdi-lan-disconnect' },
+        'localTime': { label: 'Vaqt', icon: 'mdi-clock-outline' },
+        'timeZone': { label: 'Vaqt Mintaqasi', icon: 'mdi-map-clock-outline' }
+    };
+
+    function renderTable(tbodyId, rows) {
+        const tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+        tbody.innerHTML = rows.map(([k, v]) => {
+            const info = keyLabels[k] || { label: k, icon: 'mdi-circle-small' };
+            let valHtml = v;
+            
+            // Format values dynamically
+            if (v === 'true') {
+                valHtml = '<span class="badge bg-soft-success text-success"><i class="mdi mdi-check me-1"></i>Yoqilgan</span>';
+            } else if (v === 'false') {
+                valHtml = '<span class="badge bg-soft-danger text-danger"><i class="mdi mdi-close me-1"></i>O\'chirilgan</span>';
+            } else if (k.toLowerCase().includes('mac')) {
+                valHtml = `<span class="badge bg-light text-dark border font-monospace">${v}</span>`;
+            } else if (typeof v === 'string' && v.match(/^https?:\/\//)) {
+                valHtml = `<a href="${v}" target="_blank" class="text-primary text-decoration-underline">${v}</a>`;
+            } else if (k === 'httpBroken' && v === 'true') {
+                valHtml = '<span class="badge bg-soft-warning text-warning"><i class="mdi mdi-alert me-1"></i>Ulanishda uzilish bor (yoki ishlamayapti)</span>';
+            } else if (k === 'httpBroken' && v === 'false') {
+                valHtml = '<span class="badge bg-soft-success text-success"><i class="mdi mdi-check-network me-1"></i>Ulanish faol</span>';
+            } else {
+                valHtml = `<span class="fw-semibold text-dark font-monospace">${v || '<span class="text-muted">—</span>'}</span>`;
+            }
+
+            return `
+            <tr>
+                <th class="ps-3 text-muted fw-normal" style="width: 45%;">
+                    <i class="mdi ${info.icon} me-1 text-secondary font-size-15 align-middle"></i> 
+                    <span class="align-middle">${info.label}</span>
+                </th>
+                <td class="pe-3">${valHtml}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function fetchIsapiSection(path, loaderId, tableId, tbodyId, badgeId) {
+        try {
+            const data = await sendIsapiRaw(path);
+            document.getElementById(loaderId).style.display = 'none';
+            const rows = xmlToRows(data);
+            if (rows.length > 0) {
+                renderTable(tbodyId, rows);
+                document.getElementById(tableId).style.display = '';
+                if (badgeId) {
+                    document.getElementById(badgeId).className = 'badge bg-soft-success text-success font-size-11';
+                    document.getElementById(badgeId).textContent = 'Yuklandi';
+                }
+                logStream('info', `ISAPI ${path} muvaffaqiyatli yuklandi (${rows.length} ta parametr)`);
+            } else {
+                document.getElementById(loaderId).innerHTML = '<div class="text-center py-2 text-muted small">Ma\'lumot topilmadi</div>';
+                document.getElementById(loaderId).style.display = '';
+            }
+        } catch (e) {
+            logStream('error', `ISAPI ${path} xatolik: ${e}`);
+            const errorMsg = e.message.includes('404') ? 'Ushbu kamera uchun ma\'lumot mavjud emas yoxud funksiya yopiq.' : e.message;
+            document.getElementById(loaderId).innerHTML = `<div class="text-center py-3 text-muted small"><i class="mdi mdi-information-outline fa-2x mb-2 opacity-50"></i><br>${errorMsg}</div>`;
+        }
+    }
+
+    async function fetchIsapiNetwork() {
+        try {
+            const data = await sendIsapiRaw('/ISAPI/System/Network/interfaces/1/ipAddress');
+            document.getElementById('networkInfoLoader').style.display = 'none';
+            const rows = xmlToRows(data);
+            // Also add DNS
+            try {
+                const dns = await sendIsapiRaw('/ISAPI/System/Network/DNS');
+                rows.push(...xmlToRows(dns).map(([k,v]) => [`DNS › ${k}`, v]));
+            } catch (_) {}
+            if (rows.length > 0) {
+                renderTable('networkInfoBody', rows);
+                document.getElementById('networkInfoTable').style.display = '';
+            }
+        } catch (e) {
+            logStream('error', `ISAPI Network xatolik: ${e}`);
+            const errorMsg = e.message.includes('404') ? 'Tarmoq ma\'lumotlari topilmadi.' : e.message;
+            document.getElementById('networkInfoLoader').innerHTML = `<div class="text-center py-3 text-muted small"><i class="mdi mdi-information-outline fa-2x mb-2 opacity-50"></i><br>${errorMsg}</div>`;
+        }
+    }
+
+    async function fetchIsapiChannels() {
+        try {
+            const data = await sendIsapiRaw('/ISAPI/Streaming/channels/101');
+            document.getElementById('streamInfoLoader').style.display = 'none';
+            const rows = xmlToRows(data);
+            if (rows.length > 0) {
+                // Render as two compact columns
+                const html = `<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0 font-size-12 device-info-table">
+                    <thead class="table-light"><tr><th class="ps-3">Parametr</th><th>Qiymati</th></tr></thead>
+                    <tbody id="streamInfoTableBody"></tbody>
+                </table></div>`;
+                document.getElementById('streamInfoContent').innerHTML = html;
+                renderTable('streamInfoTableBody', rows);
+                document.getElementById('streamInfoContent').style.display = '';
+            }
+        } catch (e) {
+            logStream('error', `ISAPI Channels xatolik: ${e}`);
+            const errorMsg = e.message.includes('404') ? 'Video kanallar ma\'lumotlari topilmadi.' : e.message;
+            document.getElementById('streamInfoLoader').innerHTML = `<div class="text-center py-3 text-muted small"><i class="mdi mdi-information-outline fa-2x mb-2 opacity-50"></i><br>${errorMsg}</div>`;
+        }
+    }
+
+    async function fetchIsapiFace() {
+        const endpoints = [
+            '/ISAPI/Event/triggers/faceSnap-1',
+            '/ISAPI/Event/triggers/faceDetection-1',
+            '/ISAPI/Smart/FaceCapture/1',
+            '/ISAPI/Smart/FaceDetect/1',
+            '/ISAPI/Smart/FaceCapture/channels/1'
+        ];
+
+        let data = null;
+        let successEndpoint = null;
+
+        for (const ep of endpoints) {
+            try {
+                const res = await sendIsapiRaw(ep);
+                if (res && !res.includes('404') && !res.includes('<statusCode>4</statusCode>') && !res.includes('notSupport')) {
+                    data = res;
+                    successEndpoint = ep;
+                    break;
+                }
+            } catch (e) {}
+        }
+
+        if (data) {
+            document.getElementById('faceInfoLoader').style.display = 'none';
+            const rows = xmlToRows(data).filter(([k]) => !k.toLowerCase().includes('html') && !k.toLowerCase().includes('body') && !k.toLowerCase().includes('head'));
+            
+            if (rows.length > 0) {
+                renderTable('faceInfoBody', rows);
+                document.getElementById('faceInfoTable').style.display = '';
+                
+                const badge = document.getElementById('faceCaptureStatusBadge');
+                badge.className = 'badge bg-soft-success text-success font-size-11';
+                badge.textContent = 'Faol (Yoqilgan)';
+            } else {
+                document.getElementById('faceInfoLoader').innerHTML = '<div class="text-center py-2 text-success small"><i class="mdi mdi-check-circle me-1"></i>Yuz aniqlash (FaceSnap) sozlamasi faol</div>';
+                document.getElementById('faceCaptureStatusBadge').className = 'badge bg-soft-success text-success font-size-11';
+                document.getElementById('faceCaptureStatusBadge').textContent = 'Faol';
+            }
+        } else {
+            document.getElementById('faceInfoLoader').innerHTML = `<div class="text-center py-2 text-success small"><i class="mdi mdi-check-circle me-1"></i>Face Capture (Center Notification) Faol</div>`;
+            document.getElementById('faceCaptureStatusBadge').className = 'badge bg-soft-success text-success font-size-11';
+            document.getElementById('faceCaptureStatusBadge').textContent = 'Faol';
+        }
+    }
+
+
+
+    function toggleHttpHostEdit() {
+        const table = document.getElementById('httpHostTable');
+        const form = document.getElementById('httpHostEditForm');
+        if (form.style.display === 'none') {
+            table.style.display = 'none';
+            form.style.display = 'block';
+        } else {
+            table.style.display = 'block';
+            form.style.display = 'none';
+        }
+    }
+
+    function applyIsapiPreset(value) {
+
+        if (!value) return;
+        const parts = value.split('|');
+        if (parts.length !== 2) return;
+        const [method, path] = parts;
+        document.getElementById('rawIsapiMethod').value = method;
+        document.getElementById('rawIsapiPath').value = path;
+        const isPutPost = method === 'PUT' || method === 'POST';
+        document.getElementById('rawIsapiPayload').style.display = isPutPost ? 'block' : 'none';
+        // Auto send the preset
+        sendRawIsapi();
+    }
+
+    function toggleDetailFullscreen() {
+        const wrapper = document.getElementById('detailVideoWrapper');
+        const icon = document.getElementById('detailFsIcon');
+        if (!document.fullscreenElement) {
+            wrapper.requestFullscreen().then(() => {
+                if (icon) icon.className = "mdi mdi-fullscreen-exit font-size-14";
+            }).catch(() => {});
+        } else {
+            document.exitFullscreen().then(() => {
+                if (icon) icon.className = "mdi mdi-fullscreen font-size-14";
+            }).catch(() => {});
+        }
+    }
+
+    function downloadDetailSnapshot() {
+        const a = document.createElement('a');
+        a.href = `/settings/isup/snapshot/${isupDeviceId}/?t=${Date.now()}`;
+        a.download = `ISUP_${isupDeviceId}_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '_')}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toastr.info("Kadr yuklab olinmoqda...", "Snapshot");
+    }
+
+    // =========================================================================
+    // ISAPI Management & Synchronizations
+    // =========================================================================
+    let isapiConfigLoaded = false;
+    async function loadIsapiConfig(force = false) {
+        if (isapiConfigLoaded && !force) return;
+        const spinnerStream = document.getElementById('isapiLoadingSpinner');
+        const formStream = document.getElementById('formIsapiConfig');
+        const spinnerDev = document.getElementById('deviceInfoLoadingSpinner');
+        const contentDev = document.getElementById('deviceInfoContent');
+
+        if (spinnerStream) spinnerStream.style.display = 'block';
+        if (formStream) formStream.style.display = 'none';
+        if (spinnerDev) spinnerDev.style.display = 'block';
+        if (contentDev) contentDev.style.display = 'none';
+
+        try {
+            const resp = await fetch(`/settings/isup/api/isapi/config/${cameraDetailId}/`);
+            const data = await resp.json();
+            if (data.success) {
+                // 1. Fill Video Stream 101 Form
+                if (data.stream_101) {
+                    const s = data.stream_101;
+                    document.getElementById('isapiChannelName').value = s.channel_name || '';
+                    if (s.resolution) {
+                        const resSelect = document.getElementById('isapiResolution');
+                        if (resSelect.querySelector(`option[value="${s.resolution}"]`)) {
+                            resSelect.value = s.resolution;
+                        }
+                    }
+                    if (s.fps) document.getElementById('isapiFps').value = s.fps;
+                    if (s.codec) document.getElementById('isapiCodec').value = s.codec;
+                    if (s.bitrate) document.getElementById('isapiBitrate').value = s.bitrate;
+
+                    if (spinnerStream) spinnerStream.style.display = 'none';
+                    if (formStream) formStream.style.display = 'block';
+                }
+
+                // 2. Fill HTTP Host Push Destination
+                if (data.http_host) {
+                    const h = data.http_host;
+                    const hostVal = (h.host && h.host !== '0.0.0.0') ? h.host : 'ad.namspi.uz';
+                    const portVal = (h.port && h.port !== '0') ? h.port : (hostVal === 'ad.namspi.uz' ? '443' : '80');
+                    const urlVal = (h.url && h.url !== '/') ? h.url : '/attendance/api/camera/event/';
+                    document.getElementById('httpHostDomain').value = hostVal;
+                    document.getElementById('httpHostPort').value = portVal;
+                    document.getElementById('httpHostUrl').value = urlVal;
+                    document.getElementById('httpHostProtocol').value = h.protocol || 'HTTPS';
+                    document.getElementById('httpHostFormat').value = h.format || 'JSON';
+                } else {
+                    setSmartGateDefaults(false);
+                }
+
+                // 3. Fill DeviceInfo Visual Table
+                if (data.device_info) {
+                    const d = data.device_info;
+                    document.getElementById('devInfoModelHeader').innerText = d.model || 'Hikvision IP Camera';
+                    document.getElementById('devInfoSubTitle').innerText = `${d.manufacturer || 'Hikvision'} • ${d.device_type || 'IPCamera'}`;
+                    document.getElementById('valDevManufacturer').innerText = d.manufacturer || 'Hikvision';
+                    document.getElementById('valDevModel').innerText = d.model || '--';
+                    document.getElementById('valDevSerial').innerText = d.serial_number || '--';
+                    document.getElementById('valDevSubSerial').innerText = d.sub_serial || isupDeviceId || '--';
+                    document.getElementById('valDevMac').innerText = d.mac || '--';
+                    document.getElementById('valDevFirmware').innerText = d.firmware || '--';
+                    document.getElementById('valDevFirmwareDate').innerText = d.firmware_release_date ? `(${d.firmware_release_date})` : '';
+                    document.getElementById('valDevEncoder').innerText = d.encoder_version || '--';
+                    document.getElementById('valDevEncoderDate').innerText = d.encoder_release_date ? `(${d.encoder_release_date})` : '';
+                    document.getElementById('valDevBoot').innerText = d.boot_version || '--';
+                    document.getElementById('valDevUuid').innerText = d.device_id || '--';
+                    document.getElementById('valDevLocation').innerText = `${d.device_location || ''} ${d.system_contact ? '• ' + d.system_contact : ''}`.trim() || '--';
+
+                    if (spinnerDev) spinnerDev.style.display = 'none';
+                    if (contentDev) contentDev.style.display = 'block';
+                }
+
+                isapiConfigLoaded = true;
+            }
+        } catch (e) {
+            console.error("loadIsapiConfig error:", e);
+        }
+    }
+
+    function setSmartGateDefaults(notify = true) {
+        document.getElementById('httpHostDomain').value = 'ad.namspi.uz';
+        document.getElementById('httpHostPort').value = '443';
+        document.getElementById('httpHostUrl').value = '/attendance/api/camera/event/';
+        document.getElementById('httpHostProtocol').value = 'HTTPS';
+        document.getElementById('httpHostFormat').value = 'JSON';
+
+        if (notify) {
+            toastr.success("SmartGate (ad.namspi.uz:443) parametrlari o'rnatildi", "Muvaffaqiyatli");
+        }
+    }
+
+    async function saveFacePushConfig(e) {
+        e.preventDefault();
+        const btn = e.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saqlanmoqda...';
+
+        try {
+            const payload = {
+                camera_id: cameraDetailId,
+                enable_face_detection: true, // Auto-enable on save
+                http_host_domain: document.getElementById('httpHostDomain').value,
+                http_host_port: document.getElementById('httpHostPort').value,
+                http_host_url: document.getElementById('httpHostUrl').value,
+                http_host_protocol: document.getElementById('httpHostProtocol').value,
+                http_host_format: document.getElementById('httpHostFormat').value
+            };
+
+            const resp = await fetch("{% url 'isup_api_save_isapi_config' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (data.success) {
+                toastr.success("Sozlamalar saqlandi", "Muvaffaqiyatli");
+                toggleHttpHostEdit();
+                // Refresh the panel
+                fetchIsapiSection(
+                    '/ISAPI/Event/notification/httpHosts/1',
+                    'httpHostLoader', 'httpHostTable', 'httpHostBody'
+                );
+            } else {
+                toastr.error(data.message, "Xatolik");
+            }
+        } catch (err) {
+            toastr.error(String(err), "Xatolik");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
+
+    async function saveIsapiConfig(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSaveIsapi');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saqlanmoqda...';
+
+        try {
+            const payload = {
+                camera_id: cameraDetailId,
+                channel_name: document.getElementById('isapiChannelName').value,
+                resolution: document.getElementById('isapiResolution').value,
+                fps: document.getElementById('isapiFps').value,
+                codec: document.getElementById('isapiCodec').value,
+                bitrate: document.getElementById('isapiBitrate').value
+            };
+
+            const resp = await fetch("{% url 'isup_api_save_isapi_config' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (data.success) {
+                toastr.success(data.message, "Muvaffaqiyatli Saqlandi");
+            } else {
+                toastr.error(data.message, "Xatolik");
+            }
+        } catch (err) {
+            toastr.error(String(err), "Xatolik");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="mdi mdi-check-bold me-1"></i> ISAPI Video Sozlamalarini Saqlash';
+        }
+    }
+
+    async function syncCameraTime() {
+        toastr.info("Kamera vaqti sinxronlanmoqda...", "Jarayonda");
+        try {
+            const resp = await fetch("{% url 'isup_api_sync_time' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify({ camera_id: cameraDetailId })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                toastr.success(data.message, "Vaqt Sinxronlandi");
+            } else {
+                toastr.error(data.message, "Xatolik");
+            }
+        } catch (e) {
+            toastr.error(String(e), "Tarmoq Xatosi");
+        }
+    }
+
+    const ISAPI_DICTIONARY = {
+        'deviceName': 'Qurilma Nomi',
+        'model': 'Model',
+        'serialNumber': "To'liq Seriya Raqami",
+        'subSerialNumber': 'Qisqa Seriya (ISUP Device ID)',
+        'macAddress': 'MAC Manzili',
+        'firmwareVersion': 'Mikrodastur (Firmware)',
+        'firmwareReleasedDate': 'Mikrodastur Chiqqan Sana',
+        'encoderVersion': 'Video Enkoder Versiyasi',
+        'encoderReleasedDate': 'Enkoder Chiqqan Sana',
+        'bootVersion': 'Bootloader Versiyasi',
+        'bootReleasedDate': 'Bootloader Sanasi',
+        'hardwareVersion': 'Apparat (Hardware) Versiyasi',
+        'deviceType': 'Qurilma Turi',
+        'deviceDescription': 'Qurilma Tavsifi',
+        'deviceID': 'Apparat UUID / Device ID',
+        'manufacturer': 'Ishlab Chiqaruvchi',
+        'deviceLocation': 'Joylashuvi',
+        'systemContact': "Aloqa / Ishlab chiqaruvchi ma'lumoti",
+        'telecontrolID': 'Telecontrol ID',
+        'supportBeep': 'Tovush signali quvvatlashi',
+        'supportVideoLoss': "Video yo'qolish signali",
+        'OEMCode': 'OEM Kodi',
+        'timeMode': 'Vaqt Rejimi',
+        'localTime': 'Kameradagi Mahalliy Vaqt',
+        'timeZone': 'Vaqt Mintaqasi (Timezone)',
+        'channelName': 'Kanal Nomi',
+        'videoCodecType': 'Video Codec',
+        'videoResolutionWidth': 'Kengligi (px)',
+        'videoResolutionHeight': 'Balandligi (px)',
+        'maxFrameRate': 'Kadrlash (FPS)',
+        'vbrUpperCap': 'Bitrate (Kbps)',
+        'constantBitRate': 'Doimiy Bitrate (Kbps)',
+        'ipAddress': 'IP Manzil',
+        'portNo': 'Port Raqami',
+        'enabled': 'Faollik Holati',
+        'statusCode': 'Status Kodi',
+        'statusString': 'Status Matni',
+        'requestURL': "So'rov URL",
+        'subStatusCode': 'Quyi Status Kodi'
+    };
+
+    let lastRawXmlText = "";
+    async function sendRawIsapi() {
+        const btn = document.getElementById('btnSendRawIsapi');
+        const method = document.getElementById('rawIsapiMethod').value;
+        const path = document.getElementById('rawIsapiPath').value;
+        const payload = document.getElementById('rawIsapiPayload').value;
+        const resultBox = document.getElementById('rawIsapiResultBox');
+        const tbody = document.getElementById('rawIsapiTableBody');
+        const rawOutput = document.getElementById('rawIsapiOutput');
+        const statusBadge = document.getElementById('rawIsapiStatusBadge');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Yuklanmoqda...';
+
+        try {
+            const resp = await fetch("{% url 'isup_api_send_raw_isapi' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify({ camera_id: cameraDetailId, method: method, path: path, payload: payload })
+            });
+            const data = await resp.json();
+            resultBox.style.display = 'block';
+
+            if (data.success) {
+                statusBadge.className = 'badge bg-success font-monospace';
+                statusBadge.innerText = `HTTP ${data.status_code} OK`;
+                lastRawXmlText = data.response_text || '';
+                rawOutput.innerText = lastRawXmlText;
+
+                tbody.innerHTML = '';
+                if (data.parsed_data) {
+                    const flatten = (obj, prefix = '') => {
+                        let rows = [];
+                        for (let k in obj) {
+                            let val = obj[k];
+                            if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+                                rows = rows.concat(flatten(val, prefix ? `${prefix} › ` : ''));
+                            } else {
+                                rows.push({ key: k, label: ISAPI_DICTIONARY[k] || k, val: Array.isArray(val) ? JSON.stringify(val) : String(val) });
+                            }
+                        }
+                        return rows;
+                    };
+
+                    const items = flatten(data.parsed_data);
+                    items.forEach(item => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong class="text-dark">${item.label}</strong> <small class="text-muted font-monospace d-block font-size-11">(${item.key})</small></td>
+                            <td><span class="font-monospace text-primary fw-medium">${item.val}</span></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="2" class="text-muted text-center py-2">Strukturali ma'lumot topilmadi, Raw XML ko'rinishiga o'ting.</td></tr>`;
+                }
+
+                switchIsapiResultView('table');
+                toastr.success(`Buyruq bajarildi: HTTP ${data.status_code}`, "ISAPI Konsol");
+            } else {
+                statusBadge.className = 'badge bg-danger font-monospace';
+                statusBadge.innerText = `XATOLIK`;
+                tbody.innerHTML = `<tr><td colspan="2" class="text-danger">${data.message}</td></tr>`;
+                rawOutput.innerText = data.message;
+                toastr.error(data.message, "ISAPI Xatosi");
+            }
+        } catch (e) {
+            resultBox.style.display = 'block';
+            statusBadge.className = 'badge bg-danger font-monospace';
+            statusBadge.innerText = `TARMOQ XATOSI`;
+            tbody.innerHTML = `<tr><td colspan="2" class="text-danger">${e}</td></tr>`;
+            toastr.error(String(e), "Tarmoq Xatosi");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="mdi mdi-send me-1"></i> Yuborish';
+        }
+    }
+
+    function switchIsapiResultView(view) {
+        const tableWrap = document.getElementById('rawIsapiTableWrapper');
+        const rawOutput = document.getElementById('rawIsapiOutput');
+        const btnTable = document.getElementById('btnViewTable');
+        const btnXml = document.getElementById('btnViewXml');
+
+        if (view === 'table') {
+            tableWrap.style.display = 'block';
+            rawOutput.style.display = 'none';
+            btnTable.classList.add('active');
+            btnXml.classList.remove('active');
+        } else {
+            tableWrap.style.display = 'none';
+            rawOutput.style.display = 'block';
+            btnTable.classList.remove('active');
+            btnXml.classList.add('active');
+        }
+    }
+
+    async function quickConnectDetail() {
+        Swal.fire({
+            title: `'${cameraName}' kamerasini ISUP ga ulamoqchimisiz?`,
+            text: "Kamerada avtomatik ravishda SmartGate ISUP (ad.namspi.uz:8660) rejimi sozlanadi.",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonColor: "#556ee6",
+            cancelButtonColor: "#74788d",
+            confirmButtonText: "Ha, ulash",
+            cancelButtonText: "Bekor qilish"
+        }).then(async (res) => {
+            if (res.isConfirmed) {
+                toastr.info("Kamerada ISUP 5.0 sozlanmoqda...", "Ulanmoqda");
+                try {
+                    const resp = await fetch("{% url 'isup_api_connect_camera' %}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                        body: JSON.stringify({ camera_id: cameraDetailId })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        toastr.success(data.message, "Muvaffaqiyatli");
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        toastr.error(data.message, "Xatolik");
+                    }
+                } catch (e) {
+                    toastr.error(String(e), "Tarmoq Xatosi");
+                }
+            }
+        });
+    }
+
+    async function rebootCameraDetail() {
+        Swal.fire({
+            title: "Kamerani qayta yuklaysizmi?",
+            text: `'${cameraName}' (${cameraDetailId}) kamerasi masofadan ISAPI orqali qayta yuklanadi.`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#f59e0b",
+            cancelButtonColor: "#74788d",
+            confirmButtonText: "Ha, qayta yuklash",
+            cancelButtonText: "Bekor qilish"
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                toastr.warning("Kamera qayta yuklanmoqda...", "Qayta Yuklash");
+                try {
+                    const resp = await fetch("{% url 'isup_api_reboot_camera' %}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                        body: JSON.stringify({ camera_id: cameraDetailId })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        toastr.success(data.message, "Bajarildi");
+                    } else {
+                        toastr.error(data.message, "Xatolik");
+                    }
+                } catch (err) {
+                    toastr.error(String(err), "Tarmoq Xatosi");
+                }
+            }
+        });
+    }
+
+    async function disconnectDetail() {
+        Swal.fire({
+            title: "Qurilmani uzmoqchimisiz?",
+            text: `'${isupDeviceId}' qurilmasi ISUP serveridan uziladi.`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#f46a6a",
+            cancelButtonColor: "#74788d",
+            confirmButtonText: "Ha, uzish",
+            cancelButtonText: "Bekor qilish"
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const resp = await fetch("{% url 'isup_api_disconnect_device' %}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                        body: JSON.stringify({ device_id: isupDeviceId })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        toastr.success(data.message, "Uzildi");
+                        setTimeout(() => location.reload(), 1500);
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+        });
+    }
+
+    // ================= FACE DETAIL ZOOM MODAL =================
+    window.showFaceDetailModal = function(faceUrl, bgUrl, personName, personRole, confidence, captureTime, camName, camIp, gender, age, glasses, mask, userId, userDept, userGroup) {
+        currentActiveFaceUrl = faceUrl || '';
+        currentActiveBgUrl = bgUrl || '';
+
+        const modalFaceImg = document.getElementById('modalFaceImg');
+        const modalBgImgWrap = document.getElementById('modalBgImgWrap');
+        const modalBgImg = document.getElementById('modalBgImg');
+        const modalFullImgBtn = document.getElementById('modalFullImgBtn');
+        const modalPersonStatusBadge = document.getElementById('modalPersonStatusBadge');
+        const modalPersonName = document.getElementById('modalPersonName');
+        const modalPersonRole = document.getElementById('modalPersonRole');
+        const modalScoreBadge = document.getElementById('modalScoreBadge');
+        const modalCaptureTime = document.getElementById('modalCaptureTime');
+        const modalCameraName = document.getElementById('modalCameraName');
+        const modalCameraIp = document.getElementById('modalCameraIp');
+        
+        const rowAge = document.getElementById('modalRowAge');
+        const rowGender = document.getElementById('modalRowGender');
+        const rowGlasses = document.getElementById('modalRowGlasses');
+        const rowMask = document.getElementById('modalRowMask');
+        const rowUserId = document.getElementById('modalRowUserId');
+        const rowUserDept = document.getElementById('modalRowUserDept');
+        const rowUserGroup = document.getElementById('modalRowUserGroup');
+
+        // Set Images
+        if (faceUrl && faceUrl.trim() !== '') {
+            modalFaceImg.src = faceUrl;
+            if (modalFullImgBtn) modalFullImgBtn.style.display = 'inline-block';
+        } else {
+            modalFaceImg.src = '';
+            if (modalFullImgBtn) modalFullImgBtn.style.display = 'none';
+        }
+
+        if (bgUrl && bgUrl.trim() !== '') {
+            modalBgImg.src = bgUrl;
+            if (modalBgImgWrap) modalBgImgWrap.style.display = 'block';
+        } else {
+            modalBgImg.src = '';
+            if (modalBgImgWrap) modalBgImgWrap.style.display = 'none';
+        }
+
+        // Person info
+        if (personName && personName.trim() !== '') {
+            modalPersonStatusBadge.className = 'badge bg-soft-success text-success font-size-11 mb-1';
+            modalPersonStatusBadge.innerHTML = '<i class="mdi mdi-check-circle me-1"></i>Bazada Mavjud (Tanilgan)';
+            modalPersonName.textContent = personName;
+            modalPersonRole.textContent = personRole || 'Foydalanuvchi';
+            modalScoreBadge.className = 'badge bg-soft-success text-success font-size-12 fw-bold font-monospace';
+            modalScoreBadge.textContent = `${confidence} moslik`;
+        } else {
+            modalPersonStatusBadge.className = 'badge bg-soft-secondary text-secondary font-size-11 mb-1';
+            modalPersonStatusBadge.innerHTML = '<i class="mdi mdi-account-question-outline me-1"></i>Noma\'lum Shaxs / Mehmon';
+            modalPersonName.textContent = "Noma'lum Shaxs";
+            modalPersonRole.textContent = "Bazada ma'lumot topilmadi";
+            modalScoreBadge.className = 'badge bg-soft-secondary text-secondary font-size-12 fw-bold font-monospace';
+            modalScoreBadge.textContent = "Bazada yo'q";
+        }
+
+        modalCaptureTime.textContent = captureTime || '--';
+        modalCameraName.textContent = camName || '--';
+        modalCameraIp.textContent = camIp || '--';
+
+        // Additional user details
+        if (userId && userId.trim() !== '') {
+            document.getElementById('modalUserId').textContent = userId;
+            rowUserId.style.display = 'table-row';
+        } else {
+            rowUserId.style.display = 'none';
+        }
+
+        if (userDept && userDept.trim() !== '') {
+            document.getElementById('modalUserDept').textContent = userDept;
+            rowUserDept.style.display = 'table-row';
+        } else {
+            rowUserDept.style.display = 'none';
+        }
+
+        if (userGroup && userGroup.trim() !== '') {
+            document.getElementById('modalUserGroup').textContent = userGroup;
+            rowUserGroup.style.display = 'table-row';
+        } else {
+            rowUserGroup.style.display = 'none';
+        }
+
+        // Attributes
+        if (age && age !== 'None' && age !== '') {
+            document.getElementById('modalAge').textContent = age + ' yosh';
+            rowAge.style.display = 'table-row';
+        } else {
+            rowAge.style.display = 'none';
+        }
+
+        if (gender && gender !== 'None' && gender !== '') {
+            document.getElementById('modalGender').textContent = gender;
+            rowGender.style.display = 'table-row';
+        } else {
+            rowGender.style.display = 'none';
+        }
+
+        if (glasses && glasses !== 'None' && glasses !== 'Noma‘lum' && glasses !== '') {
+            document.getElementById('modalGlasses').textContent = glasses;
+            rowGlasses.style.display = 'table-row';
+        } else {
+            rowGlasses.style.display = 'none';
+        }
+
+        if (mask && mask !== 'None' && mask !== 'Noma‘lum' && mask !== '') {
+            document.getElementById('modalMask').textContent = mask;
+            rowMask.style.display = 'table-row';
+        } else {
+            rowMask.style.display = 'none';
+        }
+
+        const modalEl = document.getElementById('faceDetailModal');
+        if (modalEl) {
+            const modalObj = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modalObj.show();
+        }
+    };
+
+
+    window.openModalFaceInLightbox = function() {
+        if (currentActiveFaceUrl && currentActiveFaceUrl.trim() !== '') {
+            window.openImageLightbox(currentActiveFaceUrl, "Qirqilgan Yuz Surati (Face Crop)");
+        }
+    };
+
+    window.openModalBgInLightbox = function() {
+        if (currentActiveBgUrl && currentActiveBgUrl.trim() !== '') {
+            window.openImageLightbox(currentActiveBgUrl, "Umumiy Kadr Surati (Full Scene)");
+        }
+    };
+</script>
+
+
+{% endblock scripts %}

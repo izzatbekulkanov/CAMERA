@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}Bog‘lanish – NamDPI{% endblock %}
+{% block title %}{% trans "Bog‘lanish" %} – NamDPI{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -10,34 +10,34 @@
 
     <!-- Header -->
     <div class="text-center mb-5">
-        <h1 class="display-5 fw-bold text-primary">Bog‘lanish</h1>
+        <h1 class="display-5 fw-bold text-primary">{% trans "Bog‘lanish" %}</h1>
         <p class="lead text-muted">
-            Savolingiz, taklifingiz yoki muammoingiz bormi? Doim yordam berishga tayyormiz!
+            Savolingiz, taklifingiz yoki texnik muammoingiz bormi? Istalgan vaqtda murojaat qilishingiz mumkin!
         </p>
     </div>
 
-    <div class="row g-5 justify-content-center">
+    <div class="row g-4 justify-content-center">
 
         <!-- Kontakt kartalar -->
-        <div class="col-lg-8">
+        <div class="col-lg-8 col-xl-7">
 
             <!-- Telegram (eng tezkor) -->
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body p-5 text-center">
-                    <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width:90px;height:90px;">
-                        <i class="fab fa-telegram-plane fa-3x text-primary"></i>
+                <div class="card-body p-4 text-center">
+                    <div class="bg-soft-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width:80px;height:80px;">
+                        <i class="mdi mdi-telegram text-primary fs-1"></i>
                     </div>
-                    <h4 class="fw-bold">Telegram – eng tezkor aloqa</h4>
+                    <h4 class="fw-bold text-dark">Telegram – eng tezkor aloqa</h4>
                     <p class="text-muted mb-4">
-                        5 daqiqa ichida javob beraman. Istalgan vaqtda yozishingiz mumkin.
+                        Odatda 5-10 daqiqa ichida javob beraman. Istalgan vaqtda yozishingiz mumkin.
                     </p>
                     <a href="https://t.me/lzzatbekUlkanov" target="_blank"
-                       class="btn btn-primary btn-lg px-5">
-                        <i class="fab fa-telegram-plane me-2"></i> @lzzatbekUlkanov ga yozish
+                       class="btn btn-primary btn-lg px-5 shadow-sm">
+                        <i class="mdi mdi-telegram me-2"></i> @lzzatbekUlkanov ga yozish
                     </a>
                     <div class="mt-3">
                         <small class="text-success fw-bold">
-                            <i class="fas fa-circle fa-xs me-1"></i> Hozir online
+                            <i class="mdi mdi-circle-medium me-1"></i> Hozir online
                         </small>
                     </div>
                 </div>
@@ -45,30 +45,30 @@
 
             <!-- Email -->
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body p-5 d-flex align-items-center">
-                    <div class="bg-success bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-4" style="width:70px;height:70px;">
-                        <i class="fas fa-envelope fa-2x text-success"></i>
+                <div class="card-body p-4 d-flex align-items-center">
+                    <div class="bg-soft-success rounded-circle d-flex align-items-center justify-content-center me-3" style="width:60px;height:60px;flex-shrink:0;">
+                        <i class="mdi mdi-email-outline text-success fs-2"></i>
                     </div>
                     <div>
-                        <h5 class="fw-bold mb-1">Email orqali</h5>
-                        <p class="text-muted mb-2">Rasmiy murojaatlar uchun</p>
-                        <a href="mailto:izzatbek.ulkanov@gmail.com" class="fs-5 text-primary text-decoration-none">
+                        <h5 class="fw-bold mb-1 text-dark">Email orqali</h5>
+                        <p class="text-muted mb-1 small">Rasmiy va texnik murojaatlar uchun</p>
+                        <a href="mailto:izzatbek.ulkanov@gmail.com" class="fs-5 text-primary text-decoration-none fw-semibold">
                             izzatbek.ulkanov@gmail.com
                         </a>
                     </div>
                 </div>
             </div>
 
-            <!-- Telefon (ixtiyoriy) -->
+            <!-- Telefon -->
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body p-5 d-flex align-items-center">
-                    <div class="bg-warning bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-4" style="width:70px;height:70px;">
-                        <i class="fas fa-phone-alt fa-2x text-warning"></i>
+                <div class="card-body p-4 d-flex align-items-center">
+                    <div class="bg-soft-warning rounded-circle d-flex align-items-center justify-content-center me-3" style="width:60px;height:60px;flex-shrink:0;">
+                        <i class="mdi mdi-phone-outline text-warning fs-2"></i>
                     </div>
                     <div>
-                        <h5 class="fw-bold mb-1">Telefon</h5>
-                        <p class="text-muted mb-2">Qo‘ng‘iroq qilish uchun (09:00 – 22:00)</p>
-                        <a href="tel:+998901234567" class="fs-5 text-dark text-decoration-none">
+                        <h5 class="fw-bold mb-1 text-dark">Telefon</h5>
+                        <p class="text-muted mb-1 small">Favqulodda vaziyatlar va qo'ng'iroqlar uchun (09:00 – 22:00)</p>
+                        <a href="tel:+998901234567" class="fs-5 text-dark text-decoration-none fw-semibold">
                             +998 90 123-45-67
                         </a>
                     </div>
@@ -76,20 +76,20 @@
             </div>
 
             <!-- Qo‘shimcha ma'lumot -->
-            <div class="alert alert-info border-0 shadow-sm text-center py-4">
-                <i class="fas fa-info-circle fa-lg me-2"></i>
-                <strong>Tezkor javob uchun Telegramdan foydalaning</strong> – men har doim online bo‘laman va 5 daqiqada yordam beraman!
+            <div class="alert alert-info border-0 shadow-sm text-center py-3">
+                <i class="mdi mdi-information-outline me-2 fs-4 align-middle"></i>
+                <strong>Tezkor va kafolatlangan javob olish uchun Telegramdan foydalaning</strong> – men doimo online bo'lishga harakat qilaman!
             </div>
 
             <!-- Muallif imzosi -->
             <div class="text-center mt-5">
-                <img src="{% static 'assets/images/users/izzatbek.jpg' %}"
+                <img src="{% if global_site_settings and global_site_settings.author_image %}{{ global_site_settings.author_image.url }}{% else %}{% static 'assets/images/users/izzatbek.jpg' %}{% endif %}"
                      alt="Izzatbek Ulkanov"
-                     class="rounded-circle shadow" width="100" height="100" style="object-fit: cover;">
-                <h5 class="mt-3 fw-bold">Izzatbek Ulkanov</h5>
-                <p class="text-muted">
-                    NamDPI tizimi muallifi • Full-Stack Developer<br>
-                    <em>“Siz uchun 24/7 tayyorman”</em>
+                     class="rounded-circle shadow border border-3 border-white" width="90" height="90" style="object-fit: cover;">
+                <h5 class="mt-3 fw-bold text-dark">Izzatbek Ulkanov</h5>
+                <p class="text-muted small">
+                    NamDPI tizimi yaratuvchisi • Full-Stack Developer<br>
+                    <em>“Siz uchun 24/7 yordam berishga tayyorman 🌟”</em>
                 </p>
             </div>
 
@@ -100,17 +100,16 @@
 
 {% block scripts %}
 <script>
-// Sahifaga kirganda kichik animatsiya
 document.addEventListener('DOMContentLoaded', function() {
     const cards = document.querySelectorAll('.card');
     cards.forEach((card, index) => {
         card.style.opacity = '0';
-        card.style.transform = 'translateY(20px)';
+        card.style.transform = 'translateY(15px)';
         setTimeout(() => {
-            card.style.transition = 'all 0.6s ease';
+            card.style.transition = 'all 0.5s ease-out';
             card.style.opacity = '1';
             card.style.transform = 'translateY(0)';
-        }, 100 + (index * 150));
+        }, 100 + (index * 120));
     });
 });
 </script>

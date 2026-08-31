@@ -6,52 +6,32 @@
 
             <!-- Logo -->
             <div class="logo-box">
-                {# LIGHT LOGO #}
+                <!-- LIGHT LOGO -->
                 <a href="{% url 'dashboard' %}" class="logo-light">
-                    {# KATTA LOGO (large) #}
-                    {% if global_site_settings and global_site_settings.logo_large %}
-                        <img src="{{ global_site_settings.logo_large.url }}"
-                             class="logo-lg"
-                             alt="{{ global_site_settings.site_name }}">
-                    {% else %}
-                        <img src="{% static 'assets/images/logo-light.png' %}"
-                             class="logo-lg"
-                             alt="logo">
-                    {% endif %}
-
-                    {# KICHIK LOGO (small) #}
-                    {% if global_site_settings and global_site_settings.logo_small %}
-                        <img src="{{ global_site_settings.logo_small.url }}"
-                             class="logo-sm"
-                             alt="{{ global_site_settings.site_name }}">
-                    {% else %}
-                        <img src="{% static 'assets/images/logo-sm.png' %}"
-                             class="logo-sm"
-                             alt="logo">
-                    {% endif %}
+                    <div class="logo-lg">
+                        <img src="{% static 'assets/images/apple-touch-icon.png' %}" class="brand-logo-img" alt="Aqlli Darvoza">
+                        <span class="brand-text">
+                            <span class="brand-title">Aqlli</span>
+                            <span class="brand-highlight">Darvoza</span>
+                        </span>
+                    </div>
+                    <div class="logo-sm">
+                        <img src="{% static 'assets/images/apple-touch-icon.png' %}" class="brand-logo-img" alt="AD">
+                    </div>
                 </a>
 
-                {# DARK LOGO (hozircha tema yo‘q bo‘lsa ham qolsin) #}
+                <!-- DARK LOGO -->
                 <a href="{% url 'dashboard' %}" class="logo-dark">
-                    {% if global_site_settings and global_site_settings.logo_large %}
-                        <img src="{{ global_site_settings.logo_large.url }}"
-                             class="logo-lg"
-                             alt="{{ global_site_settings.site_name }}">
-                    {% else %}
-                        <img src="{% static 'assets/images/logo-dark.png' %}"
-                             class="logo-lg"
-                             alt="logo">
-                    {% endif %}
-
-                    {% if global_site_settings and global_site_settings.logo_small %}
-                        <img src="{{ global_site_settings.logo_small.url }}"
-                             class="logo-sm"
-                             alt="{{ global_site_settings.site_name }}">
-                    {% else %}
-                        <img src="{% static 'assets/images/logo-sm.png' %}"
-                             class="logo-sm"
-                             alt="logo">
-                    {% endif %}
+                    <div class="logo-lg">
+                        <img src="{% static 'assets/images/apple-touch-icon.png' %}" class="brand-logo-img" alt="Aqlli Darvoza">
+                        <span class="brand-text">
+                            <span class="brand-title">Aqlli</span>
+                            <span class="brand-highlight">Darvoza</span>
+                        </span>
+                    </div>
+                    <div class="logo-sm">
+                        <img src="{% static 'assets/images/apple-touch-icon.png' %}" class="brand-logo-img" alt="AD">
+                    </div>
                 </a>
             </div>
             <!-- Sidebar Menu Toggle Button -->
@@ -129,6 +109,20 @@
                     </form>
 
                 </div>
+            </li>
+
+            <!-- Light/Dark Mode Toggle -->
+            <li>
+                <a class="nav-link waves-effect" id="light-dark-mode" href="#" title="{% trans 'Kun/Tun rejimi' %}">
+                    <i class="fe-moon font-22"></i>
+                </a>
+            </li>
+
+            <!-- Theme Settings Toggle -->
+            <li>
+                <a class="nav-link waves-effect waves-light" data-bs-toggle="offcanvas" href="#theme-settings-offcanvas" title="{% trans 'Mavzu sozlamalari' %}">
+                    <i class="fe-settings font-22"></i>
+                </a>
             </li>
 
             <!-- User Menu -->

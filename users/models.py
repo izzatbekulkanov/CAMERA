@@ -45,11 +45,37 @@ class CustomUser(AbstractUser):
     group_name = models.CharField(max_length=100, verbose_name=_("Guruh nomi"), blank=True, null=True)
     education_year = models.CharField(max_length=50, verbose_name=_("O‘quv yili"), blank=True, null=True)
     gpa = models.DecimalField(max_digits=4, decimal_places=2, verbose_name=_("O‘rtacha GPA"), blank=True, null=True)
+    academic_group = models.ForeignKey(
+        'users.AcademicGroup',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='students',
+        verbose_name=_("Akademik guruh")
+    )
+
 
     # status va vaqt
     active = models.BooleanField(default=True, verbose_name=_("Faol"))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Yaratilgan vaqt"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Yangilangan vaqt"))
+
+    def get_full_name(self):
+        if self.full_name:
+            return self.full_name
+        
+        parts = []
+        if self.second_name:
+            parts.append(self.second_name)
+        if self.first_name:
+            parts.append(self.first_name)
+        if self.third_name:
+            parts.append(self.third_name)
+        
+        if parts:
+            return " ".join(parts)
+            
+        return super().get_full_name()
 
     def __str__(self):
         return self.full_name or self.username
@@ -92,3 +118,47 @@ class TelegramProfile(models.Model):
 
     def __str__(self):
         return f"{self.user} -> {self.chat_id}"
+
+
+class Faculty(models.Model):
+    name = models.CharField(max_length=255, verbose_name=_("Fakultet nomi"), unique=True)
+    code = models.CharField(max_length=100, verbose_name=_("Fakultet kodi"), blank=True, null=True, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Fakultet")
+        verbose_name_plural = _("Fakultetlar")
+
+    def __str__(self):
+        return self.name
+
+
+class Curriculum(models.Model):
+    name = models.CharField(max_length=255, verbose_name=_("O'quv reja nomi"), unique=True)
+    code = models.CharField(max_length=100, verbose_name=_("O'quv reja kodi"), blank=True, null=True, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("O'quv reja")
+        verbose_name_plural = _("O'quv rejalari")
+
+    def __str__(self):
+        return self.name
+
+
+class AcademicGroup(models.Model):
+    name = models.CharField(max_length=100, verbose_name=_("Guruh nomi"), unique=True)
+    faculty = models.ForeignKey(Faculty, on_delete=models.SET_NULL, null=True, blank=True, related_name='groups', verbose_name=_("Fakultet"))
+    curriculum = models.ForeignKey(Curriculum, on_delete=models.SET_NULL, null=True, blank=True, related_name='groups', verbose_name=_("O'quv reja"))
+    education_year = models.CharField(max_length=50, verbose_name=_("O'quv yili"), blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Akademik guruh")
+        verbose_name_plural = _("Akademik guruhlar")
+
+    def __str__(self):
+        return self.name

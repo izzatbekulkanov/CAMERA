@@ -1,0 +1,24 @@
+api:
+  listen: ":1984"
+  origin: "*"
+
+rtsp:
+  listen: ":8554"
+
+# webrtc:
+#   listen: ":8555"
+
+log:
+  level: warn
+
+streams:
+  camera_20:
+    - "exec:ffmpeg -hide_banner -fflags nobuffer -flags low_delay -rtsp_transport tcp -i rtsp://admin:parol400@10.10.5.57:554/Streaming/Channels/102 -c:v libx264 -preset ultrafast -tune zerolatency -b:v 256k -maxrate 256k -bufsize 512k -g 50 -c:a aac -b:a 32k -f rtsp {output}"
+  camera_21:
+    - "exec:ffmpeg -hide_banner -fflags nobuffer -flags low_delay -rtsp_transport tcp -i rtsp://admin:parol400@10.10.5.79:554/Streaming/Channels/102 -c:v libx264 -preset ultrafast -tune zerolatency -b:v 256k -maxrate 256k -bufsize 512k -g 50 -c:a aac -b:a 32k -f rtsp {output}"
+  camera_19:
+    - rtsp://admin:parol400@10.10.5.55:554/Streaming/Channels/102
+  camera_16:
+    - rtsp://admin:parol400@10.10.5.6:554/Streaming/Channels/102
+  camera_17:
+    - rtsp://admin:parol400@10.10.5.60:554/Streaming/Channels/102

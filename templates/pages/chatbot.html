@@ -1,0 +1,508 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Gemini Chatbot" %} – NamDPI{% endblock %}
+
+{% block styles %}
+<style>
+    /* Ubold Theme Chat Integration */
+    .chat-card {
+        height: 620px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        background-color: #f5f6f8;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        scroll-behavior: smooth;
+    }
+    
+    .chat-message {
+        max-width: 75%;
+        display: flex;
+        flex-direction: column;
+        animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    
+    @keyframes slide-up {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .chat-message.user {
+        align-self: flex-end;
+    }
+    
+    .chat-message.assistant {
+        align-self: flex-start;
+    }
+    
+    .message-bubble {
+        padding: 10px 16px;
+        border-radius: 14px;
+        font-size: 14px;
+        line-height: 1.5;
+        word-wrap: break-word;
+    }
+    
+    .chat-message.user .message-bubble {
+        background-color: #3b82f6; /* Primary */
+        color: #ffffff;
+        border-bottom-right-radius: 2px;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);
+    }
+    
+    .chat-message.assistant .message-bubble {
+        background-color: #ffffff;
+        color: #313a46;
+        border-bottom-left-radius: 2px;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    }
+    
+    .message-time {
+        font-size: 11px;
+        color: #98a6ad;
+        margin-top: 4px;
+        padding: 0 2px;
+    }
+    
+    .chat-message.user .message-time {
+        align-self: flex-end;
+    }
+    
+    .chat-message.assistant .message-time {
+        align-self: flex-start;
+    }
+    
+    .chat-input {
+        resize: none;
+        max-height: 120px;
+    }
+    
+    /* Typing Indicator Animation */
+    .typing-indicator {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        padding: 6px 10px;
+    }
+    
+    .typing-dot {
+        width: 6px;
+        height: 6px;
+        background-color: #98a6ad;
+        border-radius: 50%;
+        animation: typing-bounce 1.4s infinite ease-in-out;
+    }
+    
+    .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+    
+    .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+    
+    @keyframes typing-bounce {
+        0%, 80%, 100% {
+            transform: scale(0.6);
+            opacity: 0.4;
+        }
+        40% {
+            transform: scale(1.1) translateY(-3px);
+            opacity: 1;
+        }
+    }
+    
+    .welcome-card {
+        text-align: center;
+        padding: 30px 20px;
+        background-color: #ffffff;
+        border-radius: 12px;
+        border: 1px solid #e3eaef;
+        max-width: 440px;
+        margin: auto;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.01);
+    }
+    
+    .welcome-icon-box {
+        width: 54px;
+        height: 54px;
+        background-color: rgba(59, 130, 246, 0.08);
+        border: 1px solid rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .welcome-icon-box svg.feather {
+        width: 24px;
+        height: 24px;
+        stroke-width: 2;
+    }
+    
+    /* Code block inside bubbles */
+    pre {
+        background: #f1f5f9;
+        padding: 10px;
+        border-radius: 6px;
+        margin: 8px 0;
+        overflow-x: auto;
+        border: 1px solid #e2e8f0;
+    }
+    
+    code {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.9em;
+    }
+
+    /* Feather SVG icon style inside chatbot bubbles, headers, welcome cards and suggestions */
+    .message-bubble svg.feather,
+    .chat-suggestions svg.feather,
+    .welcome-card svg.feather {
+        width: 15px;
+        height: 15px;
+        stroke-width: 2.2;
+        vertical-align: middle;
+        margin-right: 3px;
+        display: inline-block;
+    }
+    
+    /* Settings-like KPI Avatar */
+    .avatar-kpi {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: rgba(59, 130, 246, 0.08);
+        color: #3b82f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .avatar-kpi svg.feather {
+        width: 20px;
+        height: 20px;
+        stroke-width: 2.2;
+    }
+</style>
+{% endblock styles %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    
+    {% include 'includes/breadcrumbs.html' with breadcrumbs=breadcrumbs %}
+
+    <div class="row">
+        <div class="col-xl-9 col-lg-10 mx-auto">
+            
+            <div class="card chat-card shadow-sm border">
+                <!-- Header -->
+                <div class="card-header bg-white border-bottom d-flex align-items-center justify-content-between py-2 px-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-kpi">
+                            <i data-feather="message-square"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0 card-title fw-bold">NamSPI Gemini Assistant</h5>
+                            <small class="text-muted">Gemini 2.5 Flash · <span class="text-success fw-semibold">{% trans "Faol" %}</span></small>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" id="clearChatBtn">
+                            <i data-feather="trash-2" class="me-1"></i>{% trans "Tozalash" %}
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Messages Area -->
+                <div class="chat-messages" id="chatMessages">
+                    
+                    <div class="welcome-card my-auto" id="welcomeCard">
+                        <div class="welcome-icon-box mx-auto mb-3">
+                            <i data-feather="message-circle"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 mb-2">NamDPI Aqlli Yordamchisi</h4>
+                        <p class="text-sm text-slate-500 leading-relaxed mb-0">
+                            Xush kelibsiz! Men Namangan Davlat Pedagogika Institutining sun'iy intellekt yordamchisiman. Tizim sozlamalari, kameralar, davomat tahlili va boshqa mavzularda savol berishingiz mumkin.
+                        </p>
+                    </div>
+
+                </div>
+                
+                <!-- Suggestions Area -->
+                <div class="chat-suggestions bg-light border-top py-2 px-3 d-flex flex-wrap gap-2" id="chatSuggestions">
+                    <button class="btn btn-sm btn-light border text-muted rounded-pill px-3 py-1.5 fw-medium d-flex align-items-center" onclick="sendSuggested('NamDPI Smart Gate loyihasi nima va uning asosiy vazifalari qanday?')">
+                        <i data-feather="info" class="text-primary me-1"></i> Loyiha haqida ma'lumot
+                    </button>
+                    <button class="btn btn-sm btn-light border text-muted rounded-pill px-3 py-1.5 fw-medium d-flex align-items-center" onclick="sendSuggested('Bugun kimlarning ruhiy holati jiddiy?')">
+                        <i data-feather="heart" class="text-warning me-1"></i> Bugun kimlarning ruhiy holati jiddiy?
+                    </button>
+                    <button class="btn btn-sm btn-light border text-muted rounded-pill px-3 py-1.5 fw-medium d-flex align-items-center" onclick="sendSuggested('RTTM bo\'limidan bugun kimlar ishga kelmadi?')">
+                        <i data-feather="user-x" class="text-danger me-1"></i> RTTM bo'limidan bugun kimlar ishga kelmadi?
+                    </button>
+                </div>
+                
+                <!-- Input Area -->
+                <div class="card-footer bg-white border-top p-3">
+                    <form id="chatForm">
+                        <div class="input-group">
+                            <textarea id="chatInput" class="form-control border-0 bg-light chat-input py-2 px-3" rows="1" placeholder="Yozing..." required autocomplete="off" onkeydown="handleEnter(event)"></textarea>
+                            <button type="submit" id="sendBtn" class="btn btn-primary px-3">
+                                <i data-feather="send"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+            </div>
+            
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block scripts %}
+<script>
+    const chatMessages = document.getElementById('chatMessages');
+    const chatInput = document.getElementById('chatInput');
+    const chatForm = document.getElementById('chatForm');
+    const sendBtn = document.getElementById('sendBtn');
+    const welcomeCard = document.getElementById('welcomeCard');
+    const clearChatBtn = document.getElementById('clearChatBtn');
+    
+    let chatHistory = [];
+
+    // Helper: auto resize textarea
+    chatInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    function handleEnter(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            chatForm.dispatchEvent(new Event('submit'));
+        }
+    }
+
+    function formatMarkdown(text) {
+        if (!text) return '';
+        
+        let html = text;
+        
+        // 1. First, preserve code blocks by replacing them with a placeholder
+        const codeBlocks = [];
+        html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(match, lang, code) {
+            codeBlocks.push(`<pre><code>${code}</code></pre>`);
+            return `__CODE_BLOCK_PLACEHOLDER_${codeBlocks.length - 1}__`;
+        });
+        
+        // 2. Preserve inline code backticks
+        const inlineCodes = [];
+        html = html.replace(/`(.*?)`/g, function(match, code) {
+            inlineCodes.push(`<code class="bg-light px-1.5 py-0.5 rounded text-danger">${code}</code>`);
+            return `__INLINE_CODE_PLACEHOLDER_${inlineCodes.length - 1}__`;
+        });
+
+        // 3. Process markdown list items (bullet points)
+        let lines = html.split('\n');
+        let inList = false;
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (line.startsWith('- ') || line.startsWith('* ')) {
+                let content = line.substring(2);
+                if (!inList) {
+                    lines[i] = '<ul class="ps-3 mb-2"><li>' + content + '</li>';
+                    inList = true;
+                } else {
+                    lines[i] = '<li>' + content + '</li>';
+                }
+            } else {
+                if (inList) {
+                    lines[i-1] = lines[i-1] + '</ul>';
+                    inList = false;
+                }
+            }
+        }
+        if (inList) {
+            lines[lines.length - 1] = lines[lines.length - 1] + '</ul>';
+        }
+        html = lines.join('\n');
+
+        // 4. Bold: **text** -> <strong>text</strong>
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // 5. Italic: *text* -> <em>text</em>
+        html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        
+        // 6. Convert newlines to <br>, but avoid doing so inside table or list/div/span tags
+        html = html.replace(/\n/g, '<br>');
+        
+        // Clean up <br> tags immediately inside structural tags (tables, lists, divs, spans)
+        html = html.replace(/(<\/?(table|thead|tbody|tfoot|tr|th|td|ul|ol|li|div|span)[^>]*>)\s*<br\s*\/?>/gi, '$1');
+        html = html.replace(/<br\s*\/?>\s*(<\/?(table|thead|tbody|tfoot|tr|th|td|ul|ol|li|div|span)[^>]*>)/gi, '$1');
+        
+        // 7. Restore preserved code blocks
+        for (let i = 0; i < codeBlocks.length; i++) {
+            html = html.replace(`__CODE_BLOCK_PLACEHOLDER_${i}__`, codeBlocks[i]);
+        }
+        for (let i = 0; i < inlineCodes.length; i++) {
+            html = html.replace(`__INLINE_CODE_PLACEHOLDER_${i}__`, inlineCodes[i]);
+        }
+        
+        return html;
+    }
+
+    function appendMessage(role, text) {
+        // Hide welcome card on first message
+        if (welcomeCard) {
+            welcomeCard.style.display = 'none';
+        }
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${role}`;
+
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'message-bubble';
+        
+        if (role === 'user') {
+            bubbleDiv.textContent = text;
+        } else {
+            bubbleDiv.innerHTML = formatMarkdown(text);
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        }
+
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        const now = new Date();
+        timeDiv.textContent = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+        messageDiv.appendChild(bubbleDiv);
+        messageDiv.appendChild(timeDiv);
+        chatMessages.appendChild(messageDiv);
+        
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function showTypingIndicator() {
+        const indicatorDiv = document.createElement('div');
+        indicatorDiv.className = 'chat-message assistant';
+        indicatorDiv.id = 'typingIndicator';
+
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'message-bubble border-0 bg-transparent py-1 px-2';
+
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'typing-indicator';
+        typingIndicator.innerHTML = `
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        `;
+
+        bubbleDiv.appendChild(typingIndicator);
+        indicatorDiv.appendChild(bubbleDiv);
+        chatMessages.appendChild(indicatorDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+        const indicator = document.getElementById('typingIndicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+
+    function sendSuggested(prompt) {
+        chatInput.value = prompt;
+        chatForm.dispatchEvent(new Event('submit'));
+    }
+
+    chatForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        // Clear input and reset height
+        chatInput.value = '';
+        chatInput.style.height = 'auto';
+        
+        // Append user message
+        appendMessage('user', message);
+        
+        // Show typing indicator
+        showTypingIndicator();
+        
+        // Disable input during request
+        chatInput.disabled = true;
+        sendBtn.disabled = true;
+
+        try {
+            const response = await fetch('{% url "chatbot_api" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    message: message,
+                    history: chatHistory
+                })
+            });
+
+            const data = await response.json();
+            removeTypingIndicator();
+
+            if (data.success) {
+                appendMessage('assistant', data.response);
+                // Save to history
+                chatHistory.push({ role: 'user', text: message });
+                chatHistory.push({ role: 'model', text: data.response });
+                // Limit history to last 20 messages to save tokens and context limit
+                if (chatHistory.length > 20) {
+                    chatHistory.shift();
+                    chatHistory.shift();
+                }
+            } else {
+                appendMessage('assistant', `Xatolik yuz berdi: ${data.message}`);
+            }
+
+        } catch (error) {
+            removeTypingIndicator();
+            appendMessage('assistant', `Server bilan bog\'lanishda xatolik yuz berdi: ${error.message}`);
+        } finally {
+            chatInput.disabled = false;
+            sendBtn.disabled = false;
+            chatInput.focus();
+        }
+    });
+
+    clearChatBtn.addEventListener('click', function() {
+        chatMessages.innerHTML = '';
+        chatHistory = [];
+        if (welcomeCard) {
+            welcomeCard.style.display = 'block';
+            chatMessages.appendChild(welcomeCard);
+        }
+    });
+</script>
+{% endblock scripts %}

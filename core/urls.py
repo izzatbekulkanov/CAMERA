@@ -57,8 +57,10 @@ else:
     # Static fayllarni WhiteNoise beradi (MIDDLEWARE orqali),
     # shu sababli bu yerda STATIC uchun hech narsa yozmaymiz.
 
-    # Media fayllar uchun oddiy serve (nginx bo'lmaguncha vaqtinchalik yechim)
     urlpatterns += [
+        re_path(r'^static/(?P<path>.*)$', serve, {
+            'document_root': settings.STATIC_ROOT,
+        }),
         re_path(r'^media/(?P<path>.*)$', serve, {
             'document_root': settings.MEDIA_ROOT,
         }),

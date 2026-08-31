@@ -1,0 +1,176 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block styles %}
+    <style>
+        .stat-card {
+            min-width: 220px;
+            flex: 1 1 0;
+        }
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+        }
+        .table-responsive {
+            border-radius: 8px;
+        }
+    </style>
+{% endblock styles %}
+
+{% block title %}
+    O'quv rejalari ro'yxati
+{% endblock title %}
+
+{% block content %}
+    <div class="container-fluid">
+
+        {% include 'includes/breadcrumbs.html' %}
+
+        <!-- ====== TOP STATS ====== -->
+        <div class="mb-4">
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 stat-card mb-0">
+                        <div class="card-body py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-muted small">Jami o'quv rejalari</div>
+                                    <div class="h3 mb-0 fw-bold text-warning">{{ total_curriculums }}</div>
+                                </div>
+                                <div class="stat-icon rounded bg-soft-warning d-flex align-items-center justify-content-center">
+                                    <i class="mdi mdi-file-document-box text-warning fs-3"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 stat-card mb-0">
+                        <div class="card-body py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-muted small">Akademik guruhlar</div>
+                                    <div class="h3 mb-0 fw-bold text-primary">{{ total_groups }}</div>
+                                </div>
+                                <div class="stat-icon rounded bg-soft-primary d-flex align-items-center justify-content-center">
+                                    <i class="mdi mdi-grid text-primary fs-3"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 stat-card mb-0">
+                        <div class="card-body py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-muted small">Jami talabalar</div>
+                                    <div class="h3 mb-0 fw-bold text-success">{{ total_students }}</div>
+                                </div>
+                                <div class="stat-icon rounded bg-soft-success d-flex align-items-center justify-content-center">
+                                    <i class="mdi mdi-school text-success fs-3"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ====== JADVAL ====== -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-0 py-3 d-flex justify-content-between align-items-center">
+                <h4 class="card-title mb-0 text-dark fw-bold">Tizimdagi o'quv rejalari (Yo'nalishlar)</h4>
+            </div>
+            
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle mb-0">
+                        <thead class="table-light text-muted">
+                            <tr>
+                                <th style="width: 80px;" class="ps-3">#</th>
+                                <th>O'quv reja nomi</th>
+                                <th style="width: 150px;">Kodi</th>
+                                <th class="text-center" style="width: 180px;">Guruhlar soni</th>
+                                <th class="text-center" style="width: 180px;">Talabalar soni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for curr in page_obj %}
+                                <tr>
+                                    <td class="ps-3 fw-medium text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                                    <td>
+                                        <div class="fw-bold text-dark fs-5">{{ curr.name }}</div>
+                                    </td>
+                                    <td>
+                                        {% if curr.code %}
+                                            <span class="badge bg-soft-secondary text-secondary fs-6">{{ curr.code }}</span>
+                                        {% else %}
+                                            <span class="text-muted small italic">Yo'q</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-soft-primary text-primary rounded-pill fs-6 px-3 py-1 fw-bold">{{ curr.group_count }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-soft-success text-success rounded-pill fs-6 px-3 py-1 fw-bold">{{ curr.student_count }}</span>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-muted">
+                                        <i class="mdi mdi-alert-circle-outline fs-1 d-block mb-2 text-warning"></i>
+                                        Hech qanday o'quv rejasi topilmadi.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- ====== PAGINATION ====== -->
+            {% if page_obj.has_other_pages %}
+                <div class="card-footer bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
+                    <span class="text-muted small">
+                        Ko'rsatilmoqda: {{ page_obj.start_index }}-{{ page_obj.end_index }} (Jami: {{ page_obj.paginator.count }} ta)
+                    </span>
+                    <nav>
+                        <ul class="pagination pagination-rounded mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+{% endblock content %}

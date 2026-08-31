@@ -77,25 +77,16 @@ def get_face_runtime() -> dict:
         providers = []
         provider_options = []
 
-        if "TensorrtExecutionProvider" in available:
-            providers.append("TensorrtExecutionProvider")
-            cache_dir = "/home/smartgate/web/CAMERA/models/trt_cache"
-            try:
-                os.makedirs(cache_dir, exist_ok=True)
-            except Exception as e:
-                logger.error("[DEVICE] Failed to create TensorRT cache dir: %s", e)
-            provider_options.append({
-                "trt_fp16_enable": "1",
-                "trt_engine_cache_enable": "1",
-                "trt_engine_cache_path": cache_dir,
-            })
-
         if "CUDAExecutionProvider" in available:
-            providers.append("CUDAExecutionProvider")
-            provider_options.append({
+            cuda_options = {
                 "device_id": "0",
+                "gpu_mem_limit": str(4 * 1024 * 1024 * 1024),  # 4 GB max per process
+                "arena_extend_strategy": "kSameAsRequested",
                 "cudnn_conv_algo_search": "DEFAULT",
-            })
+                "do_copy_in_default_stream": "1",
+            }
+            providers.append(("CUDAExecutionProvider", cuda_options))
+            provider_options.append(cuda_options)
 
         providers.append("CPUExecutionProvider")
         provider_options.append({})

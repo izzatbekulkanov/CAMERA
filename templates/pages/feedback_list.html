@@ -1,0 +1,186 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}Kelib tushgan xabarlar (Fikr-takliflar) – NamDPI{% endblock %}
+
+{% block styles %}
+    <link href="{% static 'assets/libs/sweetalert2/sweetalert2.min.css' %}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css" rel="stylesheet">
+    <style>
+        .star-active {
+            color: #ffd700;
+            font-size: 1.25rem;
+        }
+        .star-inactive {
+            color: #ddd;
+            font-size: 1.25rem;
+        }
+        .feedback-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .feedback-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+        }
+    </style>
+{% endblock styles %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    {% include 'includes/breadcrumbs.html' with breadcrumbs=breadcrumbs %}
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap mb-4 gap-3">
+        <div>
+            <h4 class="mb-1 fw-bold text-dark">Kelib tushgan xabarlar (Fikr-takliflar)</h4>
+            <p class="text-muted mb-0 small">Foydalanuvchilar va xodimlar tomonidan qoldirilgan barcha takliflar, xatolar va rahmatlar.</p>
+        </div>
+        <a href="{% url 'feedback' %}" class="btn btn-primary shadow-sm">
+            <i class="mdi mdi-plus-circle me-1"></i> Yangi fikr qoldirish
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body py-3">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="text-muted small fw-semibold me-2"><i class="mdi mdi-filter-variant me-1"></i>Filtrlash:</span>
+                <button class="btn btn-sm btn-outline-secondary active rounded-pill filter-btn" data-filter="all">Hammasi</button>
+                <button class="btn btn-sm btn-outline-warning rounded-pill filter-btn" data-filter="taklif"><i class="mdi mdi-lightbulb-on-outline me-1"></i>Takliflar</button>
+                <button class="btn btn-sm btn-outline-danger rounded-pill filter-btn" data-filter="xato"><i class="mdi mdi-bug-outline me-1"></i>Xatolar</button>
+                <button class="btn btn-sm btn-outline-success rounded-pill filter-btn" data-filter="rahmat"><i class="mdi mdi-heart-outline me-1"></i>Rahmatlar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- List -->
+    <div class="row g-4" id="feedback-container">
+        {% for fb in feedbacks %}
+            <div class="col-md-6 col-lg-4 feedback-item" data-type="{{ fb.feedback_type }}" id="fb-card-{{ fb.id }}">
+                <div class="card border border-light shadow-sm h-100 feedback-card mb-0">
+                    <div class="card-body p-4 d-flex flex-column h-100">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h5 class="fw-bold text-dark mb-1">{{ fb.full_name|default:"Anonim Foydalanuvchi" }}</h5>
+                                <small class="text-muted d-block"><i class="mdi mdi-briefcase-outline me-1"></i>{{ fb.position }}</small>
+                            </div>
+                            
+                            <!-- Badges -->
+                            {% if fb.feedback_type == 'taklif' %}
+                                <span class="badge bg-soft-warning text-warning px-2.5 py-1 fs-6"><i class="mdi mdi-lightbulb-on-outline me-1"></i>Taklif</span>
+                            {% elif fb.feedback_type == 'xato' %}
+                                <span class="badge bg-soft-danger text-danger px-2.5 py-1 fs-6"><i class="mdi mdi-bug-outline me-1"></i>Xato</span>
+                            {% else %}
+                                <span class="badge bg-soft-success text-success px-2.5 py-1 fs-6"><i class="mdi mdi-heart-outline me-1"></i>Rahmat</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Rating Stars -->
+                        <div class="mb-3">
+                            {% for j in "12345" %}
+                                {% if fb.rating >= forloop.counter %}
+                                    <span class="star-active">★</span>
+                                {% else %}
+                                    <span class="star-inactive">★</span>
+                                {% endif %}
+                            {% endfor %}
+                            <span class="text-muted small ms-1">({{ fb.rating }}/5)</span>
+                        </div>
+
+                        <!-- Message -->
+                        <p class="text-muted flex-grow-1 fs-5 lh-base" style="white-space: pre-wrap;">{{ fb.message }}</p>
+
+                        <hr class="my-3 opacity-50">
+
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                            <small class="text-muted"><i class="mdi mdi-clock-outline me-1"></i>{{ fb.created_at|date:"Y-m-d H:i" }}</small>
+                            <button type="button" class="btn btn-sm btn-soft-danger" onclick="deleteFeedback('{{ fb.id }}')" title="O'chirish">
+                                <i class="mdi mdi-delete-outline font-size-14"></i> O'chirish
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12 text-center py-5 text-muted">
+                <i class="mdi mdi-message-bulleted-off fs-1 d-block mb-2 text-warning"></i>
+                Hozircha hech qanday xabar yoki fikr-taklif kelib tushmagan.
+            </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{% static 'assets/libs/sweetalert2/sweetalert2.all.min.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/toastr.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            // --- Filter functionality ---
+            $('.filter-btn').on('click', function() {
+                $('.filter-btn').removeClass('active');
+                $(this).addClass('active');
+
+                const filter = $(this).data('filter');
+                const $items = $('.feedback-item');
+
+                if (filter === 'all') {
+                    $items.fadeIn(200);
+                } else {
+                    $items.each(function() {
+                        if ($(this).data('type') === filter) {
+                            $(this).fadeIn(200);
+                        } else {
+                            $(this).fadeOut(200);
+                        }
+                    });
+                }
+            });
+        });
+
+        // --- Delete feedback ---
+        function deleteFeedback(id) {
+            Swal.fire({
+                title: "Ishonchingiz komilmi?",
+                text: "Ushbu xabarni butunlay o'chirib tashlamoqchimisiz?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#f1556c",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: "Ha, o'chirilsin",
+                cancelButtonText: "Bekor qilish"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    let url = "{% url 'feedback_delete' 0 %}".replace('/0/', '/' + id + '/');
+                    
+                    fetch(url, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": "{{ csrf_token }}"
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire("O'chirildi!", data.message, "success")
+                            .then(() => {
+                                $(`#fb-card-${id}`).fadeOut(300, function() {
+                                    $(this).remove();
+                                    if ($('.feedback-item').length === 0) {
+                                        window.location.reload();
+                                    }
+                                });
+                            });
+                        } else {
+                            Swal.fire("Xatolik!", data.message, "error");
+                        }
+                    })
+                    .catch(err => Swal.fire("Xatolik!", "Tizimga ulanishda xatolik yuz berdi.", "error"));
+                }
+            });
+        }
+    </script>
+{% endblock scripts %}

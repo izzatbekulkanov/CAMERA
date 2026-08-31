@@ -167,3 +167,4 @@ wrapt==2.0.1
 yarl==1.22.0
 zeep==4.3.2
 zope.interface==8.1
+qdrant-client==1.18.0

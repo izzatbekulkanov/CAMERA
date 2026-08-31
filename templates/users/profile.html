@@ -164,6 +164,62 @@
                 </div>
             </div>
 
+            <!-- ======================= Yillik Davomat Statistikasi ======================= -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h4 class="header-title mb-3">
+                        <i class="mdi mdi-chart-bar me-1 text-primary"></i> Yillik Davomat ({{ selected_year }})
+                    </h4>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-centered table-striped mb-0" style="font-size: 0.8rem;">
+                            <thead class="table-light text-center">
+                                <tr>
+                                    <th>Oy</th>
+                                    <th>Kelgan</th>
+                                    <th>Kelmagan</th>
+                                    <th>Yakshanba</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in annual_stats %}
+                                <tr>
+                                    <td class="fw-bold">{{ stat.month_name }}</td>
+                                    <td class="text-center">
+                                        {% if stat.has_data %}
+                                            <span class="badge bg-soft-success text-success px-1" style="font-size: 0.7rem;">{{ stat.came_count }} m</span>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if stat.has_data %}
+                                            <span class="badge bg-soft-danger text-danger px-1" style="font-size: 0.7rem;">{{ stat.absent_count }} m</span>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if stat.has_data %}
+                                            {% if stat.sunday_came_count > 0 %}
+                                                <span class="badge bg-primary px-1" style="font-size: 0.7rem;">
+                                                    {{ stat.sunday_came_count }} m
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted" style="font-size: 0.7rem;">0</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- ======================= RIGHT SIDE ======================= -->
@@ -230,57 +286,107 @@
                         <hr>
 
                         <!-- ======================= Monthly Attendance ======================= -->
-                        <h5 class="mb-3 text-uppercase bg-light p-2">
-                            <i class="mdi mdi-calendar-check me-1"></i> Attendance — {{ month_label }}
+                        <h5 class="mb-3 text-uppercase bg-light p-2 d-flex justify-content-between align-items-center">
+                            <span><i class="mdi mdi-calendar-check me-1"></i> Attendance — {{ month_label }}</span>
                         </h5>
 
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-centered table-striped">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Sana</th>
-                                        <th>Status</th>
-                                        <th>Kirish</th>
-                                        <th>Chiqish</th>
-                                        <th>Vaqt</th>
-                                        <th>Psixologiya</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for day in calendar_days %}
-                                    <tr>
-                                        <td>{{ day.date|date:"d.m.Y" }}</td>
-                                        <td>
-                                            {% if day.status == "present" %}
-                                                <span class="badge bg-soft-success text-success">Kelgan</span>
-                                            {% elif day.status == "exited" %}
-                                                <span class="badge bg-soft-warning text-warning">Chiqdi</span>
-                                            {% else %}
-                                                <span class="badge bg-soft-danger text-danger">Kelmagan</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ day.entry_time }}</td>
-                                        <td>{{ day.exit_time }}</td>
-                                        <td>{{ day.duration }} min</td>
-
-                                        <td>
-                                            {% if day.psychology %}
-                                                <span class="badge bg-soft-primary text-primary">
-                                                    {{ day.psychology.dominant_emotion|default:"—" }}
-                                                </span>
-                                                <br>
-                                                <small class="text-muted">
-                                                    Stress: {{ day.psychology.stress_level|floatformat:2 }}
-                                                    | Mood: {{ day.psychology.mood_score }}
-                                                </small>
-                                            {% else %}
-                                                <span class="text-muted">—</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
+                        <!-- Oy/Yil Tanlash va Statistika -->
+                        <form method="get" class="row g-2 align-items-center mb-3">
+                            {% if request.GET.id %}
+                                <input type="hidden" name="id" value="{{ request.GET.id }}">
+                            {% endif %}
+                            
+                            <div class="col-auto">
+                                <label class="form-label mb-0 fw-bold font-size-13 text-muted">Oy:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    {% for m in months_range %}
+                                        <option value="{{ m.val }}" {% if m.val == selected_month %}selected{% endif %}>{{ m.name }}</option>
                                     {% endfor %}
-                                </tbody>
-                            </table>
+                                </select>
+                            </div>
+                            
+                            <div class="col-auto">
+                                <label class="form-label mb-0 fw-bold font-size-13 text-muted">Yil:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    {% for y in years_range %}
+                                        <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col text-end">
+                                <span class="badge bg-soft-success text-success font-size-12 px-2 py-1 me-1 shadow-sm">
+                                    <i class="mdi mdi-check-circle-outline me-1"></i> Kelgan: {{ total_present }} marta
+                                </span>
+                                <span class="badge bg-soft-danger text-danger font-size-12 px-2 py-1 shadow-sm">
+                                    <i class="mdi mdi-close-circle-outline me-1"></i> Kelmagan: {{ total_absent }} marta
+                                </span>
+                            </div>
+                        </form>
+
+                        <!-- Kalendar Ko'rinishi -->
+                        <div class="calendar-grid mb-4">
+                            <!-- Haftalik kunlar sarlavhasi -->
+                            <div class="row g-2 text-center fw-bold text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                <div class="col text-truncate" style="flex: 1 0 14%;">Dushanba</div>
+                                <div class="col text-truncate" style="flex: 1 0 14%;">Seshanba</div>
+                                <div class="col text-truncate" style="flex: 1 0 14%;">Chorshanba</div>
+                                <div class="col text-truncate" style="flex: 1 0 14%;">Payshanba</div>
+                                <div class="col text-truncate" style="flex: 1 0 14%;">Juma</div>
+                                <div class="col text-truncate" style="flex: 1 0 14%;">Shanba</div>
+                                <div class="col text-truncate" style="flex: 1 0 14%;">Yakshanba</div>
+                            </div>
+                            
+                            <!-- Kalendar kunlari -->
+                            {% for week in calendar_weeks %}
+                            <div class="row g-2 mb-2">
+                                {% for day in week %}
+                                <div class="col" style="flex: 1 0 14%; min-width: 0;">
+                                    {% if day %}
+                                        <div class="card h-100 border {% if day.status == 'present' %}border-success{% elif day.status == 'exited' %}border-warning{% elif day.status == 'absent' %}border-danger{% else %}border-light{% endif %} p-2 position-relative shadow-none" 
+                                             style="background: {% if day.status == 'present' %}#f4fbf7{% elif day.status == 'exited' %}#fefaf3{% elif day.status == 'absent' %}#fdf5f5{% else %}#fafafa{% endif %}; min-height: 90px; border-radius: 8px;">
+                                            
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="fw-bold" style="font-size: 0.9rem; color: #495057;">{{ day.day }}</span>
+                                                {% if day.status == 'present' %}
+                                                    <span class="badge bg-success" style="font-size: 0.55rem; padding: 2px 4px;">Kelgan</span>
+                                                {% elif day.status == 'exited' %}
+                                                    <span class="badge bg-warning text-dark" style="font-size: 0.55rem; padding: 2px 4px;">Chiqdi</span>
+                                                {% elif day.status == 'absent' %}
+                                                    <span class="badge bg-danger" style="font-size: 0.55rem; padding: 2px 4px;">Kelmagan</span>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            {% if day.status == 'present' or day.status == 'exited' %}
+                                                <div class="text-muted mb-1" style="font-size: 0.65rem; line-height: 1.3;">
+                                                    <div class="text-truncate"><i class="mdi mdi-login text-success" style="font-size: 0.75rem;"></i> {{ day.entry_time }}</div>
+                                                    <div class="text-truncate"><i class="mdi mdi-logout text-danger" style="font-size: 0.75rem;"></i> {{ day.exit_time }}</div>
+                                                </div>
+                                            {% endif %}
+                                            
+                                            {% if day.psychology %}
+                                                <div class="mt-auto pt-1 border-top border-light border-opacity-50">
+                                                    <button type="button" class="btn btn-xs btn-outline-primary w-100 p-0 text-truncate font-size-10 d-flex align-items-center justify-content-center gap-1" 
+                                                            style="height: 18px; font-size: 0.6rem; border-radius: 4px;"
+                                                            onclick="showPsychologyModal('{{ day.date|date:'d.m.Y' }}', '{{ day.psychology.dominant_emotion|escapejs }}', '{{ day.psychology.stress_level|floatformat:2 }}', '{{ day.psychology.energy_level|floatformat:2 }}', '{{ day.psychology.mood_score }}', '{{ day.psychology.summary_text|escapejs }}', '{{ day.psychology.positive_ratio|floatformat:2 }}', '{{ day.psychology.negative_ratio|floatformat:2 }}', '{{ day.psychology.neutral_ratio|floatformat:2 }}')">
+                                                        <i class="mdi mdi-brain font-size-10"></i>
+                                                        <span>Tahlil</span>
+                                                    </button>
+                                                </div>
+                                            {% endif %}
+                                            
+                                        </div>
+                                    {% else %}
+                                        <div class="card h-100 border border-dashed bg-light bg-opacity-25 shadow-none" style="border-color: #eaeaea; min-height: 90px; opacity: 0.25; border-radius: 8px;"></div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
                         </div>
 
                     </div>
@@ -291,4 +397,124 @@
 
     </div>
 </div>
+
+<!-- Psychology Analysis Modal -->
+<div class="modal fade" id="psychologyModal" tabindex="-1" aria-labelledby="psychologyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header bg-primary text-white p-3">
+                <h5 class="modal-title d-flex align-items-center gap-2 text-white" id="psychologyModalLabel">
+                    <i class="mdi mdi-brain fs-4"></i>
+                    <span>Psixologik Tahlil: <span id="modal-date"></span></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row text-center mb-3">
+                    <div class="col-6 border-end">
+                        <small class="text-muted d-block text-uppercase font-size-10 fw-bold" style="letter-spacing: 0.5px;">Ustun Hissiyot</small>
+                        <span class="badge bg-soft-primary text-primary fs-6 px-3 py-1 mt-1 font-size-14 text-capitalize" id="modal-emotion">Neutral</span>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block text-uppercase font-size-10 fw-bold" style="letter-spacing: 0.5px;">Kayfiyat Balli</small>
+                        <span class="fw-bold fs-4 text-dark mt-1 d-block" id="modal-mood">85</span>
+                    </div>
+                </div>
+                
+                <hr class="my-3 opacity-25">
+                
+                <!-- Progress Bars for Metrics -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="font-size-12 fw-bold text-muted"><i class="mdi mdi-alert-circle-outline me-1 text-danger"></i>Stress Darajasi</span>
+                        <span class="font-size-12 fw-bold text-dark" id="modal-stress-text">24%</span>
+                    </div>
+                    <div class="progress" style="height: 6px; border-radius: 3px;">
+                        <div class="progress-bar bg-danger" id="modal-stress-bar" role="progressbar" style="width: 24%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="font-size-12 fw-bold text-muted"><i class="mdi mdi-flash-outline me-1 text-warning"></i>Energiya Darajasi</span>
+                        <span class="font-size-12 fw-bold text-dark" id="modal-energy-text">75%</span>
+                    </div>
+                    <div class="progress" style="height: 6px; border-radius: 3px;">
+                        <div class="progress-bar bg-warning" id="modal-energy-bar" role="progressbar" style="width: 75%"></div>
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-3 text-center">
+                    <div class="col-4">
+                        <div class="p-2 border rounded" style="background: #f4fbf7;">
+                            <small class="text-muted font-size-10 d-block">Ijobiy (Pos)</small>
+                            <span class="fw-bold text-success font-size-12" id="modal-pos">70%</span>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 border rounded" style="background: #fafafa;">
+                            <small class="text-muted font-size-10 d-block">Neytral (Neu)</small>
+                            <span class="fw-bold text-secondary font-size-12" id="modal-neu">20%</span>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 border rounded" style="background: #fdf5f5;">
+                            <small class="text-muted font-size-10 d-block">Salbiy (Neg)</small>
+                            <span class="fw-bold text-danger font-size-12" id="modal-neg">10%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-3 opacity-25">
+
+                <div>
+                    <h6 class="fw-bold text-muted mb-2 font-size-12 text-uppercase"><i class="mdi mdi-text-long me-1"></i>AI Psixologik Tavsif:</h6>
+                    <div class="p-3 border bg-light rounded font-size-13 text-dark" id="modal-summary" style="line-height: 1.5; font-style: italic;">
+                        Foydalanuvchi joriy kunda xotirjam va ijobiy kayfiyatda bo‘lgan. Stress alomatlari kuzatilmadi.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light p-2 border-top border-light border-opacity-50">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Yopish</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showPsychologyModal(date, emotion, stress, energy, mood, summary, positive, negative, neutral) {
+    document.getElementById('modal-date').textContent = date;
+    
+    const emotionMap = {
+        'happy': 'Quvnoq / Shod',
+        'sad': 'Mahzun / G‘amgin',
+        'angry': 'G‘azablangan',
+        'neutral': 'Neytral / Xotirjam',
+        'surprised': 'Hayratlangan',
+        'fear': 'Qo‘rquv',
+        'disgust': 'Nafrat'
+    };
+    const translatedEmotion = emotionMap[emotion.toLowerCase()] || emotion;
+    document.getElementById('modal-emotion').textContent = translatedEmotion;
+    
+    document.getElementById('modal-mood').textContent = mood;
+    
+    const stressPercent = Math.round(parseFloat(stress) * 100);
+    document.getElementById('modal-stress-text').textContent = stressPercent + '%';
+    document.getElementById('modal-stress-bar').style.width = stressPercent + '%';
+    
+    const energyPercent = Math.round(parseFloat(energy) * 100);
+    document.getElementById('modal-energy-text').textContent = energyPercent + '%';
+    document.getElementById('modal-energy-bar').style.width = energyPercent + '%';
+    
+    document.getElementById('modal-pos').textContent = Math.round(parseFloat(positive) * 100) + '%';
+    document.getElementById('modal-neu').textContent = Math.round(parseFloat(neutral) * 100) + '%';
+    document.getElementById('modal-neg').textContent = Math.round(parseFloat(negative) * 100) + '%';
+    
+    document.getElementById('modal-summary').textContent = summary || "Ushbu kun uchun batafsil tavsif berilmagan.";
+    
+    const myModal = new bootstrap.Modal(document.getElementById('psychologyModal'));
+    myModal.show();
+}
+</script>
 {% endblock content %}

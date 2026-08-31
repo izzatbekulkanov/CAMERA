@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load static %}
+{% load static i18n image_extras %}
 
 {% block title %}Bugungi Davomat – NamDPI{% endblock %}
 
@@ -12,7 +12,26 @@
         width: 44px;
         height: 44px;
         border-radius: 50%;
-        object-fit: cover;
+        object-fit: cover; object-position: top;
+    }
+
+    .smart-lazy-image {
+        background: linear-gradient(90deg, #eef2f7 25%, #f8fafc 37%, #eef2f7 63%);
+        background-size: 400% 100%;
+        animation: smartImageSkeleton 1.15s ease infinite;
+    }
+    .smart-lazy-image.is-loaded {
+        background: transparent;
+        animation: none;
+    }
+    .smart-lazy-image.is-error {
+        animation: none;
+        background: #f1f3f5;
+        opacity: .55;
+    }
+    @keyframes smartImageSkeleton {
+        0% { background-position: 100% 0; }
+        100% { background-position: 0 0; }
     }
 
     /* ===== Photo stack preview ===== */
@@ -20,7 +39,7 @@
         width: 38px;
         height: 38px;
         border-radius: 10px;
-        object-fit: cover;
+        object-fit: cover; object-position: top;
         cursor: pointer;
         margin-left: -12px;
         border: 2px solid #fff;
@@ -48,11 +67,7 @@
         box-shadow: 0 6px 16px rgba(0,0,0,0.18);
     }
 
-    /* ===== Filter panel mobile friendly ===== */
-    .filter-card .form-control,
-    .filter-card .form-select {
-        border-radius: 12px;
-    }
+    
 
     /* Small improvements for mobile table */
     @media (max-width: 768px) {
@@ -88,12 +103,37 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid">
 
     {% include 'includes/breadcrumbs.html' with breadcrumbs=breadcrumbs %}
 
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0">Bugungi Davomat</h4>
+            <small class="text-muted">Foydalanuvchilarning kirish, chiqish va hududdagi holatini kuzatish (Face ID)</small>
+        </div>
+    </div>
+
+
+    {% if unknown_count > 0 %}
+    <div class="alert alert-danger border-0 shadow-sm d-flex align-items-center justify-content-between rounded-3 mb-3 p-3 flex-wrap gap-2" role="alert" style="background: rgba(239, 83, 80, 0.08); border-left: 4px solid #ef5350 !important;">
+        <div class="d-flex align-items-center gap-2">
+            <i class="mdi mdi-alert-decagram text-danger" style="font-size: 24px;"></i>
+            <div>
+                <h6 class="alert-heading mb-1 text-danger fw-bold">{% trans "Tizimda begona shaxslar aniqlandi!" %}</h6>
+                <p class="mb-0 text-dark" style="font-size: 13px;">
+                    {% trans "Institut binosiga shaxsi tasdiqlanmagan" %} <strong>{{ unknown_count }} {% trans "ta yangi begona shaxs" %}</strong> {% trans "kirdi. Iltimos, ularning shaxsini aniqlab, guruhlarga bog'lang." %}
+                </p>
+            </div>
+        </div>
+        <a href="{% url 'unknown_clusters_list' %}" class="btn btn-danger btn-sm fw-bold d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="mdi mdi-eye"></i> {% trans "Begonalarni ko'rish" %}
+        </a>
+    </div>
+    {% endif %}
+
     <!-- ✅ FILTER PANEL -->
-    <div class="card border-0 shadow mb-3 filter-card">
+    <div class="card shadow-sm border mb-3 filter-card">
         <div class="card-body py-3">
             <form method="get" class="row g-2 align-items-end">
 
@@ -150,7 +190,7 @@
                 </div>
 
                 <div class="col-12 col-md-1 d-flex gap-2">
-                    <button type="submit" class="btn btn-dark btn-sm w-100 rounded-3">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
                         Izlash
                     </button>
                 </div>
@@ -160,8 +200,8 @@
     </div>
 
     <!-- Asosiy card -->
-    <div class="card border-0 shadow">
-        <div class="card-header bg-white border-bottom py-3">
+    <div class="card shadow-sm border">
+        <div class="card-header bg-transparent border-bottom py-3">
             <h5 class="mb-0 text-muted fw-bold d-flex align-items-center justify-content-between">
                 <span>Davomat • {{ today|date:"d F Y" }}</span>
                 <small class="text-muted">Jami: {{ paginator.count }} nafar</small>
@@ -179,8 +219,8 @@
                         <th>Chiqish</th>
                         <th>Oxirgi ko‘rilgan</th>
                         <th>Hozirda</th>
-                        <th>Vaqt (daq)</th>
-                        <th>Rasmlar</th>
+                        <th>Davomiyligi</th>
+                        <th class="text-center">Harakatlar</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -192,8 +232,26 @@
                         </td>
 
                         <td class="td-avatar" data-label="Foydalanuvchi">
-                            <img src="{% if att.user.image %}{{ att.user.image.url }}{% else %}{% static 'assets/images/users/default-avatar.png' %}{% endif %}"
-                                 class="user-avatar shadow-sm">
+                            {% if att.user.image %}
+                                <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="
+                                     data-src="{{ att.user.image|thumb:'avatar' }}"
+                                     data-fallback="{% static 'assets/images/users/default-avatar.png' %}"
+                                     data-smart-img
+                                     class="user-avatar shadow-sm smart-lazy-image"
+                                     width="44"
+                                     height="44"
+                                     alt="{{ att.user.full_name|default:att.user.username }}"
+                                     loading="lazy"
+                                     decoding="async">
+                            {% else %}
+                                <img src="{% static 'assets/images/users/default-avatar.png' %}"
+                                     class="user-avatar shadow-sm is-loaded"
+                                     width="44"
+                                     height="44"
+                                     alt="{{ att.user.full_name|default:att.user.username }}"
+                                     loading="lazy"
+                                     decoding="async">
+                            {% endif %}
                         </td>
 
                         <td class="fw-semibold" data-label="F.I.O">
@@ -207,18 +265,33 @@
 
                         <td class="text-center" data-label="Kirish">
                             {% if att.entry_time %}
-                                <span class="badge bg-success">{{ att.entry_time|time:"H:i" }}</span>
+                                <span class="badge bg-soft-success text-success fw-semibold font-size-12">{{ att.entry_time|time:"H:i" }}</span>
+                                {% if att.entry_camera %}
+                                    <div class="small text-muted mt-1" style="font-size: 11px;">
+                                        <i class="fas fa-video fa-xs opacity-75"></i> {{ att.entry_camera.name }}
+                                    </div>
+                                {% endif %}
                             {% else %}–{% endif %}
                         </td>
 
                         <td class="text-center" data-label="Chiqish">
                             {% if att.exit_time %}
-                                <span class="badge bg-danger">{{ att.exit_time|time:"H:i" }}</span>
+                                <span class="badge bg-soft-danger text-danger fw-semibold font-size-12">{{ att.exit_time|time:"H:i" }}</span>
+                                {% if att.exit_camera %}
+                                    <div class="small text-muted mt-1" style="font-size: 11px;">
+                                        <i class="fas fa-video fa-xs opacity-75"></i> {{ att.exit_camera.name }}
+                                    </div>
+                                {% endif %}
                             {% else %}–{% endif %}
                         </td>
 
                         <td class="text-center small text-muted" data-label="Oxirgi ko‘rilgan">
                             {{ att.last_seen|time:"H:i:s" }}
+                            {% if att.last_seen_camera %}
+                                <div class="mt-1" style="font-size: 10px;">
+                                    <i class="fas fa-video fa-xs opacity-75"></i> {{ att.last_seen_camera.name }}
+                                </div>
+                            {% endif %}
                         </td>
 
                         <td class="text-center" data-label="Hozirda">
@@ -229,30 +302,97 @@
                             {% endif %}
                         </td>
 
-                        <td class="text-center" data-label="Vaqt (daq)">
-                            <strong class="text-primary">{{ att.duration_minutes|default:"0" }}</strong>
-                        </td>
-
-                        <!-- ✅ Rasmlar (PhotoSwipe) -->
-                        <td class="text-center" data-label="Rasmlar">
-                            {% if att.photos.all %}
-                                <div class="d-inline-flex position-relative photo-stack pswp-gallery" id="gallery-{{ att.id }}">
-                                    {% for photo in att.photos.all|slice:":4" %}
-                                        <a href="{{ photo.image.url }}"
-                                           data-pswp-width="1200"
-                                           data-pswp-height="800"
-                                           target="_blank">
-                                            <img src="{{ photo.image.url }}" alt="photo">
-                                        </a>
-                                    {% endfor %}
-                                    {% if att.photos.all|length > 4 %}
-                                        <span class="photo-more">+{{ att.photos.all|length|add:"-4" }}</span>
-                                    {% endif %}
-                                </div>
+                        <td class="text-center" data-label="Davomiyligi">
+                            {% if att.is_present and att.entry_time %}
+                                <strong class="text-primary live-duration font-monospace" data-date="{{ att.date|date:'Y-m-d' }}" data-time="{{ att.entry_time|time:'H:i:s' }}" style="font-size: 13px;">
+                                    {{ att.duration_minutes|default:"0" }} daq
+                                </strong>
                             {% else %}
-                                <span class="text-muted small">–</span>
+                                <strong class="text-secondary" style="font-size: 13px;">
+                                    {{ att.duration_minutes|default:"0" }} daq
+                                </strong>
                             {% endif %}
                         </td>
+
+                        <!-- ✅ Harakatlar (Modal) -->
+                        <td class="text-center" data-label="Harakatlar">
+                            <button type="button" class="btn btn-sm btn-soft-primary" data-bs-toggle="modal" data-bs-target="#actionModal{{ att.id }}">
+                                <i class="mdi mdi-format-list-bulleted me-1"></i> Tarix
+                            </button>
+                        </td>
+
+                        <!-- Harakatlar Modali -->
+                        <div class="modal fade text-start" id="actionModal{{ att.id }}" tabindex="-1" aria-labelledby="actionModalLabel{{ att.id }}" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header bg-light border-bottom-0">
+                                        <h5 class="modal-title font-size-15 fw-bold" id="actionModalLabel{{ att.id }}">
+                                            <i class="mdi mdi-clock-outline text-primary me-1"></i> {{ att.user.get_full_name|default:att.user.username }} – Bugungi harakatlar
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body p-0">
+                                        <!-- Psychological Profile -->
+                                        {% if att.has_psychology %}
+                                        <div class="bg-soft-info p-3 border-bottom">
+                                            <h6 class="mb-2 font-size-13 fw-bold text-info"><i class="mdi mdi-brain me-1"></i> Psixologik Analiz</h6>
+                                            <p class="mb-2 text-muted font-size-13">{{ att.psychology.summary_text|default:"Tahlil qilinmoqda..." }}</p>
+                                            <div class="d-flex gap-3 font-size-12">
+                                                <span><strong class="text-dark">Kayfiyat:</strong> <span class="text-primary">{{ att.psychology.mood_score|default:"0" }}%</span></span>
+                                                <span><strong class="text-dark">Stress:</strong> <span class="text-danger">{{ att.psychology.stress_level|floatformat:2|default:"0" }}</span></span>
+                                                <span><strong class="text-dark">Energiya:</strong> <span class="text-warning">{{ att.psychology.energy_level|floatformat:2|default:"0" }}</span></span>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <!-- Timeline -->
+                                        <div class="p-3">
+                                            <h6 class="font-size-13 fw-bold mb-3"><i class="mdi mdi-camera-timer text-secondary me-1"></i> O'tishlar tarixi ({{ att.daily_face_logs|length }} ta)</h6>
+                                            <ul class="list-group list-group-flush border-top pswp-gallery" id="gallery-modal-{{ att.id }}">
+                                                {% for log in att.daily_face_logs %}
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-3 border-bottom">
+                                                    <div class="d-flex align-items-center gap-3">
+                                                        {% if log.face_image %}
+                                                            <a href="{{ log.face_image.url }}" class="lightbox-link" title="O'tish: {{ log.captured_at|time:'H:i:s' }}">
+                                                                <img src="{{ log.face_image.url }}" alt="img" class="rounded shadow-sm" style="width: 48px; height: 48px; object-fit: cover; object-position: top;">
+                                                            </a>
+                                                        {% else %}
+
+                                                            <div class="rounded bg-light d-flex align-items-center justify-content-center text-muted" style="width: 48px; height: 48px;">
+                                                                <i class="mdi mdi-account"></i>
+                                                            </div>
+                                                        {% endif %}
+                                                        <div>
+                                                            <div class="fw-bold font-size-14 text-dark">{{ log.captured_at|time:"H:i:s" }}</div>
+                                                            <div class="text-muted font-size-12 mt-1">
+                                                                <i class="mdi mdi-cctv text-secondary"></i> 
+                                                                {% if log.camera %}
+                                                                    {{ log.camera.name|default:log.camera.ip }}
+                                                                {% else %}
+                                                                    Noma'lum
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <span class="badge bg-soft-success text-success fw-semibold"><i class="mdi mdi-check-circle-outline"></i> {{ log.confidence|floatformat:2|default:"1.0" }}</span>
+                                                    </div>
+                                                </li>
+                                                {% empty %}
+                                                <li class="list-group-item text-center text-muted py-4 border-bottom-0">
+                                                    <i class="mdi mdi-camera-off fa-2x mb-2 opacity-50"></i><br>
+                                                    Tafsilotlar saqlanmagan
+                                                </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer bg-light border-top-0">
+                                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Yopish</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                     </tr>
                     {% empty %}
@@ -269,7 +409,7 @@
 
         <!-- ✅ Pagination -->
         {% if is_paginated %}
-        <div class="card-footer bg-white border-top py-3">
+        <div class="card-footer bg-transparent border-top py-3">
             <nav aria-label="Attendance pagination">
                 <ul class="pagination justify-content-center mb-0">
 
@@ -325,23 +465,63 @@
 <script type="module">
 import PhotoSwipeLightbox from "https://cdn.jsdelivr.net/npm/photoswipe@5.4.4/dist/photoswipe-lightbox.esm.min.js";
 
-// Dinamik ravishda har bir rasmning asl o'lchamini aniqlab atributlarni yangilaymiz
-const updatePhotoDimensions = () => {
-    const links = document.querySelectorAll('.pswp-gallery a');
-    links.forEach(link => {
-        const img = new Image();
-        img.src = link.getAttribute('href');
-        img.onload = () => {
-            link.setAttribute('data-pswp-width', img.naturalWidth);
-            link.setAttribute('data-pswp-height', img.naturalHeight);
-        };
-    });
+const bootSmartImages = () => {
+    const images = Array.from(document.querySelectorAll('img[data-smart-img]'));
+    const queue = images.filter(img => img.dataset.src);
+    const maxParallel = 6;
+    let active = 0;
+
+    const next = () => {
+        while (active < maxParallel && queue.length > 0) {
+            const img = queue.shift();
+            if (!img || img.classList.contains('is-loaded')) continue;
+
+            active += 1;
+            const src = img.dataset.src;
+            const ticket = `${Date.now()}-${Math.random()}`;
+            img.dataset.loadTicket = ticket;
+
+            const probe = new Image();
+            probe.decoding = 'async';
+            probe.onload = () => {
+                if (img.dataset.loadTicket === ticket) {
+                    img.src = src;
+                    img.classList.add('is-loaded');
+                    img.classList.remove('is-error');
+                }
+                active -= 1;
+                next();
+            };
+            probe.onerror = () => {
+                const tries = Number(img.dataset.retryCount || '0');
+                if (tries < 2) {
+                    img.dataset.retryCount = String(tries + 1);
+                    const sep = src.includes('?') ? '&' : '?';
+                    img.dataset.src = `${src}${sep}retry=${Date.now()}`;
+                    queue.push(img);
+                } else {
+                    const fallback = img.dataset.fallback;
+                    if (fallback) {
+                        img.src = fallback;
+                        img.classList.add('is-loaded');
+                    } else {
+                        img.classList.add('is-error');
+                    }
+                }
+                active -= 1;
+                window.setTimeout(next, 120);
+            };
+            probe.src = src;
+        }
+    };
+
+    next();
 };
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', updatePhotoDimensions);
+    document.addEventListener('DOMContentLoaded', bootSmartImages, { once: true });
 } else {
-    updatePhotoDimensions();
+    bootSmartImages();
 }
 
 const lightbox = new PhotoSwipeLightbox({
@@ -350,5 +530,35 @@ const lightbox = new PhotoSwipeLightbox({
     pswpModule: () => import("https://cdn.jsdelivr.net/npm/photoswipe@5.4.4/dist/photoswipe.esm.min.js")
 });
 lightbox.init();
+
+// Live duration timer
+const updateDurations = () => {
+    document.querySelectorAll('.live-duration').forEach(el => {
+        const dateStr = el.getAttribute('data-date');
+        const timeStr = el.getAttribute('data-time');
+        if (!dateStr || !timeStr) return;
+        
+        // Parse the start time (assuming local timezone)
+        const startTime = new Date(`${dateStr}T${timeStr}`);
+        const now = new Date();
+        
+        let diff = Math.floor((now - startTime) / 1000);
+        if (diff < 0) diff = 0;
+        
+        const hours = Math.floor(diff / 3600);
+        const minutes = Math.floor((diff % 3600) / 60);
+        const seconds = diff % 60;
+        
+        let text = "";
+        if (hours > 0) text += `${hours} s, `;
+        text += `${minutes} d, ${seconds} son`;
+        
+        el.textContent = text;
+    });
+};
+
+setInterval(updateDurations, 1000);
+updateDurations();
+
 </script>
 {% endblock %}

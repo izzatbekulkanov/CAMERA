@@ -1,0 +1,422 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block styles %}
+    <link href="{% static 'assets/libs/select2/css/select2.min.css' %}" rel="stylesheet" type="text/css"/>
+    <link href="{% static 'assets/libs/sweetalert2/sweetalert2.min.css' %}" rel="stylesheet">
+    <link href="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.css' %}" rel="stylesheet" type="text/css"/>
+
+    <style>
+        /* ====== TOP STATS (1 qatorda, scroll) ====== */
+        .stats-row {
+            display: flex;
+            gap: .75rem;
+            overflow-x: auto;
+            padding-bottom: .25rem;
+            scroll-snap-type: x mandatory;
+        }
+
+        .stats-row::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .stats-row::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, .15);
+            border-radius: 8px;
+        }
+
+        .stat-card {
+            min-width: 210px;
+            flex: 0 0 auto;
+            scroll-snap-align: start;
+        }
+
+        .stat-icon {
+            width: 42px;
+            height: 42px;
+        }
+    </style>
+{% endblock styles %}
+
+{% block title %}
+    Talabalar ro'yxati
+{% endblock title %}
+
+{% block content %}
+    <div class="container-fluid">
+
+        {% include 'includes/breadcrumbs.html' %}
+
+        <!-- ====== TOP STATS ====== -->
+        <div class="mb-3">
+            <div class="stats-row">
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Jami talabalar</div>
+                                <div class="h4 mb-0 fw-bold text-primary">{{ total_count }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-light d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-school text-primary fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Face ✅</div>
+                                <div class="h4 mb-0 fw-bold text-success">{{ users_with_face }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-success d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-face-recognition text-success fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Face ❌</div>
+                                <div class="h4 mb-0 fw-bold text-danger">{{ users_without_face }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-danger d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-face-recognition text-danger fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Telegram ✅</div>
+                                <div class="h4 mb-0 fw-bold text-info">{{ users_with_tg }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-info d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-telegram text-info fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 stat-card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small">Telegram ❌</div>
+                                <div class="h4 mb-0 fw-bold text-warning">{{ users_without_tg }}</div>
+                            </div>
+                            <div class="stat-icon rounded bg-soft-warning d-flex align-items-center justify-content-center">
+                                <i class="mdi mdi-telegram text-warning fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="small text-muted mt-1">
+                <i class="mdi mdi-swap-horizontal me-1"></i> Kartalarni yon tomonga surib ko‘ring
+            </div>
+        </div>
+        <!-- ====== END TOP STATS ====== -->
+
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+
+                        <!-- ✅ FILTER BAR -->
+                        <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+                             <form method="get" class="d-flex align-items-center flex-wrap gap-2 m-0 p-0">
+                                 <input type="text"
+                                        name="q"
+                                        class="form-control form-control-sm"
+                                        style="width:220px;"
+                                        placeholder="Qidirish..."
+                                        value="{{ search_query }}">
+
+                                 <select name="academic_group"
+                                         class="form-select form-select-sm select2"
+                                         style="width:180px;">
+                                     <option value="">Guruh tanlang...</option>
+                                     {% for group in academic_groups %}
+                                         <option value="{{ group.id }}" {% if group.id|stringformat:"s" == selected_academic_group_id %}selected{% endif %}>
+                                             {{ group.name }}
+                                         </option>
+                                     {% endfor %}
+                                 </select>
+
+                                 <button type="submit" class="btn btn-primary btn-sm">
+                                     <i class="mdi mdi-magnify me-1"></i> Qidirish
+                                 </button>
+
+                                 {% if search_query or selected_academic_group_id %}
+                                     <a href="{% url 'students_list' %}" class="btn btn-outline-secondary btn-sm" title="Tozalash">
+                                         <i class="mdi mdi-restore"></i>
+                                     </a>
+                                 {% endif %}
+                             </form>
+
+                             <a href="{% url 'import_users' %}" class="btn btn-light btn-sm ms-md-auto">
+                                 <i class="mdi mdi-upload me-1"></i> Yuklash
+                             </a>
+                         </div>
+                        <!-- ✅ END FILTER BAR -->
+
+
+                        <!-- ✅ USERS TABLE -->
+                        <div class="table-responsive">
+                            <table class="table table-centered table-nowrap table-striped">
+                                <thead class="table-light">
+                                <tr>
+                                    <th style="width:60px;">#</th>
+                                    <th>Talaba</th>
+                                    <th>Talaba ID</th>
+                                    <th>Guruh / Fakultet</th>
+                                    <th>Telegram</th>
+                                    <th>Yuz ma’lumoti</th>
+                                    <th>Yaratilgan</th>
+                                    <th>Holat</th>
+                                    <th style="width:90px;">Amallar</th>
+                                </tr>
+                                </thead>
+
+                                <tbody>
+                                {% for user in users %}
+                                    <tr>
+
+                                        <td>
+                                            {% if page_obj %}
+                                                {{ forloop.counter0|add:page_obj.start_index }}
+                                            {% else %}
+                                                {{ forloop.counter }}
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- ✅ User main info -->
+                                        <td class="table-user">
+                                            {% if user.image %}
+                                                <img src="{{ user.image.url }}" class="me-2 rounded-circle" width="40"
+                                                     height="40" alt="user">
+                                            {% else %}
+                                                <img src="{% static 'assets/images/users/default-avatar.png' %}"
+                                                     class="me-2 rounded-circle" width="40" height="40" alt="user">
+                                            {% endif %}
+                                            <span class="text-body fw-semibold">{{ user.full_name|default:user.username }}</span><br>
+                                            <small class="text-muted">{{ user.email|default:"—" }}</small>
+                                        </td>
+
+                                        <!-- ✅ Student ID -->
+                                        <td>
+                                            <span class="badge bg-soft-secondary text-dark">
+                                                {{ user.student_id_number|default:"—" }}
+                                            </span>
+                                        </td>
+
+                                        <!-- ✅ Guruh / Fakultet -->
+                                        <td>
+                                            {% if user.academic_group %}
+                                                <div><strong>{{ user.academic_group.name }}</strong></div>
+                                                {% if user.academic_group.faculty %}
+                                                    <small class="text-muted">{{ user.academic_group.faculty.name }}</small>
+                                                {% endif %}
+                                            {% else %}
+                                                {% if user.group_name %}
+                                                    <div><strong>{{ user.group_name }}</strong></div>
+                                                {% else %}
+                                                    <span class="text-muted">—</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- ✅ Telegram status -->
+                                        <td>
+                                            {% if user.has_telegram %}
+                                                <span class="badge bg-soft-success text-success">
+                                                    ✅ Bog‘langan
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-soft-danger text-danger">
+                                                    ❌ Yo‘q
+                                                </span>
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- ✅ Face status -->
+                                        <td>
+                                            {% if user.has_face_encoding %}
+                                                <span class="badge bg-soft-success text-success">✅ Bor</span>
+                                            {% else %}
+                                                <span class="badge bg-soft-danger text-danger">❌ Yo‘q</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>{{ user.created_at|date:"d.m.Y" }}</td>
+
+                                        <td>
+                                            {% if user.active %}
+                                                <span class="badge bg-soft-success text-success">Faol</span>
+                                            {% else %}
+                                                <span class="badge bg-soft-danger text-danger">Nofaol</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            <a href="{% url 'profile' %}?id={{ user.id }}"
+                                               class="action-icon text-primary">
+                                                <i class="mdi mdi-square-edit-outline"></i>
+                                            </a>
+
+                                            <a href="javascript:void(0)"
+                                               class="action-icon text-danger delete-user-btn"
+                                               data-user-id="{{ user.id }}"
+                                               data-user-name="{{ user.full_name|default:user.username|escapejs }}">
+                                                <i class="mdi mdi-delete-forever"></i>
+                                            </a>
+                                        </td>
+
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted py-3">
+                                            Talabalar mavjud emas
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- ✅ PAGINATION -->
+                        {% if page_obj %}
+                            <div class="d-flex justify-content-end mt-3">
+                                <ul class="pagination pagination-rounded mb-0">
+
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?{{ base_qs }}&page={{ page_obj.previous_page_number }}">«</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled"><span class="page-link">«</span></li>
+                                    {% endif %}
+
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if num == page_obj.number %}
+                                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?{{ base_qs }}&page={{ num }}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?{{ base_qs }}&page={{ page_obj.next_page_number }}">»</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled"><span class="page-link">»</span></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                        <!-- ✅ END PAGINATION -->
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block scripts %}
+    <script src="{% static 'assets/libs/select2/js/select2.min.js' %}"></script>
+    <script src="{% static 'assets/libs/sweetalert2/sweetalert2.min.js' %}"></script>
+    <script src="{% static 'assets/libs/jquery-toast-plugin/jquery.toast.min.js' %}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Guruh qidirish uchun Select2 ni faollashtirish
+            $('.select2').select2({
+                placeholder: "Guruh tanlang...",
+                allowClear: true
+            }).on('change', function () {
+                $(this).closest('form').submit();
+            });
+
+            const deleteButtons = document.querySelectorAll('.delete-user-btn');
+
+            deleteButtons.forEach(btn => {
+                const userId = btn.dataset.userId;
+                const userName = btn.dataset.userName;
+
+                btn.addEventListener('click', function () {
+                    Swal.fire({
+                        title: "Diqqat!",
+                        html: `<strong>${userName}</strong> ni butunlay o‘chirmoqchimisiz?`,
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#d33",
+                        cancelButtonColor: "#3085d6",
+                        confirmButtonText: "Ha, o‘chir!",
+                        cancelButtonText: "Bekor qilish",
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (!result.isConfirmed) return;
+
+                        fetch(`/users/delete-permanently/${userId}/`, {
+                            method: "POST",
+                            headers: {
+                                "X-Requested-With": "XMLHttpRequest",
+                                "X-CSRFToken": "{{ csrf_token }}"
+                            }
+                        })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data.success) {
+                                    $.toast({
+                                        heading: "Muvaffaqiyatli",
+                                        text: `${userName} o‘chirildi!`,
+                                        icon: "success",
+                                        position: "top-right",
+                                        hideAfter: 4000
+                                    });
+                                    setTimeout(() => location.reload(), 1200);
+                                } else {
+                                    $.toast({
+                                        heading: "Xato",
+                                        text: data.message || "O‘chirishda xatolik.",
+                                        icon: "error",
+                                        position: "top-right",
+                                        hideAfter: 6000
+                                    });
+                                }
+                            })
+                            .catch(() => {
+                                $.toast({
+                                    heading: "Ulanish xatosi",
+                                    text: "Serverga ulanishda xatolik.",
+                                    icon: "error",
+                                    position: "top-right",
+                                    hideAfter: 6000
+                                });
+                            });
+                    });
+                });
+            });
+
+        });
+    </script>
+{% endblock scripts %}

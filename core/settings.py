@@ -14,12 +14,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # 🔹 Asosiy sozlamalar
 # ===============================
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-default-key")
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-# Go2RTC (HTTP relay) va WS toggles
-GO2RTC_BASE_URL = os.getenv("GO2RTC_BASE_URL", "http://10.10.0.48:1984")
-GO2RTC_MJPEG_PATH = os.getenv("GO2RTC_MJPEG_PATH", "/api/stream.mjpeg")
+# go2rtc sozlamalari (ZLMediaKit o'rniga)
+GO2RTC_API_URL = os.getenv("GO2RTC_API_URL", "http://127.0.0.1:1984")
+GO2RTC_RTSP_PORT = int(os.getenv("GO2RTC_RTSP_PORT", 8554))
 ENABLE_WS = os.getenv("ENABLE_WS", "False") == "True"
+
+# Orqaga moslik uchun (eski kod bilan)
+ZLMEDIAKIT_API_URL = GO2RTC_API_URL
+ZLMEDIAKIT_SECRET = ""
+ZLMEDIAKIT_RTSP_PORT = GO2RTC_RTSP_PORT
 
 # ALLOWED_HOSTS
 ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()]
@@ -49,6 +54,7 @@ INSTALLED_APPS = [
 
     # 3rd-party apps
     'channels',
+    'corsheaders',
     # 'rosetta',
 ]
 
@@ -57,8 +63,10 @@ INSTALLED_APPS = [
 # ===============================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # 'whitenoise.middleware.WhiteNoiseMiddleware',  # Development uchun o'chirilgan
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'core.middleware.DefaultLanguageMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -67,9 +75,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# Development uchun oddiy storage
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
-# Production: 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# WhiteNoise compressed storage for production static files serving (gzip/brotli)
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 ROOT_URLCONF = 'core.urls'
 
@@ -111,6 +118,7 @@ if DBTYPE == 'P':
             'PASSWORD': os.getenv('DB_PASSWORD', 'admin1231'),
             'HOST': os.getenv('DB_HOST', '127.0.0.1'),
             'PORT': os.getenv('DB_PORT', '5432'),
+            'CONN_MAX_AGE': 0,  # Disable persistent connections to prevent connection leaks in Channels/ASGI
         }
     }
 else:
@@ -157,6 +165,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+DATA_UPLOAD_MAX_MEMORY_SIZE = 250 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -208,3 +218,26 @@ CACHES = {
         'LOCATION': 'unique-snowflake',
     }
 }
+
+# ===============================
+# 🔹 CORS
+# ===============================
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+# Allow iframe embedding for previews on same domain
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+# Reverse Proxy (Nginx SSL) sozlamalari
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+
+# Subdomain-lararo umumiy sessiya kukisi (.namspi.uz)
+if not DEBUG and not any(h.startswith(('127.0.0.1', 'localhost')) for h in ALLOWED_HOSTS if h != '*'):
+    SESSION_COOKIE_DOMAIN = '.namspi.uz'
+    CSRF_COOKIE_DOMAIN = '.namspi.uz'
+
+
+
+
