@@ -859,11 +859,11 @@ class RedisCommandBridge:
                 client.ping()
 
                 pubsub = client.pubsub(ignore_subscribe_messages=True)
-                pubsub.psubscribe("bioface:cmd:*")
+                pubsub.psubscribe("smartgate:cmd:*")
                 self._set_state(True, None)
                 print(
                     f"[ISUP SDK] Redis bridge connected: {self.redis_host}:{self.redis_port}, "
-                    "subscribed to bioface:cmd:*"
+                    "subscribed to smartgate:cmd:*"
                 )
 
                 # Bitta sekin buyruq boshqalarini to'sib qo'ymasligi uchun
@@ -878,10 +878,10 @@ class RedisCommandBridge:
                         continue
 
                     channel = str(message.get("channel") or "")
-                    if not channel.startswith("bioface:cmd:"):
+                    if not channel.startswith("smartgate:cmd:"):
                         continue
 
-                    device_id = channel.split("bioface:cmd:", 1)[1].strip()
+                    device_id = channel.split("smartgate:cmd:", 1)[1].strip()
                     if executor is None:
                         response_payload = self._dispatch(device_id, message.get("data"))
                         self._publish_response(device_id, response_payload)
@@ -925,7 +925,7 @@ class RedisCommandBridge:
         self._publish_response(device_id, response_payload)
 
     def _publish_response(self, device_id: str, response_payload: dict[str, Any]) -> None:
-        response_channel = f"bioface:resp:{device_id}"
+        response_channel = f"smartgate:resp:{device_id}"
         client = None
         try:
             client = redis.Redis(
